@@ -12,10 +12,11 @@ RUN mkdir -p $HOME/.R/ \
     && echo "CXXFLAGS=-O3 -mtune=native -march=native -Wno-unused-variable -Wno-unused-function -flto -ffat-lto-objects  -Wno-unused-local-typedefs \n" >> $HOME/.R/Makevars
 
 # Config for rstudio user
-RUN mkdir -p $HOME/.R/ \
-    && echo "CXXFLAGS=-O3 -mtune=native -march=native -Wno-unused-variable -Wno-unused-function -flto -ffat-lto-objects  -Wno-unused-local-typedefs -Wno-ignored-attributes -Wno-deprecated-declarations\n" >> $HOME/.R/Makevars \
-    && echo "rstan::rstan_options(auto_write = TRUE)\n" >> /home/rstudio/.Rprofile \
-    && echo "options(mc.cores = parallel::detectCores())\n" >> /home/rstudio/.Rprofile
+USER rstudio
+RUN mkdir -p /home/rstudio/.R
+RUN touch /home/rstudio/.R/Makevars
+RUN r -e 'cat("\nCXX14FLAGS=-O3 -march=native -mtune=native -fPIC", "CXX14=g++", file = "/home/rstudio/.R/Makevars", sep = "\n", append = TRUE)'
+USER root
 
 # versión de development TODO: cambiar a estables
 RUN r -e 'devtools::install_github("stan-dev/cmdstanr")'
