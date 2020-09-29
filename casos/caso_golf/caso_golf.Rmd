@@ -1,14 +1,14 @@
 ---
 title: "Caso 1: Putts de golf"
 output: html_notebook
+bibliography: 
+ - "../../referencias/referencias.bib"
 ---
 
-Este es una aplicación de un flujo de trabajo bayesiano tomado del
-documento de Michael Betancourt 
-que se puede consultar
-[aquí](https://betanalpha.github.io/assets/case_studies/principled_bayesian_workflow.html)
+Este caso está basado en  @GelmanNolan y @GolfCase.
+Usamos el flujo de trabajo bayesiano tomado del
+documento de Michael Betancourt @BetancourtCase.
 
-El modelo y los datos son [el caso de estudio de Gelman](http://www.stat.columbia.edu/~gelman/research/published/golf.pdf)
 
 ```{r}
 library(cmdstanr)
@@ -51,7 +51,9 @@ diam_pelota <- (1.68 * 2.54) %>% round(1)
 diam_hoyo <- (4.25 * 2.54) %>% round(1)
 c(diam_pelota, diam_hoyo)
 ```
-Los greens de golf (áreas cerca del hoyo) se supone que son perfectamente planas,
+
+Supondremos por el momento que los greens de golf (áreas cerca del hoyo) 
+son perfectamente planos (lo cual no es cierto, pero refinaremos después),
 de modo que el éxito depende de tirar la pelota con un ángulo suficientemente cercano
 a cero con
 respecto a la línea que va del centro de la pelota al centro del hoyo.
@@ -81,7 +83,8 @@ ggplot(aes(x, theta)) + geom_point() +
   labs(subtitle = "Desviación máxima permitida para tener éxito a distintas distancias")
 ```
 
-La tasa de éxito dependerá de la distancia al hoyo, y del ángulo de cada tiro.
+Para nuestro modelo simplificado, la tasa de éxito dependerá de la 
+distancia al hoyo, y del ángulo de cada tiro.
 Algunas observaciones:
 
 - No sabemos si con tiros más largos la desviación aumenta (son tiros más fuertes)
@@ -467,4 +470,103 @@ qplot(rnorm(10000, 0, 1.5)) + xlab("Desviación en grados")
 
 
 # Segunda iteración: distancia y ángulo
+
+## Análisis conceptual
+
+Dado el desajuste que observamos en el primer modelo, regresamos a entender cuál puede
+ser la causa. En realidad, el problema es considerablemente
+más complicado conceptualmente (@HolmesGolf, @PennerPutting). 
+Los supuestos que debemos criticar son:
+
+1. Existen declives ligeros en los *greens*. Esto hace
+más difícil juzgar los tiros y calcular las condiciones de éxitos de un tiro dado. En
+este caso la velocidad inicial del tiro es importante, por ejemplo, para determinar
+la ruta que sigue la pelota (para un análisis detallado, ver por ejemplo @HolmesGolf)
+
+2. Podemos seguir considerando greens planos, pero tomar en cuenta la velocidad inicial.
+Tiremos muy lentos o muy rápidos pueden fallar.
+
+Seguiremos haciendo la simplificación de superficie plana, pero consideramos 
+la velocidad inicial. Siguiendo
+ [@PennerPutting], existe un rango de velocidades iniciales que determinan la condición
+ de éxito. De ecuaciones para el movimiento de la pelota con ciertas
+ simplificaciones, se obtiene
+ que 
+
+- La condición de éxito en un tiro recto es que la velocidad final $v_f$ (en metros por segundo)
+de la pelota cumpla
+$$0 < v_f < 1.31$$
+- La aceleración de la pelota es
+$$a = (10/7)\frac{\rho}{r}g$$
+dond $\rho$ depende de la superficie donde rueda la pelota. Datos experimentales
+indican que la media en greens es de $\rho = 0.131, con un rango de 0.065 a 0.196.
+
+La velocidad inicial de la pelota en términos de la velocidad inicial, usando esta aceleración, es
+$$v_f^2 = v_0^2 - (10/7)\frac{\rho}{r}gx = v_0^2 - (10/7)\frac{\rho}{4.3}9.8x=v_0^2 - 3.26\rho x$$
+donde $x$ es la distancia de la pelota al hoyo. Ahora podemos despejar para calcular
+las condiciones de éxito sobre la velocidad inicial $v_0$:
+
+$$d < v_0^2 < 1.31 + d$$
+
+donde $d = 3.26\rho x$. La condición de éxito es entonces
+
+$$3.26\rho x < v_0^2 < 1.31 + 3.26\rho x$$
+Si fijamos $\rho = 0.13$ por el momento obtenemos
+
+$$0.42 x < v_0^2 < 1.31 + 0.42 x$$
+
+
+## Desarrollo del modelo
+
+En términos del ángulo, obtuvimos de nuestro modelo anterior que
+$$p(x) = P \left ( Z^+ <  \frac{\arctan(3.25/x)}{\sigma}\right )$$
+Ahora es necesario incluir la información de la velocidad inicial y poner
+supuestos de cómo tiran los jugadores de golf. Un supuesto que podemos hacer
+es que los jugadores intentan tirar un poco más allá del hoyo, de forma
+que la pelota entre con cierta velocidad, por ejemplo, tomando el promedio
+de los extremos de éxito, podemos poner
+$$v_0^2 = (0.65 + 0.42 x)(1 + u)$$
+donde $u$ es una variable normal con media cero y desviación estándar $\sigma_{dist}$
+chica:
+$$u \sim N(0, \sigma_{dist})$$
+
+Estamos suponiendo que el error es multiplicativo con respecto al momento
+que se imparte a la pelota (ver @GolfCase para la idea general).
+
+Según este supuesto, la probabilidad de éxito en términos de la velocidad inicial es
+
+$$2\Phi \left(\frac{0.65}{\sigma_{dist} (0.65 + 0.24x)}\right) - 1$$
+Que se ve como sigue para un valor de $\sigma_{dist} = 0.05$ (10% de error en el momento impartido)
+
+```{r}
+sigma_dist <- 0.05
+tibble(x = seq(10, 600, 10)) %>% 
+  mutate(prob_exito = 2*pnorm(0.65 / (sigma_dist * (0.65 + 0.24 * x))) - 1) %>% 
+ggplot(aes(x = x, y = prob_exito)) + geom_point()
+```
+
+Finalmente, ponemos una distribución inicial para $\sigma_dist$. Esta cantidad
+puede ser más difícil de elicitar en un experto, pero podemos hacer simulaciones
+para ver las consecuencias de nuestras decisiones. Comenzaremos poniendo
+
+$$\sigma_{dist} \sim Gamma(2, 20)$$
+```{r}
+c(qgamma(0.025, 2, 20), qgamma(0.975, 2 , 20))
+```
+
+
+## Simular el ensemble bayesiano (a priori)
+## Verificaciones para la a priori
+## Ajustar al ensemble simulado
+## Calibración algorítmica
+## Calibración inferencial
+## Ajustar el mdoelo a los datos obervados
+## Diagnosticar el ajuste posterior
+## Verificación posterior predictiva (o dentro de muestra)
+
+
+## Referencias
+
+
+
 
