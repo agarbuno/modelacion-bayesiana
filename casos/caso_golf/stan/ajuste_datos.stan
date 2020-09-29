@@ -17,10 +17,8 @@ parameters {
 }
 
 model {
-  // 0.1 está en grados
-  real min_sigma =  0; //0.1 / 57.3 ;
   sigma ~ gamma(gamma_params[1], gamma_params[2]);
   for(i in 1:p){
-    exitos_obs[i] ~ binomial(n[i], prob(x[i], sigma + min_sigma));  
+    exitos_obs[i] ~ binomial(n[i], prob(x[i], sigma));  
   }
 }

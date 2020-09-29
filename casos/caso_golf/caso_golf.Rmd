@@ -11,8 +11,10 @@ que se puede consultar
 El modelo y los datos son [el caso de estudio de Gelman](http://www.stat.columbia.edu/~gelman/research/published/golf.pdf)
 
 ```{r}
+library(cmdstanr)
+library(posterior)
+#library(rstan)
 library(tidyverse)
-library(rstan)
 ```
 Los pasos en cada iteración de modelación son:
 
@@ -171,18 +173,17 @@ Más detalladamente, usaremos esta función para examinar curvas de éxitos:
 
 
 ```{r}
-construir_curvas <- function(fit = fit){
-  sigmas <- rstan::extract(fit)$sigma
-  exitos <- rstan::extract(fit)$exitos %>% as_tibble %>% 
-    rownames_to_column(var = "rep") %>% 
-    mutate(rep = as.numeric(rep)) %>% 
-    mutate(sigma = sigmas)
-  nombres <- colnames(exitos %>% select(-rep, -sigma))
+construir_curvas <- function(fit, sim_data){
+  sims_df <- fit$draws(c("sigma", "exitos")) %>% as_draws_df() %>%
+    as_tibble() %>% 
+    rename(rep = .iteration) %>% 
+    select(-.chain, -.draw)
+  nombres <- colnames(sims_df %>% select(-rep, -sigma))
   distancias <- tibble(name = nombres, dist = sim_data$x)
-  exitos <- exitos %>% 
-    pivot_longer(cols = V1:V7) %>% 
-    left_join(tibble(n_intentos = sim_data$n, name = nombres)) %>%
-    left_join(distancias) %>% 
+  exitos <- sims_df %>% 
+    pivot_longer(cols = -c("rep", "sigma")) %>% 
+    left_join(tibble(n_intentos = sim_data$n, name = nombres), by = "name" ) %>%
+    left_join(distancias, by = "name") %>% 
     mutate(prop_exitos = value / n_intentos)
   exitos
 }
@@ -201,15 +202,20 @@ R <- 1000
 sim_data <- list(p = 7, x = c(50, 100, 200, 300, 400, 500, 600), 
                  n = c(500, 500, 300, 200, 100, 50, 50),
                  gamma_sigma = c(12, 500))
-fit <- stan(file = "stan/simular_ensemble.stan",
-            data = sim_data,
-            iter = R, warmup = 0, chains = 1, refresh = R,
-            seed = 432, algorithm = "Fixed_param")
+ruta <- file.path("stan/simular_ensemble.stan")
+mod_sim <- cmdstan_model(ruta)
+fit <- mod_sim$sample(
+    data = sim_data,
+    iter_sampling = R, iter_warmup = 0, 
+    chains = 1,
+    refresh = R, seed = 432,
+    fixed_param = TRUE
+)
 ```
 
 ## Verificación a priori
 
-En rimer lugar, la media de número de éxitos se ve razonable:
+En primer lugar, la media de número de éxitos se ve razonable:
 
 ```{r}
 fit
@@ -221,7 +227,7 @@ función resumen. En  este caso examinamos las curvas de éxito.
 
 
 ```{r}
-exitos <- construir_curvas(fit)
+exitos <- construir_curvas(fit, sim_data)
 g_1 <- ggplot(exitos %>% filter(rep < 1050), 
        aes(x = dist, y = prop_exitos, group = rep)) +
   geom_line(alpha = 0.1)
@@ -245,22 +251,24 @@ qplot(rgamma(1000, 0.1, 0.1))
 ```
 
 
-
 ```{r}
-R <- 1000
 sim_data_error_1 <- list(p = 7, x = c(50, 100, 200, 300, 400, 500, 600), 
                  n = c(500, 500, 300, 200, 100, 50, 50),
                  gamma_sigma = c(0.1, 0.1))
-fit_error_1 <- stan(file = "stan/simular_ensemble.stan",
-            data = sim_data_error_1,
-            iter = R, warmup = 0, chains = 1, refresh = R,
-            seed = 43552, algorithm = "Fixed_param")
-exitos_error_1 <- construir_curvas(fit_error_1)
-
+fit_error_1 <- mod_sim$sample(
+    data = sim_data_error_1,
+    iter_sampling = R, iter_warmup = 0, 
+    chains = 1,
+    refresh = R, seed = 432,
+    fixed_param = TRUE
+)
+exitos_error_1 <- construir_curvas(fit_error_1, sim_data_error_1)
 g_2 <- ggplot(exitos_error_1, aes(x = factor(dist), y = prop_exitos)) +
   geom_boxplot()
 g_2
 ```
+
+
 Este resultado es pobre y contradice al sentido común y 
 conocimiento del dominio. No es posible
 que a 6 metros la probabilidad de éxito sea de 1, y tampoco que a 50 centímetros
@@ -279,26 +287,28 @@ que también calcula algunos resúmenes y diagnósticos que usaremos después:
 thin <- function(x, k = 1){
   x[seq(1, length(x), by = k)]
 }
-exitos_obs <- rstan::extract(fit)$exitos
-sigma <- rstan::extract(fit)$sigma
-modelo <- stan_model(file = "stan/ajuste_datos.stan")
+exitos_obs <- fit$draws("exitos")
+sigma <- fit$draws("sigma")
+file <- file.path("./stan/ajuste_datos.stan")
+modelo <- cmdstan_model(file)
 ajustar_modelo <- function(rep, exitos_obs, sigma, modelo, data){
+
   datos_stan_1 <- list(p = data$p, n = data$n, x = data$x, 
                 gamma_params = data$gamma_sigma, 
                 exitos_obs = exitos_obs)
-  ajuste <- sampling(modelo, data = datos_stan_1, seed = 21053,
-                     verbose = FALSE,
-                     iter = 2000, warmup = 1000,
-                     show_messages = FALSE, refresh = 0)
-  diagnosticos <- get_num_divergent(ajuste)
-  if(diagnosticos > 0){
-    print(datos_stan_1)
-    print(sigma)
+
+  ajuste <- modelo$sample(data = datos_stan_1, 
+                          seed = 22103,
+                          iter_sampling = 2000, iter_warmup = 1000,
+                          refresh = 0, 
+                          show_messages = FALSE)
+  suppressMessages(diagnostico <- ajuste$cmdstan_diagnose())
+  if(diagnostico$status != 0){
+    print(diagnostico)
   }
-  # para calibración
-  sigma_sim <- extract(fit)$sigma %>% thin(., k = 10)
+  sigma_sim <- ajuste$draws("sigma") %>% as.numeric %>% thin(., k = 10)
   sbc_rank <- mean(sigma < sigma_sim)
-  resumen <- summary(ajuste)$summary
+  suppressMessages(resumen <- ajuste$summary())
   tibble(rep = rep, sigma = sigma, sbc_rank = sbc_rank, resumen = list(resumen))
 }
 ```
@@ -306,10 +316,19 @@ ajustar_modelo <- function(rep, exitos_obs, sigma, modelo, data){
 ## Calibración algorítmica
 
 
-```{r}
-ajustes <- map(1:200, 
-               ~ ajustar_modelo(.x, exitos_obs[.x, ], sigma[.x], modelo, sim_data)) %>% 
+```{r, message=FALSE, warning = FALSE, include = FALSE}
+ajustes <- map(1:50, 
+               ~ ajustar_modelo(rep = .x, 
+                                exitos_obs = exitos_obs[.x, 1, ] %>% as.numeric, 
+                                sigma = sigma[.x, 1, ] %>% as.numeric, 
+                                modelo = modelo, sim_data)) %>% 
   bind_rows()
+```
+
+No tenemos diagnósticos de problemas. Ahora checamos si recuperamos 
+el parámetro sigma:
+-
+```{r}
 ggplot(ajustes, aes(sample = sbc_rank)) + 
   geom_qq(distribution = stats::qunif) +
   geom_qq_line(distribution = stats::qunif, colour = "red")
@@ -348,8 +367,8 @@ inducida por los datos).
 ```{r}
 prior_sd_sigma <- sd(rgamma(1000,12, 500))
 calib_inf <- ajustes %>% 
-  mutate(post_media_sigma = map_dbl(resumen, ~.x["sigma", "mean"]),
-         post_sd_sigma = map_dbl(resumen, ~ .x["sigma", "sd"])) %>% 
+  mutate(post_media_sigma = map_dbl(resumen, ~filter(.x, variable=="sigma") %>% pull(mean)),
+         post_sd_sigma = map_dbl(resumen, ~ filter(.x, variable == "sigma") %>% pull(sd))) %>% 
   mutate(z_score = (post_media_sigma - sigma) / post_sd_sigma) %>% 
   mutate(contraccion = 1 - (post_sd_sigma/prior_sd_sigma)^2)
 ```
@@ -380,14 +399,15 @@ datos
 datos_stan <- list(p = nrow(datos), x = as.integer(datos$x), 
                    n = as.integer(datos$n), gamma_params = c(12, 500),
                    exitos_obs = datos$y)
-modelo <- stan_model(file = "stan/ajuste_datos.stan")
-ajuste <- sampling(modelo, data = datos_stan, seed = 2023,
-                     iter = 4000, warmup = 2000)
+ajuste <- modelo$sample(data = datos_stan, 
+                        seed = 22103,
+                        iter_sampling = 4000, iter_warmup = 2000,
+                        refresh = 500, init = 1.0, show_messages = FALSE)
+ajuste$cmdstan_diagnose()
 ```
 
 ```{r}
-summary(ajuste)$summary
-#(summary(ajuste)$summary[1,] * 180/pi) %>% round(2)
+ajuste$summary()
 ```
 
 # Verificación posterior dentro de muestra
@@ -399,7 +419,7 @@ hacer *fuera de la muestra* (predictivas), lo cual es más apropiado en algunos
 contextos (por ejemplo, si el propósito principal es predecir).
 
 ```{r}
-sigmas <- rstan::extract(ajuste)$sigma
+sigmas <- ajuste$draws(c("sigma")) %>% as_draws_df() %>% pull(sigma)
 prob_exito <- function(x, sigma){
   2 * pnorm(atan(3.25 / x), 0, sigma) - 1;
 }
@@ -434,8 +454,8 @@ Finalmente, evaluamos el parámetro de interés. ¿Qué tanto se desvían
 de la línea recta los jugadores profesionales?
 
 ```{r}
-sigmas <- (180/pi) * rstan::extract(ajuste)$sigma
-qplot(sigmas)
+sigmas_grados <- (180/pi) * sigmas
+qplot(sigmas_grados)
 ```
 
 La desviación estándar es e 1.5 grados. Burdamente (solo tomamos la media posterior), así se ve la distribución
