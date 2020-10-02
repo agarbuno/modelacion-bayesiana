@@ -13,7 +13,6 @@ documento de Michael Betancourt @BetancourtCase.
 ```{r}
 library(cmdstanr)
 library(posterior)
-#library(rstan)
 library(tidyverse)
 ```
 Los pasos en cada iteración de modelación son:
@@ -33,16 +32,314 @@ Los pasos en cada iteración de modelación son:
 13. Diagnosticar el ajuste posterior
 14. Verificación posterior predictiva (o dentro de muestra)
 
-# Primera iteración
-
-
-
-## Análisis conceptual
+## Primera iteración: análisis genérico
 
 Queremos entender modelar la probabilidad de éxito de putts de Golf (putts: tiros
 relativamente cerca del hoyo que buscan que la pelota ruede al hoyo o muy 
 cerca de él), y cómo depende el éxito de la distancia del tiro. Quisiéramos
 inferir qué tan precisos son los profesionales en sus tiros.
+
+### Análisis conceptual
+
+En esta primera iteración daremos un ejemplo de un **análisis conceptual pobre**. 
+Podemos pensar en cada intento que hace un golfista como una prueba independiente
+que puede resultar en éxito o fracaso. La probabilidad de éxito depende
+de la distancia, así que podríamos usar regresión logística con una variable
+de entrada (la distancia $x$ al hoyo).
+
+
+### Espacio de observaciones
+
+Usaremos datos de tiros de profesionales que incluyen la distancia al hoyo
+y si el tiro fue exitoso o no.
+
+El espacio de observaciones que esperamos del tipo $(x, y)$ donde $x$ es la
+distancia del putt y $y$ indica si se logró o no. Probablemente tendremos
+los datos agregados: para cada distancia aproximada $x$ tendremos un conteo
+de intentos y éxitos sobre los tiros de los jugadores profesionales.
+
+```{r}
+read_lines("stan/regresion_logistica.stan", skip = 0, n_max = 7) %>% cat(sep = "\n")
+```
+
+### Estadísticas resumen
+
+Consideraremos el porcentaje de éxito para cada distancia. Podemos
+separar los datos en incrementos de 50 cm aproximadamente. 
+
+### Desarrollo del modelo
+
+Consideraremos que las observaciones del número de éxitos $e(x)$ a una 
+distancia de $x$ metros es
+
+$$e(x) \sim \textrm{Binom}(n(x), p(x))$$
+y ponemos, según regresión logística:
+
+$$\log \left (\frac{p(x)}{1 -p(x)} \right ) = \beta_0 - \beta x$$
+Para completar el modelo es necesario poner distribuciones iniciales a los parámetros
+$\beta$. Como $\beta_0$ es la tasa de éxito a distancias muy cortas, $\beta_0$ debe ser
+grande. Ponemos por ejemplo
+
+$\beta_0 \sim U(4, 8),$
+
+de forma que a distancia cercana a cero, la probabilidad de éxito está entre
+
+```{r}
+inv_logit <- function(z) 1 / (1 + exp(-z))
+c(inv_logit(3), inv_logit(6))
+```
+
+
+Para $\beta$ es necesario tener alguna información adicional acerca del problema.
+Por ejemplo, para 5 metros esperamos que haya una cantidad considerable de fallas, 
+pero también varios éxitos. La probabilidad de éxito a 500 metros es
+
+$$p(500) = \frac{1}{1 + e^{-5 + 500 \beta}}$$
+Si igualamos a 0.5 y despejamos, obtenemos
+$$
+\beta = 0.01
+$$
+Pondremos entonces
+$$\beta\sim [0.007, 0.02]$$
+
+## Simular el ensemble bayesiano
+
+Ahora simualmos en ensamble bayesiano. Escogemos algunas distancias
+en centímetros y un número de intentos a cada distancia. Esperamos
+encontrar menos tiros a distancias más grandes. Si este fuera un experimento
+diseñado, quizá tendríamos el número de intentos en cada distancia predefinida.
+
+```{r}
+R <- 1000
+sim_data <- list(p = 7, x = c(50, 100, 200, 300, 400, 500, 600), 
+                 n = c(500, 500, 300, 200, 100, 50, 50))
+ruta <- file.path("stan/simular_ensemble_logistico.stan")
+mod_sim_logistico <- cmdstan_model(ruta)
+ensemble_1 <- mod_sim_logistico$sample(
+    data = sim_data,
+    iter_sampling = R, iter_warmup = 0, 
+    chains = 1,
+    refresh = R, seed = 432,
+    fixed_param = TRUE
+)
+```
+
+## Verificación a priori
+
+En primer lugar, la media de número de éxitos se ve razonable:
+
+```{r}
+ensemble_1
+```
+
+Podemos examinar con más cuidado. 
+Juntamos la información y examinamos los resultados según nuestras
+función resumen. En  este caso examinamos las curvas de éxito.
+
+
+```{r}
+exitos <- ensemble_1$draws("exitos") %>% as_draws_df %>% 
+  mutate(rep = 1:1000) %>% 
+  pivot_longer(cols = starts_with("exitos"))
+sim_data_tbl <- tibble(x = sim_data$x, n = sim_data$n, id = 1:7) %>% 
+  mutate(name = paste0("exitos[", id, "]"))
+exitos_tbl <- exitos %>% left_join(sim_data_tbl) %>% 
+  mutate(prop_exitos = value / n)
+
+g_1 <- ggplot(exitos_tbl, aes(x = factor(x), y = prop_exitos)) +
+  geom_boxplot() 
+g_1
+```
+En este punto podemos consultar con el experto para verificar que:
+
+- Pŕacticamente no consideramos realizaciones imposibles (por ejemplo, 100% de éxito para todas las distancias, 50% de éxitos para tiros de 50 cm, etc.)
+- El espacio de realizaciones cubre apropiadamente el rango de posibilidades
+que el experto considera factible.
+
+### Ajustar al ensemble simulado
+
+Ahora probamos ajustar el modelo a las simulaciones. En este paso tenemos
+qué checar qué puede pasar incluso con las condiciones más extremas 
+que creemos que podemos encontrar. 
+
+Podemos probar con una simulación:
+
+```{r}
+num_iter <- 11
+exitos_sim <- ensemble_1$draws("exitos")
+betas_sim_tbl <- ensemble_1$draws(c("beta_0", "beta")) %>% as_draws_df()
+```
+
+
+```{r}
+ruta <- file.path("./stan/regresion_logistica.stan")
+reg_logistica <- cmdstan_model(ruta)
+datos_stan_1 <- list(p = sim_data$p, n = sim_data$n, x = sim_data$x,
+                exitos_obs = exitos_sim[num_iter, 1, ] %>% as.numeric)
+
+ajuste <- reg_logistica$sample(data = datos_stan_1, 
+                          seed = 2210,
+                          iter_sampling = 2000, iter_warmup = 2000,
+                          refresh = 0, 
+                          show_messages = FALSE)
+```
+
+Esta cadena corrió sin problemas. ¿Recuperamos los parámetros $\beta$
+
+```{r}
+ajuste_draw <- ajuste$draws(c("beta_0", "beta")) %>% as_draws_df
+ggplot(ajuste_draw, aes(x = beta_0, y = beta)) + geom_point(alpha = 0.1) +
+  geom_point(data = betas_sim_tbl[num_iter, ], colour = "red", size = 2)
+```
+En este caso, el resultado es consistente con la simulación. Es necesario repetir esto varias
+veces para entender si estamos recuperando o no los parámetros de interés.
+
+
+
+Usamos la siguiente función
+que también calcula algunos resúmenes y diagnósticos que usaremos después:
+
+```{r, include = FALSE}
+thin <- function(x, k = 1){
+  x[seq(1, length(x), by = k)]
+}
+exitos_obs <- ensemble_1$draws("exitos")
+
+ajustar_modelo <- function(rep, exitos_obs, beta, modelo, data){
+
+  datos_stan_1 <- list(p = data$p, n = data$n, x = data$x,
+                exitos_obs = exitos_obs)
+
+  ajuste <- reg_logistica$sample(data = datos_stan_1, 
+                          seed = 22103,
+                          iter_sampling = 2000, iter_warmup = 2000,
+                          refresh = 0, 
+                          show_messages = FALSE)
+  suppressMessages(diagnostico <- ajuste$cmdstan_diagnose())
+  if(diagnostico$status != 0){
+    print(diagnostico)
+    print(tibble(data$n, data$x))
+  }
+  beta_sim <- ajuste$draws("beta") %>% as.numeric %>% thin(., k = 10)
+  sbc_rank <- mean(beta < beta_sim)
+  suppressMessages(resumen <- ajuste$summary())
+  tibble(rep = rep, beta = beta, sbc_rank = sbc_rank, resumen = list(resumen))
+}
+```
+
+### Calibración algorítmica
+
+
+```{r, message=FALSE, warning = FALSE, include = FALSE}
+beta <- ensemble_1$draws("beta")
+ajustes <- map(1:200, 
+               ~ ajustar_modelo(rep = .x, 
+                                exitos_obs = exitos_obs[.x, 1, ] %>% as.numeric, 
+                                beta = beta[.x, 1, ] %>% as.numeric, 
+                                modelo = reg_logistica, sim_data)) %>% 
+  bind_rows()
+```
+
+No tenemos diagnósticos de problemas. Ahora checamos si recuperamos 
+el parámetro sigma:
+
+```{r}
+ggplot(ajustes, aes(sample = sbc_rank)) + 
+  geom_qq(distribution = stats::qunif) +
+  geom_qq_line(distribution = stats::qunif, colour = "red")
+```
+
+Sea $X\sim F$. Entonces la variable $U = F(X)$ tiene distribución uniforme. Razón:
+$$P(U < u) = P(F(X) < u) = P(X < F^{-1}(u)) = F(F^{-1}(u)) = u$$
+
+Para el ensemble tenemos más de una distribución, y se satisface esta propiedad para
+cada una de ellas. Cuando $X\sim F_\sigma$, con $\sigma\sim G$ entonces igualmente
+se satisface que $U = F_\sigma (X)$ es uniforme. 
+
+- Si esta distribución es cercana a la uniforme, significa que *recuperamos* los valores que pusimos en la simulación. 
+- No hubo problemas numéricos reportados (checar divergencias, tamaños efectivos
+de muestra chicos, las cadenas no mezclan, etc.)
+
+
+### Calibración inferencial
+
+Una vez que numéricamente probamos nuestro algoritmo de ajuste, podemos checar
+qué tanto estamos aprendiendo de los parámetros (**contracción**) y qué tanto
+estamos sobreajustando o tenemos modelos mal especificados. Por el momento nos
+saltaremos este paso que veremos en la siguiente iteración.
+
+### Ajuste a las observaciones
+
+Una vez que pasamos las pruebas anteriores, podemos ajustar a los datos
+observados reales, que son:
+
+```{r}
+datos <- read_delim("../../datos/golf.csv", delim = " ")
+datos <- datos %>% mutate(x = round(39.37  * x, 0))
+datos
+```
+
+
+```{r}
+datos_stan <- list(p = nrow(datos), x = as.integer(datos$x), 
+                   n = as.integer(datos$n), gamma_params = c(10, 500),
+                   exitos_obs = datos$y)
+ajuste <- reg_logistica$sample(data = datos_stan, 
+                        seed = 22103,
+                        iter_sampling = 4000, iter_warmup = 2000,
+                        refresh = 500, init = 1.0, show_messages = FALSE)
+ajuste$cmdstan_diagnose()
+```
+
+```{r}
+ajuste$summary()
+```
+
+Tuvimos una divergencia, lo cual es mal signo. Sin embargo, en este
+caso podemos resolver incrementando las iteraciones de *warmup* o el *adapt_delta* para
+resolver este problema.
+
+
+
+# Verificación posterior dentro de muestra
+
+Ahora podemos hacer la verificación más básica, que compara el ajustado
+con los valores reales. Esto nos indica problemas de desajuste que
+requieren reevaluar nuestro modelo. Estas verificaciones también se pueden
+hacer *fuera de la muestra* (predictivas), lo cual es más apropiado en algunos
+contextos (por ejemplo, si el propósito principal es predecir).
+
+
+
+```{r}
+prob_exito_ajuste <- ajuste$draws(c("prob_sim")) %>% as_draws_df() %>% 
+  mutate(rep = 1:16000) %>% 
+  pivot_longer(cols = starts_with("prob_sim")) %>% 
+  separate(name, into=c("a", "dist_num"), sep="\\[") %>% 
+  mutate(dist_num = str_sub(dist_num, 1, -2) %>% as.integer)
+pred_check_tbl <- prob_exito_ajuste %>% group_by(dist_num) %>% 
+  summarise(q_05 = quantile(value, 0.025), q_95 = quantile(value, 0.975))
+
+datos_2 <- datos %>% mutate(dist_num = 1:19)
+pred_check_tbl <- pred_check_tbl %>% left_join(datos_2)
+g_post <- ggplot(pred_check_tbl, aes(x= factor(x))) +
+  geom_linerange(aes(ymin = q_05, ymax = q_95)) +
+  geom_point(aes(y = y/n), colour="red", size = 2) +
+  ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito")
+g_post 
+```
+El resultado es muy malo. Tenemos sobrepredicción para tiros cortos y subpredicciones
+para tiros largos. En este punto, podríamos agregar variables derivadas (por ejemplo *splines*
+o términos polinomiales) para corregir este desajuste. Este camino es factible, pero
+muchas veces se puede resolver analizando particularidades de nuestro problema,
+e introduciendo variables interpretables que nos permitan aprender del fenómeno
+que estamos modelando.
+
+## Segunda iteración: ¿cómo se logra un putt?
+
+### Análisis conceptual
+
+
 
 El diámetro de una pelota de golf y el hoyo (en centrímetos) es de
 
@@ -72,7 +369,7 @@ En particular para nuestro problema, la condición de éxito es
 $$\tan(\theta) < \frac{3.25}{x}$$
 
 Mejores golfistas tendrán mejor control sobre $\theta > 0$, y conforme
-$x$ es más grande, 
+$x$ es más grande, la probabilidad de tener éxito baja:
 
 ```{r}
 tibble(x = seq(20, 500, 1)) %>% 
@@ -100,25 +397,8 @@ datos desagregados por jugador. Estos datos podrían tener sobrerrepresentación
 de tiradores malos (que quizá hacen más tiros).
 
 
-## Espacio de observaciones
 
-Usaremos datos de tiros de profesionales que incluyen la distancia al hoyo
-y si el tiro fue exitoso o no.
-
-El espacio de observaciones que esperamos del tipo $(x, y)$ donde $x$ es la
-distancia del putt y $y$ indica si se logró o no. Probablemente tendremos
-los datos agregados: para cada distancia aproximada $x$ tendremos un conteo
-de intentos y éxitos sobre los tiros de los jugadores profesionales.
-
-```{r}
-read_lines("stan/ajuste_datos.stan", skip = 5, n_max = 6) %>% cat(sep = "\n")
-```
-## Estadísticas resumen
-
-Tendremos que considerar el porcentaje de éxito para cada distancia. Podemos
-separar los datos en incrementos de 50 cm aproximadamente. 
-
-## Desarrollo del modelo
+### Desarrollo del modelo
 
 Consideraremos que las observaciones de éxitos a una distancia de $x$ metros es
 
@@ -132,7 +412,7 @@ los jugadores profesionales. La probabilidad de éxito es entonces
 
 $$p(x) = P(\tan(\theta) < 3.25/x) = P(\theta < \arctan(3.25/x))$$
 De modo que 
-$$p(x) = P(Z^+ <  \frac{\arctan(3.25/x)}{\sigma})$$
+$$p(x) = P \left (Z^+ <  \frac{\arctan(3.25/x)}{\sigma}\right )$$
 y entonces
 
 $$p(x)= 2\Phi \left(\frac{\arctan(3.25/x)}{\sigma}\right ) - 1$$
@@ -155,8 +435,8 @@ esté entre 0.1 grados y 3 grados de desviación
 
 ```{r, fig.width=4, fig.height=2.5}
 set.seed(11882)
-qplot((180 / pi) * rgamma(5000, 12, 500))
-qgamma(c(0.01, 0.99), 12, 500) * (180/pi)
+qplot((180 / pi) * rgamma(5000, 10, 500))
+qgamma(c(0.01, 0.99), 10, 500) * (180/pi)
 ```
 
 
@@ -166,13 +446,9 @@ Hemos incluido información acerca del problema:
 - Distribuciones iniciales consistentes con el conocimiento que tenemos acerca 
 del proceso.
 
-## Funciones resumen
+### Funciones resumen
 
-Podemos usar cómo resumen las curvas de éxito a cada distancia. Esperamos
-que la tasa de éxito a menos de 50 cm sea muy cercana a 1, y la de 6 metros
-por abajo del 25%.
-
-Más detalladamente, usaremos esta función para examinar curvas de éxitos:
+Ysaremos esta función para examinar curvas de éxitos:
 
 
 ```{r}
@@ -193,7 +469,7 @@ construir_curvas <- function(fit, sim_data){
 ```
 
 
-## Simular el ensemble bayesiano
+### Simular el ensemble bayesiano
 
 Ahora simualmos en ensamble bayesiano. Escogemos algunas distancias
 en centímetros y un número de intentos a cada distancia. Esperamos
@@ -204,8 +480,8 @@ diseñado, quizá tendríamos el número de intentos en cada distancia predefini
 R <- 1000
 sim_data <- list(p = 7, x = c(50, 100, 200, 300, 400, 500, 600), 
                  n = c(500, 500, 300, 200, 100, 50, 50),
-                 gamma_sigma = c(12, 500))
-ruta <- file.path("stan/simular_ensemble.stan")
+                 gamma_sigma = c(10, 500))
+ruta <- file.path("stan/simular_ensemble_angulo.stan")
 mod_sim <- cmdstan_model(ruta)
 fit <- mod_sim$sample(
     data = sim_data,
@@ -232,19 +508,19 @@ función resumen. En  este caso examinamos las curvas de éxito.
 ```{r}
 exitos <- construir_curvas(fit, sim_data)
 g_1 <- ggplot(exitos %>% filter(rep < 1050), 
-       aes(x = dist, y = prop_exitos, group = rep)) +
-  geom_line(alpha = 0.1)
+       aes(x = dist, y = prop_exitos)) +
+  geom_line(aes(group = rep), alpha = 0.1)
 g_2 <- ggplot(exitos, aes(x = factor(dist), y = prop_exitos)) +
   geom_boxplot()
 g_2
 ```
 En este punto podemos consultar con el experto para verificar que:
 
-- No existen realizaciones imposibles (por ejemplo, 100% de éxito para todas las distancias, 50% de éxitos para tiros de 50 cm, etc.)
+- Pŕacticamente no consideramos realizaciones imposibles (por ejemplo, 100% de éxito para todas las distancias, 50% de éxitos para tiros de 50 cm, etc.)
 - El espacio de realizaciones cubre apropiadamente el rango de posibilidades
 que el experto considera factible.
 
-### ¿Cómo se ve un error en este punto?
+#### ¿Cómo se ve un error en este punto?
 
 Supongamos que decidimos usar una gamma poco informativa para la desviación
 $\sigma$ del ángulo.
@@ -266,9 +542,9 @@ fit_error_1 <- mod_sim$sample(
     fixed_param = TRUE
 )
 exitos_error_1 <- construir_curvas(fit_error_1, sim_data_error_1)
-g_2 <- ggplot(exitos_error_1, aes(x = factor(dist), y = prop_exitos)) +
+g_2_error <- ggplot(exitos_error_1, aes(x = factor(dist), y = prop_exitos)) +
   geom_boxplot()
-g_2
+g_2_error
 ```
 
 
@@ -292,8 +568,8 @@ thin <- function(x, k = 1){
 }
 exitos_obs <- fit$draws("exitos")
 sigma <- fit$draws("sigma")
-file <- file.path("./stan/ajuste_datos.stan")
-modelo <- cmdstan_model(file)
+file <- file.path("./stan/modelo_angulo.stan")
+modelo_angulo <- cmdstan_model(file)
 ajustar_modelo <- function(rep, exitos_obs, sigma, modelo, data){
 
   datos_stan_1 <- list(p = data$p, n = data$n, x = data$x, 
@@ -302,12 +578,13 @@ ajustar_modelo <- function(rep, exitos_obs, sigma, modelo, data){
 
   ajuste <- modelo$sample(data = datos_stan_1, 
                           seed = 22103,
-                          iter_sampling = 2000, iter_warmup = 1000,
+                          iter_sampling = 4000, iter_warmup = 4000,
                           refresh = 0, 
                           show_messages = FALSE)
   suppressMessages(diagnostico <- ajuste$cmdstan_diagnose())
   if(diagnostico$status != 0){
     print(diagnostico)
+    print(tibble(data$n, data$x))
   }
   sigma_sim <- ajuste$draws("sigma") %>% as.numeric %>% thin(., k = 10)
   sbc_rank <- mean(sigma < sigma_sim)
@@ -320,36 +597,25 @@ ajustar_modelo <- function(rep, exitos_obs, sigma, modelo, data){
 
 
 ```{r, message=FALSE, warning = FALSE, include = FALSE}
-ajustes <- map(1:50, 
+ajustes <- map(1:200, 
                ~ ajustar_modelo(rep = .x, 
                                 exitos_obs = exitos_obs[.x, 1, ] %>% as.numeric, 
                                 sigma = sigma[.x, 1, ] %>% as.numeric, 
-                                modelo = modelo, sim_data)) %>% 
+                                modelo = modelo_angulo, sim_data)) %>% 
   bind_rows()
 ```
 
 No tenemos diagnósticos de problemas. Ahora checamos si recuperamos 
 el parámetro sigma:
--
+
 ```{r}
 ggplot(ajustes, aes(sample = sbc_rank)) + 
   geom_qq(distribution = stats::qunif) +
   geom_qq_line(distribution = stats::qunif, colour = "red")
 ```
 
-Sea $X\sim F$. Entonces la variable $U = F(X)$ tiene distribución uniforme. Razón:
-$$P(U < u) = P(F(X) < u) = P(X < F^{-1}(u)) = F(F^{-1}(u)) = u$$
-
-Para el ensemble tenemos más de una distribución, y se satisface esta propiedad para
-cada una de ellas. Cuando $X\sim F_\sigma$, con $\sigma\sim G$ entonces igualmente
-se satisface que $U = F_\sigma (X)$ es uniforme. 
-
-- Si esta distribución es cercana a la uniforme, significa que *recuperamos* los valores que pusimos en la simulación. 
-- No hubo problemas numéricos reportados (checar divergencias, tamaños efectivos
-de muestra chicos, las cadenas no mezclan, etc.) Podemos hacer también un examen
-más detallado de cómo se ven las simulaciones.
  
-## Calibración inferencial
+### Calibración inferencial
 
 En el siguiente paso vemos las posibilidades de aprendizaje que nos da el modelo.
 En este punto, quisiéramos saber si aprendemos algo por encima de lo que ya 
@@ -368,7 +634,7 @@ inducida por los datos).
 
 
 ```{r}
-prior_sd_sigma <- sd(rgamma(1000,12, 500))
+prior_sd_sigma <- sd(rgamma(1000,10, 500))
 calib_inf <- ajustes %>% 
   mutate(post_media_sigma = map_dbl(resumen, ~filter(.x, variable=="sigma") %>% pull(mean)),
          post_sd_sigma = map_dbl(resumen, ~ filter(.x, variable == "sigma") %>% pull(sd))) %>% 
@@ -393,16 +659,16 @@ observados reales, que son:
 
 ```{r}
 datos <- read_delim("../../datos/golf.csv", delim = " ")
-datos <- datos %>% mutate(x = round(30.84 * x, 0))
+datos <- datos %>% mutate(x = round(39.37  * x, 0))
 datos
 ```
 
 
 ```{r}
 datos_stan <- list(p = nrow(datos), x = as.integer(datos$x), 
-                   n = as.integer(datos$n), gamma_params = c(12, 500),
+                   n = as.integer(datos$n), gamma_params = c(10, 500),
                    exitos_obs = datos$y)
-ajuste <- modelo$sample(data = datos_stan, 
+ajuste <- modelo_angulo$sample(data = datos_stan, 
                         seed = 22103,
                         iter_sampling = 4000, iter_warmup = 2000,
                         refresh = 500, init = 1.0, show_messages = FALSE)
@@ -413,7 +679,7 @@ ajuste$cmdstan_diagnose()
 ajuste$summary()
 ```
 
-# Verificación posterior dentro de muestra
+### Verificación posterior dentro de muestra
 
 Ahora podemos hacer la verificación más básica, que compara el ajustado
 con los valores reales. Esto nos indica problemas de desajuste que
@@ -422,26 +688,24 @@ hacer *fuera de la muestra* (predictivas), lo cual es más apropiado en algunos
 contextos (por ejemplo, si el propósito principal es predecir).
 
 ```{r}
-sigmas <- ajuste$draws(c("sigma")) %>% as_draws_df() %>% pull(sigma)
-prob_exito <- function(x, sigma){
-  2 * pnorm(atan(3.25 / x), 0, sigma) - 1;
-}
-pred_check_tbl <- tibble(sigma = sigmas) %>% 
-  mutate(data = map(sigma,  function(sigma){
-    datos %>% mutate(prob = prob_exito(x, sigma )) %>% 
-      mutate(obs_sim = rbinom(length(n), n, prob) / n)
-  })) %>% 
-  unnest() %>% 
-  group_by(x) %>% 
-  summarise(q_05 = quantile(obs_sim, 0.05), q_95 = quantile(obs_sim, 0.95),
-            y = first(y), n =first(n))
+prob_exito_ajuste <- ajuste$draws(c("prob_sim")) %>% as_draws_df() %>% 
+  mutate(rep = 1:16000) %>% 
+  pivot_longer(cols = starts_with("prob_sim")) %>% 
+  separate(name, into=c("a", "dist_num"), sep="\\[") %>% 
+  mutate(dist_num = str_sub(dist_num, 1, -2) %>% as.integer)
+pred_check_tbl <- prob_exito_ajuste %>% group_by(dist_num) %>% 
+  summarise(q_05 = quantile(value, 0.025), q_95 = quantile(value, 0.975))
+
+datos_2 <- datos %>% mutate(dist_num = 1:19)
+pred_check_tbl <- pred_check_tbl %>% left_join(datos_2)
 g_post <- ggplot(pred_check_tbl, aes(x= factor(x))) +
   geom_linerange(aes(ymin = q_05, ymax = q_95)) +
   geom_point(aes(y = y/n), colour="red", size = 2) +
   ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito")
 g_post 
 ```
-El ajuste es razonable, pero observamos algunos patrones de desajuste. 
+
+El ajuste es razonable,  pero observamos algunos patrones de desajuste. 
 Quizá hay cierto patrón en que a distancias mayores de 2 metros
 las predicciones tienden a ser altas. Esto indica que es posible que
 haya 
@@ -457,8 +721,8 @@ Finalmente, evaluamos el parámetro de interés. ¿Qué tanto se desvían
 de la línea recta los jugadores profesionales?
 
 ```{r}
-sigmas_grados <- (180/pi) * sigmas
-qplot(sigmas_grados)
+sigma_grados <- (180/pi) * sigma
+qplot(sigma_grados)
 ```
 
 La desviación estándar es e 1.5 grados. Burdamente (solo tomamos la media posterior), así se ve la distribución
@@ -469,9 +733,9 @@ qplot(rnorm(10000, 0, 1.5)) + xlab("Desviación en grados")
 ```
 
 
-# Segunda iteración: distancia y ángulo
+## Segunda iteración: distancia y ángulo
 
-## Análisis conceptual
+### Análisis conceptual
 
 Dado el desajuste que observamos en el primer modelo, regresamos a entender cuál puede
 ser la causa. En realidad, el problema es considerablemente
@@ -495,8 +759,8 @@ la velocidad inicial. Siguiendo
 
 - La condición de éxito en un tiro recto es que la velocidad final $v_f$ (en metros por segundo)
 de la pelota cumpla
-$$0 < v_f < 1.31$$
-- La aceleración de la pelota es
+$$0 < v_f < 1.63$$
+- La aceleración de la pelota al rodar en el green:
 $$a = (10/7)\frac{\rho}{r}g$$
 dond $\rho$ depende de la superficie donde rueda la pelota. Datos experimentales
 indican que la media en greens es de $\rho = 0.131, con un rango de 0.065 a 0.196.
@@ -506,26 +770,24 @@ $$v_f^2 = v_0^2 - (10/7)\frac{\rho}{r}gx = v_0^2 - (10/7)\frac{\rho}{4.3}9.8x=v_
 donde $x$ es la distancia de la pelota al hoyo. Ahora podemos despejar para calcular
 las condiciones de éxito sobre la velocidad inicial $v_0$:
 
-$$d < v_0^2 < 1.31 + d$$
+$$d < v_0^2 < 1.63 + d$$
 
 donde $d = 3.26\rho x$. La condición de éxito es entonces
 
-$$3.26\rho x < v_0^2 < 1.31 + 3.26\rho x$$
-Si fijamos $\rho = 0.13$ por el momento obtenemos
-
-$$0.42 x < v_0^2 < 1.31 + 0.42 x$$
+$$3.26\rho x < v_0^2 < 1.63 + 3.26\rho x$$
 
 
-## Desarrollo del modelo
+
+### Desarrollo del modelo
 
 En términos del ángulo, obtuvimos de nuestro modelo anterior que
-$$p(x) = P \left ( Z^+ <  \frac{\arctan(3.25/x)}{\sigma}\right )$$
+$$p(x) = P \left ( Z^+ <  \frac{\arctan(3.25/x)}{2 \sigma_{angulo}}\right ) $$
 Ahora es necesario incluir la información de la velocidad inicial y poner
 supuestos de cómo tiran los jugadores de golf. Un supuesto que podemos hacer
 es que los jugadores intentan tirar un poco más allá del hoyo, de forma
 que la pelota entre con cierta velocidad, por ejemplo, tomando el promedio
 de los extremos de éxito, podemos poner
-$$v_0^2 = (0.65 + 0.42 x)(1 + u)$$
+$$v_0^2 = (0.82 + 3.26\rho x)(1 + u)$$
 donde $u$ es una variable normal con media cero y desviación estándar $\sigma_{dist}$
 chica:
 $$u \sim N(0, \sigma_{dist})$$
@@ -535,13 +797,32 @@ que se imparte a la pelota (ver @GolfCase para la idea general).
 
 Según este supuesto, la probabilidad de éxito en términos de la velocidad inicial es
 
-$$2\Phi \left(\frac{0.65}{\sigma_{dist} (0.65 + 0.24x)}\right) - 1$$
-Que se ve como sigue para un valor de $\sigma_{dist} = 0.05$ (10% de error en el momento impartido)
+$$2\Phi \left(\frac{0.82}{\sigma_{dist} (0.82 + 3.26\rho x)}\right) - 1$$
+Para poner una inicial consistente con conocimiento de dominio podemos
+calcular la distancia que recorrería la pelota bajo distintos supuestos si no
+hubiera hoyo. La distancia total recorrida, por los supuestos de arriba, es:
 
 ```{r}
-sigma_dist <- 0.05
+sim_dist_recorrida <- function(x, rho, sigma_dist){
+  u <- rnorm(100, 0, sigma_dist)
+  dist_recorrida  <- (0.82 + 3.26 * rho * x) * (1 + u) / (3.26 * rho)
+  error <- dist_recorrida / x
+  error
+}
+sim_1 <- sim_dist_recorrida(500, 0.131, 0.01) * 500
+quantile(sim_1) 
+```
+
+
+
+
+
+Que se ve como sigue para un valor de $\sigma_{dist} = 0.1$ (10% de error)
+
+```{r}
+sigma_dist <- 0.004
 tibble(x = seq(10, 600, 10)) %>% 
-  mutate(prob_exito = 2*pnorm(0.65 / (sigma_dist * (0.65 + 0.24 * x))) - 1) %>% 
+  mutate(prob_exito = 2*pnorm(0.82 / (sigma_dist * (0.82 + 3.26*(0.131)*x))) - 1) %>% 
 ggplot(aes(x = x, y = prob_exito)) + geom_point()
 ```
 
@@ -549,20 +830,230 @@ Finalmente, ponemos una distribución inicial para $\sigma_dist$. Esta cantidad
 puede ser más difícil de elicitar en un experto, pero podemos hacer simulaciones
 para ver las consecuencias de nuestras decisiones. Comenzaremos poniendo
 
-$$\sigma_{dist} \sim Gamma(2, 20)$$
+$$\sigma_{dist} \sim Gamma(5, 2000)$$
 ```{r}
-c(qgamma(0.025, 2, 20), qgamma(0.975, 2 , 20))
+c(qgamma(0.01, 5, 2000), qgamma(0.99, 5, 2000)) %>% round(4)
 ```
 
 
-## Simular el ensemble bayesiano (a priori)
-## Verificaciones para la a priori
-## Ajustar al ensemble simulado
+### Simular el ensemble bayesiano (a priori)
+
+```{r}
+R <- 1000
+sim_data <- list(p = 8, x = c(50, 100, 200, 300, 400, 500, 600, 800), 
+                 n = c(500, 500, 300, 200, 200, 200, 200, 200),
+                 gamma_sigma_ang = c(10, 500), gamma_sigma_dist = c(5, 2000))
+ruta <- file.path("stan/simular_ensemble_dist.stan")
+mod_sim <- cmdstan_model(ruta)
+ensemble_dist <- mod_sim$sample(
+    data = sim_data,
+    iter_sampling = R, iter_warmup = 0, 
+    chains = 1,
+    refresh = R, seed = 432,
+    fixed_param = TRUE
+)
+```
+
+## Verificación a priori
+
+En primer lugar, la media de número de éxitos se ve razonable:
+
+```{r}
+ensemble_dist
+```
+
+Podemos examinar con más cuidado. 
+Juntamos la información y examinamos los resultados según nuestras
+función resumen. En  este caso examinamos las curvas de éxito.
+
+```{r}
+construir_curvas <- function(fit, sim_data){
+  sims_df <- fit$draws(c("sigma_angulo", "sigma_dist", "exitos")) %>% 
+    as_draws_df() %>%
+    as_tibble() %>% 
+    rename(rep = .iteration) %>% 
+    select(-.chain, -.draw)
+  nombres <- colnames(sims_df %>% select(-rep, -sigma_angulo, -sigma_dist))
+  distancias <- tibble(name = nombres, dist = sim_data$x)
+  exitos <- sims_df %>% 
+    pivot_longer(cols = -c("rep", "sigma_angulo", "sigma_dist")) %>% 
+    left_join(tibble(n_intentos = sim_data$n, name = nombres), by = "name" ) %>%
+    left_join(distancias, by = "name") %>% 
+    mutate(prop_exitos = value / n_intentos)
+  exitos
+}
+```
+
+```{r}
+library(patchwork)
+exitos <- construir_curvas( ensemble_dist , sim_data)
+g_1_dist <- ggplot(exitos %>% filter(rep < 1050), 
+       aes(x = dist, y = prop_exitos)) +
+  geom_line(aes(group = rep), alpha = 0.1)
+g_2_dist <- ggplot(exitos, aes(x = factor(dist), y = prop_exitos)) +
+  geom_boxplot()
+g_2_dist <- g_2_dist + labs(subtitle = "Modelo 2: ángulo y distancia")
+g_2 <- g_2 + labs(subtitle = "Modelo 1: sólo ángulo")
+g_2 + g_2_dist
+```
+
+
+Las simulaciones considerando la distancia están por debajo
+de las de nuestro modelo anterior. 
+
+
+
+### Ajustar al ensemble simulado
+
+```{r}
+thin <- function(x, k = 1){
+  x[seq(1, length(x), by = k)]
+}
+exitos_obs <- ensemble_dist$draws("exitos")
+sigma_dist <- ensemble_dist$draws("sigma_dist")
+sigma_angulo <- ensemble_dist$draws("sigma_angulo")
+file <- file.path("./stan/modelo_dist.stan")
+modelo_dist <- cmdstan_model(file)
+```
+
+
+```{r}
+ajustar_modelo <- function(rep, exitos_obs, sigma, modelo, data){
+  sigma_angulo <- sigma[1]
+  sigma_dist <- sigma[2]
+  datos_stan_1 <- list(p = data$p, n = data$n, x = data$x, 
+                gamma_params_ang = data$gamma_sigma_ang,
+                gamma_params_dist = data$gamma_sigma_dist,
+                exitos_obs = exitos_obs)
+
+  ajuste <- modelo$sample(data = datos_stan_1, 
+                          seed = 22103,
+                          iter_sampling = 5000, iter_warmup = 5000,
+                          refresh = 0, 
+                          show_messages = FALSE)
+  suppressMessages(diagnostico <- ajuste$cmdstan_diagnose())
+  if(diagnostico$status != 0){
+    print(diagnostico)
+  }
+  sigma_sim <- ajuste$draws("sigma_angulo") %>% as.numeric %>% thin(., k = 10)
+  sbc_rank <- mean(sigma_angulo < sigma_sim)
+  suppressMessages(resumen <- ajuste$summary())
+  tibble(rep = rep, sigma_angulo = sigma_angulo, sbc_rank = sbc_rank, resumen = list(resumen))
+}
+```
+
 ## Calibración algorítmica
-## Calibración inferencial
-## Ajustar el mdoelo a los datos obervados
-## Diagnosticar el ajuste posterior
-## Verificación posterior predictiva (o dentro de muestra)
+
+Aquí encontramos algunos problemas. Existen divergencias, y valores de R-hat más grandes de 1.1. 
+En este caso, aumentar el número de iteraciones resuelve el problema, pero 
+deberíamos investigar por qué requerimos tantas iteraciones:
+
+```{r}
+num_sim <- 1
+ datos_stan_1 <- list(p = sim_data$p, n = sim_data$n, x = sim_data$x, 
+                gamma_params_ang = sim_data$gamma_sigma_ang,
+                gamma_params_dist = sim_data$gamma_sigma_dist,
+                exitos_obs = exitos_obs[num_sim, 1, ] %>% as.numeric)
+
+ajuste <- modelo_dist$sample(data = datos_stan_1, 
+                          seed = 22103,
+                          iter_sampling = 4000, iter_warmup = 4000,
+                          refresh = 0, 
+                          show_messages = FALSE)
+```
+
+```{r}
+post <- ajuste$draws() %>% as_draws_df()
+params_1 <- tibble(sigma_angulo = sigma_angulo %>% as.numeric, 
+                   sigma_dist = sigma_dist %>% as.numeric) %>% 
+  mutate(rep = 1: 1000)
+ggplot(post, aes(x = sigma_angulo, y = sigma_dist)) + geom_point(alpha = 0.1) +
+  geom_point(data = params_1 %>% filter(rep == num_sim), colour = "red", size=7)
+  
+
+```
+
+Y notamos un problema severo de identificación: como hemos construido el modelo,
+hay dos maneras de interpretar los datos que vemos: las fallas son más comunes por
+ángulo que por distancia o al revés.
+
+ Los datos en cuestión son:
+
+```{r}
+tibble(distancia = sim_data$x,
+       intentos = sim_data$n,
+       exitos =  exitos_obs[num_sim, 1, ] %>% as.numeric)
+```
+
+Este problema de identificación se puede atacar con:
+
+- Información del dominio para concentrar las iniciales (por ejemplo, ¿cuántos tiros fallan
+por ángulo vs por distancia)
+- Reparametrizaciones del modelo
+- En algunos casos, es necesario repensar el experimento o la fuente de datos. Mejores diseños
+pueden evitar este problema (más datos, distancias más grandes, etc.).
+
+En nuestro caso, regresamos a considerar las iniciales antes de proseguir con los datos.
+
+
+### Calibración algorítmica
+
+Checar que no haya divergencias ni problemas numéricos.
+
+### Calibración inferencial
+
+- Mostrar cómo se ve en la gráfica de contracción vs valor z- este problema (contracciones
+bajas con valores z grandes)
+
+### Ajustar el mdoelo a los datos obervados
+
+
+
+
+
+```{r}
+datos_stan <- list(p = nrow(datos), x = as.integer(datos$x), 
+                   n = as.integer(datos$n), 
+                   gamma_params_ang = c(10, 500),
+                   gamma_params_dist = c(5, 200),
+                   exitos_obs = datos$y)
+ajuste <- modelo_dist$sample(data = datos_stan, 
+                        seed = 22103,
+                        iter_sampling = 8000, iter_warmup = 10000,
+                        refresh = 500, show_messages = FALSE)
+ajuste$cmdstan_diagnose()
+```
+
+```{r}
+ajuste$summary()
+```
+
+### Verificación posterior dentro de muestra
+
+Ahora podemos hacer la verificación más básica, que compara el ajustado
+con los valores reales. Esto nos indica problemas de desajuste que
+requieren reevaluar nuestro modelo. Estas verificaciones también se pueden
+hacer *fuera de la muestra* (predictivas), lo cual es más apropiado en algunos
+contextos (por ejemplo, si el propósito principal es predecir).
+
+```{r}
+prob_exito_ajuste <- ajuste$draws(c("prob_sim")) %>% as_draws_df() %>% 
+  mutate(rep = 1:32000) %>% 
+  pivot_longer(cols = starts_with("prob_sim")) %>% 
+  separate(name, into=c("a", "dist_num"), sep="\\[") %>% 
+  mutate(dist_num = str_sub(dist_num, 1, -2) %>% as.integer)
+pred_check_tbl <- prob_exito_ajuste %>% group_by(dist_num) %>% 
+  summarise(q_05 = quantile(value, 0.025), q_95 = quantile(value, 0.975))
+
+datos_2 <- datos %>% mutate(dist_num = 1:19)
+pred_check_tbl <- pred_check_tbl %>% left_join(datos_2)
+g_post <- ggplot(pred_check_tbl, aes(x= factor(x))) +
+  geom_linerange(aes(ymin = q_05, ymax = q_95)) +
+  geom_point(aes(y = y/n), colour="red", size = 2) +
+  ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito")
+g_post 
+```
+El ajuste es mejor, pero tuvimos problemas numéricos.
 
 
 ## Referencias

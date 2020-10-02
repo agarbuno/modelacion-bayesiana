@@ -22,3 +22,11 @@ model {
     exitos_obs[i] ~ binomial(n[i], prob(x[i], sigma));  
   }
 }
+
+generated quantities {
+  real prob_sim[p];
+  for(i in 1:p){
+    prob_sim[i] = binomial_rng(n[i],  prob(x[i], sigma));
+    prob_sim[i] = prob_sim[i] / n[i];
+  }
+}
