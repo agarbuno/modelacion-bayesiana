@@ -7,20 +7,25 @@ _bookdown_files
 rsconnect
 .DS_Store
 *.log
+
 # History files
 .Rhistory
 .Rapp.history
 .bash_history
 /*.tar.gz
+
 # RStudio files
 .Rproj.user/
+
 # knitr and R markdown default cache directories
 /*_cache/
 /cache/
+
 # Temporary files created by R markdown
 *.utf8.md
 *.knit.md
 *_files/
 .rstudio/
 .local/
+
 

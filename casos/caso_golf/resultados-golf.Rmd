@@ -1,0 +1,593 @@
+---
+title: "Modelos para *putts* de golf"
+output:
+  html_document:
+    df_print: paged
+bibliography: ../referencias/referencias.bib
+---
+
+Este caso está basado en@GelmanNolan y @GolfCase. Usamos el flujo de trabajo
+bayesiano tomado del documento de Michael Betancourt @BetancourtCase.
+
+
+```{r setup, include=FALSE, message=FALSE}
+library(cmdstanr)
+library(posterior)
+library(tidyverse)
+library(patchwork)
+source("../funciones-auxiliares/simular_resumenes.R")
+
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE, 
+                      fig.align = "center", out.width = "95%")
+
+comma <- function(x) format(x, digits = 2, big.mark = ",")
+theme_set(theme_linedraw())
+```
+
+## Problema
+
+Queremos entender modelar la probabilidad de éxito de putts de Golf (putts: tiros
+relativamente cerca del hoyo que buscan que la pelota ruede al hoyo o muy 
+cerca de él), y cómo depende el éxito de la distancia del tiro. Quisiéramos
+inferir qué tan precisos son los profesionales en sus tiros.
+
+### Análisis conceptual
+
+Podemos pensar en cada intento que hace un golfista como una prueba independiente
+que puede resultar en éxito o fracaso. La probabilidad de éxito depende
+de la distancia.
+
+El problema es considerablemente complicado conceptualmente (@HolmesGolf, @PennerPutting)
+si consideramos todas las fuentes de variación: ángulo de tiro, potencia de tiro,
+declive en greens y así sucesivamente. 
+Los supuestos que debemos criticar son:
+
+Seguiremos haciendo la simplificación de superficie plana, pero consideramos
+dos parámetros para el tiro con distintas condiciones de éxito:
+
+1. El ángulo del tiro
+2. La velocidad con la que la pelota llega (o no llega) al hoyo
+
+
+El diámetro de una pelota de golf y el hoyo (en centrímetos) es de
+
+```{r}
+diam_pelota <- (1.68 * 2.54) %>% round(1)
+diam_hoyo <- (4.25 * 2.54) %>% round(1)
+c(diam_pelota, diam_hoyo)
+```
+
+Supondremos por el momento que los greens de golf (áreas cerca del hoyo) 
+son perfectamente planos (lo cual no es cierto, pero refinaremos después),
+de modo que el éxito depende de 
+
+1. Tirar la pelota con un ángulo suficientemente cercano a cero con respecto a
+la línea que va del centro de la pelota al centro del hoyo.
+2. Tirar la pelota con una velocidad suficiente para llegue al hoyo pero no tan
+alta que vuele por encima del hoyo.
+
+Mejores datos de los tipos de fallo sería útil, pero por el momento no
+consideramos que estén disponibles.
+
+#### Ángulo de tiro
+
+Supongamos que la distancia del centro de la pelota al centro del hoyo es $x$, y que 
+$\theta$ es el ángulo del tiro con respecto a la recta que va del centro de la pelota
+al centro del hoyo. El tiro es exitoso cuando
+
+$$\tan(\theta) < \frac{R - r}{2x}$$
+Por simetría, sólo consideramos $\theta$ con valores positivos (aunque puede
+ser que algunos golfistas tengan fallas asimétricas, eso lo discutimos más adelante).
+
+![Tiro de golf](imagenes/golf-put.png)
+En particular para nuestro problema, la condición de éxito es
+
+$$\tan(\theta) < \frac{3.25}{x}$$
+
+Mejores golfistas tendrán mejor control sobre $\theta > 0$, y conforme
+$x$ es más grande, la probabilidad de tener éxito baja:
+
+```{r}
+tibble(x = seq(10, 1500, 1)) %>% 
+  mutate(theta = (180 / pi) * atan(3.25 / x)) %>% 
+ggplot(aes(x, theta)) + geom_point() +
+  xlab("Distancia (cm)") +
+  ylab(expression(paste("Desviación máxima ", theta))) +
+  labs(subtitle = "Desviación máxima permitida para tener éxito a distintas distancias") +
+  scale_y_log10()
+```
+
+- Esta curva puede variar dependiendo del jugador, pero vamos a modelar el
+conjunto de tiros de profesionales. Suponemos homogeneidad que podríamos checar
+con datos desagregados por jugador. Estos datos podrían tener
+sobrerrepresentación de tiradores malos (que quizá hacen más tiros).
+
+#### Velocidad final
+
+Siguiendo [@PennerPutting], existe un rango de velocidades iniciales que
+determinan la condición de éxito.
+
+- La condición de éxito en un tiro recto es que la velocidad final $v_f$ (en
+metros por segundo) de la pelota cumpla
+$$0 < v_f < 1.63$$
+- La aceleración de la pelota al rodar en el green:
+$$a = (10/7)\frac{\rho}{r}g$$
+dond $\rho$ depende de la superficie donde rueda la pelota. Datos experimentales
+indican que la media en greens es de $\rho = 0.131, con un rango de 0.065 a
+0.196.
+- Tomaremos $\rho = 0.131$
+
+La velocidad inicial de la pelota en términos de la velocidad inicial, usando
+esta aceleración, es
+$$v_f^2 = v_0^2 - (10/7)\frac{\rho}{r}gx = v_0^2 - (10/7)\frac{\rho}{4.3}9.8x=v_0^2 - 3.26\rho x$$
+donde $x$ es la distancia de la pelota al hoyo. Ahora podemos despejar para
+calcular las condiciones de éxito sobre la velocidad inicial $v_0$:
+
+$$d < v_0^2 < 1.63 + d$$
+
+donde $d = 3.26\rho x$. La condición de éxito es entonces
+$$3.26\rho x < v_0^2 < 1.63 + 3.26\rho x$$
+
+### Espacio de observaciones
+
+Usaremos datos de tiros de profesionales que incluyen la distancia al hoyo y si
+el tiro fue exitoso o no.
+
+El espacio de observaciones que esperamos del tipo $(x, y)$ donde $x$ es la
+distancia del putt y $y$ indica si se logró o no. Probablemente tendremos los
+datos agregados: para cada distancia aproximada $x$ tendremos un conteo de
+intentos y éxitos sobre los tiros de los jugadores profesionales.
+
+```{bash}
+sed -n '/^data/,/\}/p' ../stan/modelo.stan
+```
+
+### Estadísticas resumen
+
+Consideraremos el porcentaje de éxitos para cada distancia dada en las observaciones
+(cada cubeta de distancias) como resumen principal de interés. 
+
+```{bash}
+sed -n '/^transformed/,/\}/p' ../stan/modelo.stan
+```
+
+### Desarrollo del modelo
+
+Consideraremos que las observaciones del número de éxitos $e(x)$ a una 
+distancia de $x$ metros es
+
+$$e(x) \sim \textsf{Binom}\left(n(x), p(x)\right)$$
+La probabilidad de éxito depende de los ángulos y la velocidad inicial que se
+observen en los tiros. Comenzaremos suponiendo que la probabilidad de éxito es
+el producto de la probabilidad de usar el ángulo en el rango de éxito, por la
+probablilidad de usar una velocidad inicial en el rango de éxito:
+
+$$p(x) = p_{ang}(x)p_{dist}(x)$$
+
+Empezamos poniendo
+$$\theta \sim N^+(0,\sigma_a),$$
+que expresa nuestra incertidumbre acerca de la desviación promedio $\theta$ que logran
+los jugadores profesionales. La probabilidad de éxito es entonces
+
+$$p_{ang}(x) = P(\tan(\theta) < 3.25/x) = P(\theta < \arctan(3.25/x))$$
+De modo que 
+$$p_{ang}(x) = P \left (Z^+ <  \frac{\arctan(3.25/x)}{\sigma_a}\right )$$
+y entonces
+
+$$p_{ang}(x)= 2\Phi \left(\frac{\arctan(3.25/x)}{\sigma_a}\right ) - 1$$
+donde $\Phi$ es la distribución acumulada de la normal estándar.
+
+Ahora: no conocemos el valor de $\sigma_a$, así que tenemos que poner
+alguna información acerca de este valor para el cual no tendremos mediciones.
+En este punto es necesario consultar con algún experto.
+
+Un experto nos informa que es raro los tiradores profesionales rara vez
+exceden más de 4 grados a partir de la línea que quieren tirar, y sabemos
+que la desviación promedio no puede ser muy cercana a cero, pues siempre
+existen fallas, especialmente más allá de 1 metro de distancia. Una desviación estándar
+de los tiros debería estar entre 0.5 y 2.5, por ejemplo. Por el momento
+no consideramos que esto pueda variar en función de la distancia. Así que
+ponemos 
+$$\sigma_A \sim Gamma(a, b)$$
+y tenemos que establecer $a,b$ de forma la mayor parte de la probabilidad
+esté entre 1 grado y 4 grados de desviación
+
+```{r, fig.width=4, fig.height=2.5}
+set.seed(11882)
+qplot((180 / pi) * rgamma(5000, 25, 500))
+qgamma(c(0.01, 0.99), 25, 500) * (180/pi)
+```
+
+
+Ahora es necesario incluir la información de la velocidad inicial y poner
+supuestos de cómo tiran los jugadores de golf. Un supuesto que podemos hacer
+es que los jugadores intentan tirar un poco más allá del hoyo, de forma
+que la pelota entre con cierta velocidad, por ejemplo, tomando el promedio
+de los extremos de éxito, podemos poner
+$$v_0^2 = (0.82 + 3.26\rho x)(1 + u)$$
+donde $u$ es una variable normal con media cero y desviación estándar $\sigma_{d}$
+chica:
+$$u \sim N(0, \sigma_{d})$$
+
+Estamos suponiendo que el error es multiplicativo con respecto al momento
+que se imparte a la pelota (ver @GolfCase para la idea general).
+
+Según este supuesto, la probabilidad de éxito en términos de la velocidad inicial es
+
+$$2\Phi \left(\frac{0.82}{\sigma_{d} (0.82 + 3.26\rho x)}\right) - 1$$
+Para poner una inicial consistente con conocimiento de dominio podemos
+calcular la distancia que recorrería la pelota bajo distintos supuestos si no
+hubiera hoyo. La distancia total recorrida, por los supuestos de arriba, es:
+
+```{r}
+sim_dist_recorrida <- function(x, rho, sigma_dist){
+  u <- rnorm(100, 0, sigma_dist)
+  dist_recorrida  <- (0.82 + 3.26 * rho * x) * (1 + u) / (3.26 * rho)
+  error <- dist_recorrida / x
+  error
+}
+sim_1 <- sim_dist_recorrida(500, 0.131, 0.01) * 500
+quantile(sim_1) 
+```
+
+Que se ve como sigue para un valor de $\sigma_{dist} = 0.005$ (1% de error)
+
+```{r}
+sigma_dist <- 0.005
+tibble(x = seq(10, 2000, 10)) %>% 
+  mutate(prob_exito = 2*pnorm(0.82 / (sigma_dist * (0.82 + 3.26*(0.131)*x))) - 1) %>% 
+ggplot(aes(x = x, y = prob_exito)) + geom_point()
+```
+
+Este es un valor que parece ser demasiado grande para $\sigma_d$, pues sugiere
+que la mitad de los tiros a 6 metros tienen la potencia incorrecta.
+
+Finalmente, ponemos una distribución inicial para $\sigma_d$. Esta cantidad
+puede ser más difícil de elicitar en un experto, pero podemos hacer simulaciones
+para ver las consecuencias de nuestras decisiones. Comenzaremos poniendo
+
+$$\sigma_{dist} \sim \textsf{Gamma}(5, 3000)$$
+```{r}
+c(qgamma(0.01, 5, 3000), qgamma(0.99, 5, 3000)) %>% round(4)
+```
+
+
+Hemos incluido información acerca del problema:
+
+- El modelo de las observaciones y los mecanismos subyacentes
+- Distribuciones iniciales consistentes con el conocimiento que tenemos acerca 
+del proceso.
+
+### Simular ensamble bayesiano
+
+Ahora simulamos el ensamble bayesiano. Escogemos algunas distancias en
+centímetros y un número de intentos a cada distancia. Esperamos encontrar menos
+tiros a distancias más grandes. Si este fuera un experimento diseñado, quizá
+tendríamos el número de intentos en cada distancia predefinidos. Aunque no es
+ideal, en este caso pondremos algunos números de intentos y distancias
+hipotéticas para probar nuestros modelos.
+
+```{r}
+sim_datos <- jsonlite::read_json("../datos/datos_prueba.json", simplifyVector = TRUE)
+parametros <- jsonlite::read_json("../datos/datos_inicial.json", simplifyVector = TRUE)
+print(sim_datos)
+```
+
+
+```{r}
+sim_ensemble_datos <- c(sim_datos, parametros)
+ruta <- file.path("../stan/simular_ensemble_modelo.stan")
+modelo_inicial <- cmdstan_model(ruta)
+ensemble <- simular_ensemble(modelo_inicial, sim_ensemble_datos)
+```
+
+Y examinamos las siguientes probabilidades de éxito:
+
+```{r}
+exitos_tbl <- curvas_exito(ensemble, sim_ensemble_datos)
+g_1 <- ggplot(exitos_tbl, aes(x = factor(x), y = prop_exitos)) +
+    geom_jitter(alpha = 0.1) 
+g_1
+```
+
+En este punto podemos consultar con el experto para verificar que:
+
+- Pŕacticamente no consideramos realizaciones imposibles (por ejemplo, 100% de
+éxito para todas las distancias, 50% de éxitos para tiros de 50 cm, etc.)
+- El espacio de realizaciones cubre apropiadamente el rango de posibilidades
+que el experto considera factible.
+
+Nótese también que con estos supuestos estamos afirmando que la mayor parte
+de los tiros que se fallan son debidos a un ángulo incorrecto.
+
+### Ajustar al ensemble simulado
+
+Ahora probamos ajustar el modelo a las simulaciones. En este paso tenemos
+qué checar qué puede pasar incluso con las condiciones más extremas 
+que creemos que podemos encontrar. 
+
+Podemos probar con una simulación:
+
+```{r}
+num_iter <- 11
+exitos_sim <- ensemble$draws("exitos")
+sigma_sim_tbl <- ensemble$draws(c("sigma_ang", "sigma_dist")) %>% as_draws_df()
+```
+
+
+```{r}
+ruta <- file.path("../stan/modelo.stan")
+modelo <- cmdstan_model(ruta)
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+datos_1 <- c(sim_ensemble_datos, list("exitos_obs" = exitos_sim[num_iter, 1, ] %>% as.numeric))
+# ajuste <- ajustar_modelo(modelo, datos_1, iter_sampling=4000, iter_warmup = 4000)
+ajuste <- ajustar_modelo(modelo, datos_1)
+```
+
+```{r}
+print(ajuste)
+ajuste$cmdstan_diagnose()
+```
+
+Este ajuste tuvo problemas. Observamos que tenemos multimodalidad en nuestra posterior:
+
+```{r}
+ajuste_draw <- ajuste$draws(c("sigma_dist", "sigma_ang")) %>% as_draws_df
+ggplot(ajuste_draw, aes(x = sigma_ang, y = sigma_dist)) + geom_point() +
+  geom_point(data = sigma_sim_tbl[num_iter, ], colour = "red")
+```
+No encontramos divergencias ni problemas numéricos.
+
+### Calibración algorítmica
+
+Ahora veremos si el algoritmo corre sin problemas numéricos con los supuestos
+del ensamble inicial. Es necesario repetir con muchas simulaciones, para
+entender si algunas configuraciones pueden tener dificultades numéricas.
+
+```{r, warning = FALSE, message = FALSE, include = FALSE, cache = TRUE}
+ajustes_ensemble <- 
+  map(1:10, ~ ajustar_diagnosticos(.x, 
+        modelo = modelo, 
+        datos = c(sim_ensemble_datos, list("exitos_obs" = exitos_sim[.x, 1, ] %>% as.numeric)),
+        params = sigma_sim_tbl[.x, ] %>% select(-.chain, -.iteration, -.draw) ),
+      ) %>%  
+        # iter_warmup = 6000, iter_sample = 6000) %>% 
+  bind_rows()
+```
+
+En algunas corridas obtuvimos problemas numéricos:
+
+```{r}
+map(ajustes_ensemble$diagnosticos, "stdout") %>% 
+  str_detect("no problems detected") %>% 
+  table
+```
+
+Ahora checamos que recuperamos los parámetros apropiadamente:
+
+```{r}
+sbc_rank_sim <- ajustes_ensemble %>% select(sbc_rank) %>% unnest
+g_dist <- ggplot(sbc_rank_sim, aes(sample = sigma_dist)) +
+  geom_qq(distribution = stats::qunif) +
+  geom_abline() +
+  labs(subtitle = "sigma_dist")
+g_angulo <- ggplot(sbc_rank_sim, aes(sample = sigma_ang)) +
+  geom_qq(distribution = stats::qunif) +
+  geom_abline() +
+  labs(subtitle = "sigma_angulo")
+g_dist + g_angulo
+```
+
+La distribución del ranking de las simulaciones con relación a cada parámetro
+simulado es cercana a la uniforme
+
+### Calibración inferencial
+
+En el siguiente paso vemos las posibilidades de aprendizaje que nos da el modelo.
+En este punto, quisiéramos saber si aprendemos algo por encima de lo que ya 
+sabíamos.
+
+- Esto se mide con la **contracción**: cómo se compara la incertidumbre a priori
+con la posterior. Si la contracción es baja, el modelo está mal identificado o
+mal especificado. Comparamos las medias posteriores con el verdadero valor para
+diagnosticar si es solo mala identificación (estas dos medias son similares), o
+mal espcificación (están concentradas en lugares diferentes)
+
+- Cuando la contracción es alta, quiere decir que aprendemos del parámetro de
+interés. Sin embargo, si las posteriores varían mucho en dónde están concentradas
+en comparación a los verdaderos valores, esto indica sobreajuste (es variabilidad
+inducida por los datos).
+
+
+```{r}
+prior_sd_sigma <- sd(rgamma(1000, 25, 500))
+calib_inf <- ajustes_ensemble %>%
+  unnest(cols = (params)) %>% 
+  mutate(post_media_sigma = map_dbl(resumen, ~filter(.x, variable=="sigma_ang") %>% pull(mean)),
+         post_sd_sigma = map_dbl(resumen, ~ filter(.x, variable == "sigma_ang") %>% pull(sd))) %>% 
+  mutate(z_score = (post_media_sigma - sigma_ang) / post_sd_sigma) %>% 
+  mutate(contraccion = 1 - (post_sd_sigma/prior_sd_sigma)^2)
+```
+
+```{r}
+ggplot(calib_inf, aes(x = contraccion, y = z_score)) + 
+  geom_point(alpha = 0.5) +
+  xlim(c(0, 1))
+```
+
+Y obtenemos algunos resultados malos para el parámetro de distancia:
+
+```{r}
+prior_sd_sigma <- sd(rgamma(5000, 5, 3000))
+calib_inf <- ajustes_ensemble %>%
+  unnest(cols = (params)) %>% 
+  mutate(problema = map_lgl(diagnosticos, ~ !str_detect(.x$stdout, "no problems"))) %>% 
+  mutate(post_media_sigma = map_dbl(resumen, ~filter(.x, variable=="sigma_dist") %>% pull(mean)),
+         post_sd_sigma = map_dbl(resumen, ~ filter(.x, variable == "sigma_dist") %>% pull(sd))) %>% 
+  mutate(z_score = (post_media_sigma - sigma_dist) / post_sd_sigma) %>% 
+  mutate(contraccion = 1 - (post_sd_sigma/prior_sd_sigma)^2)
+```
+
+```{r}
+ggplot(calib_inf, aes(x = contraccion, y = z_score, colour = factor(problema))) +
+  geom_point(alpha = 0.5) 
+```
+Incluso quitando los valores donde hubo problemas numéricos, encontramos
+contracciones débiles (poco aprendizaje): nuestro modelo está mal identificado.
+
+```{r}
+ggplot(calib_inf %>% filter(!problema), 
+       aes(x = contraccion, y = z_score, colour = factor(problema))) +
+  geom_point(alpha = 0.5) 
+```
+
+### Ajuste a las observaciones
+
+Una vez que pasamos las pruebas anteriores, podemos ajustar a los datos
+observados reales, que son:
+  
+```{r}
+datos <- read_delim("../datos/golf.csv", delim = " ")
+datos <- datos %>% mutate(x = round(30.48  * x, 0))
+datos
+```
+
+Usamos los datos observados y los datos para las iniciales que probamos:
+  
+```{r}
+parametros
+datos_golf <- c(list(p = nrow(datos), x = as.integer(datos$x), 
+                     n = as.integer(datos$n), 
+                     exitos_obs = datos$y),
+                parametros)
+```
+Ajustamos:
+  
+```{r}
+ajuste <- modelo$sample(data = datos_golf, 
+                        seed = 22103,
+                        iter_sampling = 4000, iter_warmup = 4000,
+                        refresh = 500, show_messages = FALSE)
+ajuste$cmdstan_diagnose()
+```
+
+No tuvimos problemas en el ajuste. El resumen queda:
+  
+```{r}
+ajuste$summary()
+```
+
+# Verificación posterior dentro de muestra
+
+Ahora podemos hacer la verificación más básica, que compara el ajustado
+con los valores reales. Esto nos indica problemas potenciales de desajuste que
+requieren reevaluar nuestro modelo. Estas verificaciones también se pueden
+hacer *fuera de la muestra* (predictivas), lo cual es más apropiado en algunos
+contextos (por ejemplo, si el propósito principal es predecir).
+
+Tenemos una sección para generar tasas de éxito simuladas (nuestro resumen
+principal) a partir del modelo ajustado:
+  
+```{bash}
+sed -n '/^generated/,/\}/p' ../stan/modelo.stan
+```
+
+
+
+
+```{r}
+pred_check_tbl <- calcular_post_check(ajuste, datos)
+g_post <- ggplot(pred_check_tbl, aes(x= x)) +
+  geom_linerange(aes(ymin = q_05, ymax = q_95)) +
+  geom_point(aes(y = y/n), colour="red", size = 2) +
+  ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito")
+g_post 
+```
+El resultado de calibración con posterior es bueno, y no tuvimos problema
+en ajustar el modelo. Los problemas que encontramos arriba pueden deberse
+a que los tamaños de muestra que utilizamos son más chicos.
+
+## Otra fuente de datos más grande
+
+Usamos una fuente de datos con registros de más tiros (ver @GelmanNolan)
+
+```{r}
+golf_grande <- read_delim("../datos/golf_grande.csv", delim = "\t") %>% 
+  mutate(x = dis * 30.46, y = exitos, n = count) %>% 
+  select(x, n, y) 
+```
+```{r}
+golf_grande %>% 
+  mutate(prop_exito = y / n)
+```
+
+Nótese que los tiros a 8-30 centímetros no son prácticamente éxitos. Si ajustamos
+con estos datos, considerando que hay una gran cantidad de tiros a esta distancia,
+el ajuste puede quedar dominado por estos casos.
+
+```{r}
+golf_grande <- filter(golf_grande, x > 60)
+```
+
+
+```{r}
+ruta <- file.path("../stan/modelo.stan")
+modelo <- cmdstan_model(ruta)
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+parametros
+datos_golf_grande <- c(list(p = nrow(golf_grande), 
+                            x = as.integer(round(golf_grande$x, 0)), 
+                            n = as.integer(golf_grande$n), 
+                            exitos_obs = golf_grande$y),
+                parametros)
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+ajuste_grande <- modelo$sample(data = datos_golf_grande, 
+                        seed = 23,
+                        iter_sampling = 12000, iter_warmup = 8000,
+                        adapt_delta = 0.95,
+                        parallel_chains = 4,
+                        chains = 4,
+                        refresh = 2000, show_messages = FALSE)
+```
+
+
+```{r}
+ajuste_grande$cmdstan_diagnose()
+```
+
+
+```{r}
+pred_check_tbl <- calcular_post_check(ajuste_grande, golf_grande)
+g_post <- ggplot(pred_check_tbl, aes(x= x)) +
+  geom_linerange(aes(ymin = q_05, ymax = q_95)) +
+  geom_point(aes(y = y/n), colour="red", size = 2) +
+  ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito") +
+  geom_point(data = datos, aes(y = y/n), colour = "blue") 
+g_post 
+```
+
+
+```{r}
+ajuste_grande$summary(c("sigma_ang", "sigma_dist"))
+```
+```{r}
+ggplot(ajuste_grande$draws(c("sigma_ang", "sigma_dist")) %>% 
+         as_draws_df(),
+       aes(x = sigma_ang, y = sigma_dist)) +
+  geom_point()
+```
+Y vemos que tenemos un problema de mala identificación. Como explicamos arriba,
+un valor de 0.01 para sigma_dist es muy grande para este problema. 
+
+## Siguientes pasos
+
+- Corregir especificación de modelo.
