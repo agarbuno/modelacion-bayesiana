@@ -3,7 +3,7 @@ title: "Modelos para *putts* de golf"
 output:
   html_document:
     df_print: paged
-bibliography: ../referencias/referencias.bib
+bibliography: ../../referencias/referencias.bib
 ---
 
 Este caso está basado en@GelmanNolan y @GolfCase. Usamos el flujo de trabajo
@@ -15,7 +15,7 @@ library(cmdstanr)
 library(posterior)
 library(tidyverse)
 library(patchwork)
-source("../funciones-auxiliares/simular_resumenes.R")
+source("../../funciones-auxiliares/simular_resumenes.R")
 
 knitr::opts_chunk$set(echo = TRUE, cache = TRUE, 
                       fig.align = "center", out.width = "95%")
@@ -139,7 +139,7 @@ datos agregados: para cada distancia aproximada $x$ tendremos un conteo de
 intentos y éxitos sobre los tiros de los jugadores profesionales.
 
 ```{bash}
-sed -n '/^data/,/\}/p' ../stan/modelo.stan
+sed -n '/^data/,/\}/p' stan/modelo.stan
 ```
 
 ### Estadísticas resumen
@@ -148,7 +148,7 @@ Consideraremos el porcentaje de éxitos para cada distancia dada en las observac
 (cada cubeta de distancias) como resumen principal de interés. 
 
 ```{bash}
-sed -n '/^transformed/,/\}/p' ../stan/modelo.stan
+sed -n '/^transformed/,/\}/p' stan/modelo.stan
 ```
 
 ### Desarrollo del modelo
