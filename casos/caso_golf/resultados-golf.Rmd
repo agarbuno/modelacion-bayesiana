@@ -1,35 +1,195 @@
 ---
 title: "Modelos para *putts* de golf"
 output:
-  html_document:
-    df_print: paged
+  html_document
 bibliography: ../../referencias/referencias.bib
 ---
 
-Este caso está basado en@GelmanNolan y @GolfCase. Usamos el flujo de trabajo
-bayesiano tomado del documento de Michael Betancourt @BetancourtCase.
+Este caso está basado en @GelmanNolan y @GolfCase. A lo largo de este ejemplo
+ilustraremos los pasos de un flujo de trabajo para modelado Bayesiano.
+En paralelo discutiremos los conceptos clave para guiar el desarrollo de modelos
+y este caso servirá como breve introudcción al lenguaje de programación
+probabilistica `Stan` [@stan]. 
+En particular usaremos el flujo de trabajo bayesiano tomado del documento de
+@BetancourtCase y posteriormente refinado en el artículo @bayesworkflow.
 
 
 ```{r setup, include=FALSE, message=FALSE}
 library(cmdstanr)
 library(posterior)
+library(bayesplot)
 library(tidyverse)
 library(patchwork)
 source("../../funciones-auxiliares/simular_resumenes.R")
 
-knitr::opts_chunk$set(echo = TRUE, cache = TRUE, 
-                      fig.align = "center", out.width = "95%")
+print_file <- function(file) {
+  cat(paste(readLines(file), "\n", sep=""), sep="")
+}
+
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE, comment = "",
+                      fig.align = "center", out.width = "75%")
 
 comma <- function(x) format(x, digits = 2, big.mark = ",")
 theme_set(theme_linedraw())
 ```
 
-## Problema
+## Definición del problema
 
-Queremos entender modelar la probabilidad de éxito de putts de Golf (putts: tiros
-relativamente cerca del hoyo que buscan que la pelota ruede al hoyo o muy 
-cerca de él), y cómo depende el éxito de la distancia del tiro. Quisiéramos
-inferir qué tan precisos son los profesionales en sus tiros.
+Queremos entender y modelar la probabilidad de éxito de *putts* de Golf
+(*putts*: tiros relativamente cerca del hoyo que buscan que la pelota ruede al
+hoyo o muy cerca de él), y cómo depende el éxito de la distancia del tiro. Como
+conclusiones quisiéramos inferir qué tan precisos son los profesionales en sus
+tiros.
+
+Para este estudio tenemos disponible el siguiente conjunto de datos @GelmanNolan. 
+
+
+```{r, echo = FALSE, message= FALSE}
+datos <- read_delim("datos/golf.csv", delim = " ")
+datos <- datos %>% 
+  mutate(x = round(30.48  * x, 0), 
+         se = sqrt((y/n)*(1-y/n)/n))
+
+g_datos <- datos %>% 
+  ggplot(aes(x = x, y = y/n)) + 
+    geom_linerange(aes(ymin = y/n - 2 * se, ymax = y/n + 2*se)) + 
+    geom_point(colour = "steelblue", alpha = 1.) + 
+    ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito") + 
+    ggtitle("Datos sobre putts en golf profesional")
+
+g_datos
+```
+
+Los puntos muestran las tasas de éxito para cada intento de tiro como función
+de la distancia a la meta. Las barras indican intervalos de confianza al 95\%
+utilizando el error estándar clásico $\sqrt{\hat p_j (1- \hat p_j)/n_j},$ donde
+$\hat p_j = y_j / n_j.$
+
+### Modelo logístico 
+
+Un primer intento es modelar la probabilidad de éxito a través de una regresión
+logística.
+$$y_j \sim \mathsf{Binomial}\left(n_j, \text{logit}^{-1}(a + b x_j)\right),$$
+para cada $j = 1, \ldots, J.$ Este modelo lo escribimos en `Stan` como sigue 
+```{r, echo=FALSE, message=FALSE, warning = FALSE}
+print_file("modelos/regresion_logistica.stan")
+```
+Notemos que no hemos especificado una distribución inicial explícita para
+nuestros parámetros. Por default `Stan` está incorporando una distribución
+*plana* en todo el espacio $(a,b) \in \mathbb{R}^2.$ Podríamos debatir si esto
+es aceptable y las consecuencias de incluir una distribución inicial de esta
+naturaleza. 
+
+Compilamos el modelo para poder utilizarlo. 
+```{r}
+ruta <- file.path("modelos/regresion_logistica.stan")
+modelo <- cmdstan_model(ruta)
+```
+Ahora podemos ajustar a los datos observados. `Stan` en general recibe los datos
+como una lista con nombres. Utilizando nuestra función `ajustar_modelo` podemos
+simular 1,000 iteraciones de la posterior bajo muestreo utilizando una variante
+`HMC` llamada `NUTS` (*No U-Turn Sampler*).
+
+```{r, message=FALSE, warning=FALSE}
+data_list <- c(datos, list("J" = nrow(datos)))
+ajuste <- ajustar_modelo(modelo, data_list)
+```
+
+Parece que el muestreador no tuvo problemas en correr y podemos checarlo con la
+función de diagnóstico. Más adelante estudiaremos los diágnósticos que
+utilizamos para evaluar modelos. 
+
+```{r}
+ajuste$cmdstan_diagnose()
+```
+
+Más aún, podemos pedir el resumen del ajuste donde leemos estadisticas de
+interes como media, mediana, desviación estándar e intervalos de credibilidad
+del 90\%.
+```{r}
+ajuste$summary(c("a", "b"))
+```
+Podemos extraer las muestras de cada parámetro por medio de la librería
+`posterior`
+```{r}
+muestras <- tibble(posterior::as_draws_df(ajuste$draws(c("a", "b"))))
+```
+y utilizar distintos diagnósticos gráficos como
+```{r}
+muestras %>% 
+  pivot_longer(cols = c(a, b), names_to = 'parameter') %>% 
+  mutate(Chain = as.factor(.chain)) %>% 
+  ggplot(aes(x = .iteration, y = value)) + 
+    geom_line(aes(group = .chain, color = Chain)) + 
+    facet_wrap(~parameter, ncol = 1, scales = 'free', strip.position="right") + 
+    scale_color_viridis_d(option = 'plasma')
+```
+
+De igual forma podríamos calcular el máximo de la posterior (que en este caso
+coincide con el MLE) mediante
+```{r, message = FALSE, warning = FALSE}
+params_map <- modelo$optimize(data = data_list, seed = 108)
+params_map <- params_map$summary() %>% 
+  pivot_wider(values_from = estimate, names_from = variable)
+params_map
+```
+
+Salvo algunos mensajes de error en la inicialización en la optimización parece
+ser que tenemos un modelo bien comportado. Podríamos explorar un gráfico de
+dispersión para visualizar la correlación posterior de nuestros parámetros y
+ubicar el valor que maximiza la pseudo-posterior.
+```{r, warning = FALSE}
+muestras %>% 
+  ggplot(aes(x = a, y = b)) + 
+  geom_point() + 
+  geom_point(data = params_map, aes(x = a, y = b),
+             color = 'salmon', shape = 4, stroke = 2) + 
+  ggtitle('Muestras de la posterior')
+```
+
+```{r, cache = TRUE}
+logit <- qlogis
+invlogit <- plogis
+
+modelo_logistico <- function(a, b){
+  x <- seq(0, 1.1 * max(datos$x), length.out = 50)
+  tibble(x = x, y = invlogit(a *x + b))
+}
+
+curvas_regresion <- muestras %>% 
+  mutate(curva = map2(a, b, modelo_logistico)) %>% 
+  select(-a, -b) %>% 
+  unnest(curva) %>% 
+  group_by(x) %>% 
+  summarise(mediana = median(y), 
+            q_low = quantile(y, .005), 
+            q_hi = quantile(y, .995), 
+            .groups = 'drop')
+
+datos %>% 
+  ggplot(aes(x = x, y = y/n)) + 
+    geom_linerange(aes(ymin = y/n - 2 * se, ymax = y/n + 2*se)) + 
+    geom_point(colour = "steelblue", alpha = 1.) + 
+    geom_line(data = curvas_regresion, aes(x = x, y = mediana)) +
+    geom_ribbon(data = curvas_regresion, aes(x = x, ymin = q_low, ymax = q_hi), 
+                alpha = .2, inherit.aes = FALSE) +
+    ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito") + 
+    ggtitle("Regresion logística ajustada")
+```
+
+La línea solida representa la mediana de la curva de regresión calculada entre
+las muestras de la posterior obtenidas. La región sombreada corresponde a la
+banda del 99\% de credibilidad calculada a partir del mismo conjunto de
+muestras.
+
+El modelo es razonable, en el sentido de que los parámetros tienen los valores
+que esperaríamos. La pendiente del modelo de regresión logística es negativa, lo
+cual interpretamos como la falta de precisión del tirador mientras mas alejado
+del hoyo. Mientras que para el caso base ($x = 0$) el modelo da una probabilidad
+de éxito relativamente alta.
+
+En las siguientes secciones ilustraremos el procedimiento para complementar el
+modelo.
 
 ### Análisis conceptual
 
@@ -139,7 +299,7 @@ datos agregados: para cada distancia aproximada $x$ tendremos un conteo de
 intentos y éxitos sobre los tiros de los jugadores profesionales.
 
 ```{bash}
-sed -n '/^data/,/\}/p' stan/modelo.stan
+sed -n '/^data/,/\}/p' modelos/modelo.stan
 ```
 
 ### Estadísticas resumen
@@ -148,7 +308,7 @@ Consideraremos el porcentaje de éxitos para cada distancia dada en las observac
 (cada cubeta de distancias) como resumen principal de interés. 
 
 ```{bash}
-sed -n '/^transformed/,/\}/p' stan/modelo.stan
+sed -n '/^transformed/,/\}/p' modelos/modelo.stan
 ```
 
 ### Desarrollo del modelo
@@ -192,7 +352,7 @@ $$\sigma_A \sim Gamma(a, b)$$
 y tenemos que establecer $a,b$ de forma la mayor parte de la probabilidad
 esté entre 1 grado y 4 grados de desviación
 
-```{r, fig.width=4, fig.height=2.5}
+```{r}
 set.seed(11882)
 qplot((180 / pi) * rgamma(5000, 25, 500))
 qgamma(c(0.01, 0.99), 25, 500) * (180/pi)
@@ -268,15 +428,15 @@ ideal, en este caso pondremos algunos números de intentos y distancias
 hipotéticas para probar nuestros modelos.
 
 ```{r}
-sim_datos <- jsonlite::read_json("../datos/datos_prueba.json", simplifyVector = TRUE)
-parametros <- jsonlite::read_json("../datos/datos_inicial.json", simplifyVector = TRUE)
+sim_datos <- jsonlite::read_json("datos/datos_prueba.json", simplifyVector = TRUE)
+parametros <- jsonlite::read_json("datos/datos_inicial.json", simplifyVector = TRUE)
 print(sim_datos)
 ```
 
 
 ```{r}
 sim_ensemble_datos <- c(sim_datos, parametros)
-ruta <- file.path("../stan/simular_ensemble_modelo.stan")
+ruta <- file.path("modelos/simular_ensemble_modelo.stan")
 modelo_inicial <- cmdstan_model(ruta)
 ensemble <- simular_ensemble(modelo_inicial, sim_ensemble_datos)
 ```
@@ -316,7 +476,7 @@ sigma_sim_tbl <- ensemble$draws(c("sigma_ang", "sigma_dist")) %>% as_draws_df()
 
 
 ```{r}
-ruta <- file.path("../stan/modelo.stan")
+ruta <- file.path("modelos/modelo.stan")
 modelo <- cmdstan_model(ruta)
 ```
 
@@ -450,7 +610,7 @@ Una vez que pasamos las pruebas anteriores, podemos ajustar a los datos
 observados reales, que son:
   
 ```{r}
-datos <- read_delim("../datos/golf.csv", delim = " ")
+datos <- read_delim("datos/golf.csv", delim = " ")
 datos <- datos %>% mutate(x = round(30.48  * x, 0))
 datos
 ```
@@ -492,7 +652,7 @@ Tenemos una sección para generar tasas de éxito simuladas (nuestro resumen
 principal) a partir del modelo ajustado:
   
 ```{bash}
-sed -n '/^generated/,/\}/p' ../stan/modelo.stan
+sed -n '/^generated/,/\}/p' modelos/modelo.stan
 ```
 
 
@@ -515,7 +675,7 @@ a que los tamaños de muestra que utilizamos son más chicos.
 Usamos una fuente de datos con registros de más tiros (ver @GelmanNolan)
 
 ```{r}
-golf_grande <- read_delim("../datos/golf_grande.csv", delim = "\t") %>% 
+golf_grande <- read_delim("datos/golf_grande.csv", delim = "\t") %>% 
   mutate(x = dis * 30.46, y = exitos, n = count) %>% 
   select(x, n, y) 
 ```
@@ -534,7 +694,7 @@ golf_grande <- filter(golf_grande, x > 60)
 
 
 ```{r}
-ruta <- file.path("../stan/modelo.stan")
+ruta <- file.path("modelos/modelo.stan")
 modelo <- cmdstan_model(ruta)
 ```
 
@@ -556,7 +716,7 @@ ajuste_grande <- modelo$sample(data = datos_golf_grande,
                         adapt_delta = 0.95,
                         parallel_chains = 4,
                         chains = 4,
-                        refresh = 2000, show_messages = FALSE)
+                        refresh = 5000, show_messages = FALSE)
 ```
 
 
