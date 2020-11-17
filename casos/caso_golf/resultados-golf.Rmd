@@ -423,14 +423,16 @@ ser que no es necesario incluir información previa en los parámetros.
 #### Nuevo conjunto de datos
 
 Después de algunos años se consiguieron mas registros. En particular, el
-profesor Broadie fue el que brindo dichos datos. 
+profesor Broadie fue el que brindo dichos datos. La cantidad es impresionante, 
+basta con observar la dispersión de la probabilidad de éxito bajo el supuesto
+normal. Los intervalos de confianza son casi imperceptibles.
 
 ```{r, echo = FALSE}
 datos_bkp <- datos
 ```
 
 
-```{r}
+```{r, message = FALSE, echo = FALSE}
 datos_grande <- read_delim("datos/golf_grande.csv", delim = "\t")
 datos_grande <- datos_grande %>% 
   mutate(x = dis * 30.48, n = count, y = exitos, se = sqrt((y/n)*(1-y/n)/n), fuente = 1) %>% 
@@ -461,40 +463,128 @@ datos %>%
 
 ```
 
+#### Velocidad final
 
-<!-- #### Velocidad final -->
+Para poder hacer un tiro exitoso no sólo es necesario controlar el ángulo de
+tiro. También es importante tirar con la fuerza suficiente. Siguiendo
+[@PennerPutting], existe un rango de velocidades iniciales que determinan la
+condición de éxito.
 
-<!-- Siguiendo [@PennerPutting], existe un rango de velocidades iniciales que -->
-<!-- determinan la condición de éxito. -->
+- La condición de éxito en un tiro recto es que la velocidad final $v_f$ (en
+metros por segundo) de la pelota cumpla con las siguientes condiciones
+$$0 < v_f < 1.63.$$
+- Por otro lado, la aceleración de la pelota al rodar en el *green* satisface
+$$a = \left(\frac{10}{7}\right) \, {\rho_r}\, g.$$
+donde $\rho_r = \rho/r,$ y $\rho$ depende de la superficie donde rueda la
+pelota, $r$ es el radio de la pelota y $g$ la fuerza de gravedad. Datos
+experimentales indican que la media en *greens* es de $\rho_r = 0.131,$ con un
+rango de 0.065 a 0.196. De momento, tomaremos $\rho_r = 0.131.$
 
-<!-- - La condición de éxito en un tiro recto es que la velocidad final $v_f$ (en -->
-<!-- metros por segundo) de la pelota cumpla -->
-<!-- $$0 < v_f < 1.63$$ -->
-<!-- - La aceleración de la pelota al rodar en el green: -->
-<!-- $$a = (10/7)\frac{\rho}{r}g$$ -->
-<!-- dond $\rho$ depende de la superficie donde rueda la pelota. Datos experimentales -->
-<!-- indican que la media en greens es de $\rho = 0.131, con un rango de 0.065 a -->
-<!-- 0.196. -->
-<!-- - Tomaremos $\rho = 0.131$ -->
 
-<!-- La velocidad inicial de la pelota en términos de la velocidad inicial, usando -->
-<!-- esta aceleración, es -->
-<!-- $$v_f^2 = v_0^2 - (10/7)\frac{\rho}{r}gx = v_0^2 - (10/7)\frac{\rho}{4.3}9.8x=v_0^2 - 3.26\rho x$$ -->
-<!-- donde $x$ es la distancia de la pelota al hoyo. Ahora podemos despejar para -->
-<!-- calcular las condiciones de éxito sobre la velocidad inicial $v_0$: -->
+La velocidad final de la pelota en términos de la velocidad inicial, usando
+la aceleración en el *green,* es
+$$v_f^2 = v_0^2 - \left(\frac{10}{7}\right) \, {\rho_r}\, g \, x_m = v_0^2 - \left(\frac{10}{7}\right) (0.131) \, (9.81) \, x_m = v_0^2 -  1.835871 \, x_m$$
+donde $x_m$ es la distancia de la pelota al hoyo en metros. Ahora, podemos
+despejar para calcular las condiciones de éxito sobre la velocidad inicial $v_0$
+$$c\,  x_m < v_0^2 < (1.63)^2 + c \,  x_m,$$
+donde $c = 1.835871$. La condición de éxito se puede escribir en términos de la 
+distancia de la pelota al hoyo. Es decir podemos escribir 
+$$u \in \left [\, x, \, x + 145 \,  \right],$$
+donde $u = v_0^2/c \times 100$ es la distancia en centímetros que la pelota
+viajaría si no hubiera un hoyo en medio. Esto quiere decir que la pelota debe
+ser lanzada con fuerza suficiente para alcanzar el hoyo pero no tanta como para
+sobrepasarse.
 
-<!-- $$d < v_0^2 < 1.63 + d$$ -->
+Ahora, siguiendo las recomendaciones de Mark Broadie en @GolfCase. Suponemos que
+los golfistas tienden a tirar con fuerza suficiente para pasarse del hoyo por un
+pie (30.48 cm), sin embargo la fuerza tiene un error multiplicativo. Esto es, 
+$$ u = (x + 30.48) \cdot (1 + \varepsilon),$$
+donde
+$$ \varepsilon \sim \mathsf{N}(0, \sigma^2_f),$$
+y hemos utilizado la notación $\sigma^2_f$ para hace énfasis en el error
+asociado a la fuerza de tiro. Esto implica que 
+$$ u \sim \mathsf{N}\left(x + 30.48, (x + 30.48)^2  \sigma^2_f\right),$$
+y por la tanto el éxito debido a la fuerza de tiro ---la condición $u \in \left
+[\, x, \, x + 145 \,  \right]$--- tiene probabilidad de éxito igual a
+$$\Phi\left(\frac{114.52}{(x + 30.48)  \sigma_f}\right) - \Phi\left(\frac{-30.48}{(x + 30.48)  \sigma_f}\right),$$
 
-<!-- donde $d = 3.26\rho x$. La condición de éxito es entonces -->
-<!-- $$3.26\rho x < v_0^2 < 1.63 + 3.26\rho x$$ -->
+El modelo en `Stan` es el siguiente 
+```{r, echo=FALSE, message=FALSE, warning = FALSE}
+print_file("modelos/modelo_angulo_fuerza.stan")
+```
 
-<!-- ```{bash} -->
-<!-- sed -n '/^data/,/\}/p' modelos/modelo.stan -->
-<!-- ``` -->
+```{r}
+datos <- datos %>% filter(fuente == 1)
 
-<!-- ```{bash} -->
-<!-- sed -n '/^transformed/,/\}/p' modelos/modelo.stan -->
-<!-- ``` -->
+data_new <- list(x = datos$x, n = datos$n, y = datos$y, J = nrow(datos), 
+                 r = radios$pelota, R = radios$hoyo, 
+                 overshot = 30.48, distance_tolerance = 145)
+  
+  
+ruta <- file.path("modelos/modelo_angulo_fuerza.stan")
+modelo <- cmdstan_model(ruta)
+
+ajuste <- ajustar_modelo(modelo, data_new)
+
+ajuste$cmdstan_diagnose()
+
+ajuste$summary(c("sigma_angle", "sigma_degrees", "sigma_force"))
+```
+```{r}
+modelo_angulo_fuerza <- function(sigma_radianes, sigma_fuerza){
+  x <- seq(0, 1.1 * max(datos$x), length.out = 50)
+  R.diff <- radios %>% summarise(diff = hoyo - pelota) %>% pull(diff)
+  tibble(x = x, 
+         p_angulo = 2 * pnorm( atan(R.diff/x)/sigma_radianes) - 1, 
+         p_fuerza = pnorm((data_new$distance_tolerance - data_new$overshot) / ((x + data_new$overshot)*sigma_fuerza)) - 
+           pnorm((- data_new$overshot) / ((x + data_new$overshot)*sigma_fuerza)), 
+         y = p_angulo * p_fuerza) %>% 
+    select(x, y)
+}
+
+muestras <- tibble(posterior::as_draws_df(ajuste$draws(c("sigma_angle", "sigma_force"))))
+
+curvas_regresion <- muestras %>% 
+  mutate(curva = map2(sigma_angle, sigma_force, modelo_angulo_fuerza)) %>% 
+  select(-sigma_angle, -sigma_force) %>% 
+  unnest(curva) %>% 
+  group_by(x) %>% 
+  summarise(mediana = median(y), 
+            q_low = quantile(y, .005), 
+            q_hi = quantile(y, .995), 
+            .groups = 'drop')
+
+datos %>% 
+  ggplot(aes(x = x, y = y/n)) + 
+    geom_linerange(aes(ymin = y/n - 2 * se, ymax = y/n + 2 * se)) + 
+    geom_point(aes(colour = fuente), alpha = 1.) +
+    geom_line(data = curvas_regresion, aes(x = x, y = mediana)) +
+    geom_ribbon(data = curvas_regresion, aes(x = x, ymin = q_low, ymax = q_hi),
+                alpha = .2, inherit.aes = FALSE) +
+    ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito") +
+    ggtitle("Modelo con ángulo de tiro")
+```
+
+```{r}
+muestras <- tibble(posterior::as_draws_df(ajuste$draws(c("residual"))))
+medias <- muestras %>% 
+  pivot_longer(cols = starts_with("residual"), names_to = 'parameters', values_to = 'residuals') %>% 
+  group_by(parameters) %>% 
+  summarise(media = mean(residuals), .groups = 'drop') %>% 
+  mutate(cadena = str_replace_all(parameters, "\\[|\\]", "_")) %>% 
+  separate(cadena, into = c("sufijo", "variable"), sep = "_", convert = TRUE) %>% 
+  select(media, variable)
+
+datos %>% 
+  mutate(variable = seq(1, nrow(datos))) %>% 
+  full_join(medias) %>% 
+  ggplot(aes(x = x, y = media)) + 
+    geom_point() + 
+    geom_hline(yintercept = 0, linetype = 'dashed') + 
+    ylab('Residuales del modelo ajustado') + 
+    xlab('Distancia (cm)')
+```
+
 
 ### Desarrollo del modelo
 
