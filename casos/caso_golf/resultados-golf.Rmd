@@ -30,6 +30,7 @@ knitr::opts_chunk$set(echo = TRUE, cache = TRUE, comment = "",
                       fig.align = "center", out.width = "75%")
 
 comma <- function(x) format(x, digits = 2, big.mark = ",")
+remove.warnings <- function(){assign("last.warning", NULL, envir = baseenv())}
 theme_set(theme_linedraw())
 ```
 
@@ -42,6 +43,13 @@ conclusiones quisiéramos inferir qué tan precisos son los profesionales en sus
 tiros.
 
 Para este estudio tenemos disponible el siguiente conjunto de datos @GelmanNolan. 
+
+**Definición.** El espacio de observaciones que esperaríamos son del tipo $(x, y)$
+donde $x$ es la distancia del *putt* y $y$ indica si se logró o no. Sin embargo,
+los datos que tenemos son agregados: para cada distancia aproximada $x_j$
+tendremos un conteo de intentos $n_j$ y éxitos $y_j$ sobre los tiros de los
+jugadores profesionales. En total las distancias han sido redondeadas y
+obtenemos $J = 19$ distancias distintas.
 
 
 ```{r, echo = FALSE, message= FALSE}
@@ -167,7 +175,7 @@ curvas_regresion <- muestras %>%
             q_hi = quantile(y, .995), 
             .groups = 'drop')
 
-datos %>% 
+g_logistico <- datos %>% 
   ggplot(aes(x = x, y = y/n)) + 
     geom_linerange(aes(ymin = y/n - 2 * se, ymax = y/n + 2*se)) + 
     geom_point(colour = "steelblue", alpha = 1.) + 
@@ -176,6 +184,10 @@ datos %>%
                 alpha = .2, inherit.aes = FALSE) +
     ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito") + 
     ggtitle("Regresion logística ajustada")
+
+g_logistico
+
+muestras_logistico <- muestras
 ```
 
 La línea solida representa la mediana de la curva de regresión calculada entre
@@ -245,10 +257,10 @@ knitr::include_graphics("imagenes/esquema-tiro.png")
 
 
 **Observación.** Aqui hemos hecho un supuesto importante. La distancia reportada
-en los datos que hemos denotado por $x$ es la distancia entre el centro de la
-pelota y el centro del hoyo. ¿Cómo cambiaría nuestra condición de éxito si
+en los datos, la cual hemos denotado por $x,$ es la distancia entre el centro de
+la pelota y el centro del hoyo. ¿Cómo cambiaría nuestra condición de éxito si
 suponemos que la distancia que viaja la pelota es la registrada, es decir si
-fuera $x'$ en nuestro esquema?
+ésta correspondiera a $x'$ en nuestro esquema?
 
 En particular para nuestro problema, la condición de éxito es
 $$|\theta| < \tan^{-1}\left( \frac{3.3}{x} \right)$$
@@ -271,6 +283,141 @@ modelar el conjunto de tiros de jugadores profesionales. Suponemos homogeneidad,
 misma que podríamos checar con datos desagregados por jugador. Estos datos
 podrían tener sobre-representación de tiradores malos (pues quizá hacen más
 tiros).
+
+Para modelar $\theta$ de manera probabilista asumimos una distribución Gaussiana
+con desviación estándar $\sigma.$ Este modelo codifica nuestra suposición de que
+los jugadores en promedio tirarán de manera recta, sin embagro puede haber
+diversos factores que afectarán este resultado.
+
+Siguiendo esta distribución, la probabilidad de éxito se calcula como 
+$$\mathbb{P}\left\{\,  |\theta| <  \tan^{-1}\left( \frac{R - r}{x} \right)\right\} = 2 \, \Phi\left[ \frac{\tan^{-1}((R - r)/x)}{\sigma}\right] - 1,$$
+donde $\Phi$ es la función de acumulación de una Normal estándar.
+
+La figura siguiente muestra las curvas de probabilidad para distintos valores
+de $\sigma$ para distintos valores de la distancia al hoyo. 
+
+```{r, echo = FALSE}
+curva_angulo <- function(sigma){
+  x <- seq(0, 650, by = .5)
+  R.diff <- radios %>% summarise(diff = hoyo - pelota) %>% pull(diff)
+  tibble(x = x, y = 2 * pnorm( (180/pi) * atan(R.diff/x)/sigma) - 1)
+}
+
+tibble(sigma = 2**seq(0,5)) %>% 
+  mutate(curva = map(sigma, curva_angulo), 
+         Sigma = as.factor(sigma)) %>% 
+  unnest(curva) %>% 
+  ggplot(aes(x = x, y = y)) + 
+    geom_line(aes(group = sigma, color = Sigma)) + 
+    scale_color_viridis_d() + ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Probabilidad de éxito") + 
+    ggtitle(expression(paste("Probabilidad de éxito para diferentes valores de ", sigma," (en grados ", ~degree, ").")))
+```
+
+La curva mas alta de la gráfica corresponde a una desviación estándar de
+$1^\circ,$ que implica que un jugoador de golf tendrá en promedio una
+probabilidad cercana a $25\%$ cuando se encuentre a 6 metros de distancia;
+alrededor de $60\%$ cuando se encuentre a 2 metros, $90\%$ a un metro, etc.
+
+Ahora veamos las distintas realizaciones de tiros a 1 metro de distancia bajo
+distintos valores de $\sigma.$
+
+```{r, out.width = "95%", fig.height = 3}
+simula_tiros <- function(sigma){
+  distancia  <- 1
+  n_muestras <- 250
+  angulos_tiro <- (pi/180) * rnorm(n_muestras, 0, sigma)
+  tibble(x = distancia * cos(angulos_tiro), 
+         y = distancia * sin(angulos_tiro))
+}
+
+tibble(sigma_grados = c(1, 8, 32, 64)) %>% 
+  mutate(tiros = map(sigma_grados, simula_tiros)) %>% 
+  unnest(tiros) %>% 
+  ggplot(aes(x = x, y = y)) + 
+    geom_point() +
+    geom_segment(aes(x = 0, y = 0, xend = x, yend = y), alpha = .1) + 
+    geom_point(aes(x = 0, y = 0), color = 'red') + 
+    facet_wrap(~sigma_grados, ncol = 4) + 
+    ylab("") + xlab("") + ggtitle("Posiciones finales de tiro")
+  
+```
+
+Notamos que los tiros en general tienen un buen comportamiento. Posiblemente
+valores de tiros con una desviación de $60^\circ$ dan lugar a tiros que no
+tienen sentido. Este punto lo veremos más adelante en caso de que tengamos que
+refinar. Por el momento, el modelo queda como sigue
+\begin{align}
+p_j & =  2 \, \Phi\left( \frac{\tan^{-1}((R - r)/x_j)}{\sigma}\right) - 1,\\
+y_j &\sim \mathsf{Binomial}\left(n_j, p_j\right), 
+\end{align}
+para $j = 1, \ldots, J.$
+
+El modelo en `Stan` lo escribimos como sigue
+```{r, echo=FALSE, message=FALSE, warning = FALSE}
+print_file("modelos/modelo_angulo.stan")
+```
+
+**Observación.** Seguimos sin utilizar una distribución a priori para los
+parámetros del modelo. En este caso, el model requiere de especificar una
+distribución para la desviación estándar del ángulo de tiro, $\sigma.$ Por el
+momento se le ha asignado una distribucion *plana* en $\mathbb{R}^+.$
+
+```{r}
+data_list$r = radios$pelota
+data_list$R = radios$hoyo
+
+ruta <- file.path("modelos/modelo_angulo.stan")
+modelo <- cmdstan_model(ruta)
+
+ajuste <- ajustar_modelo(modelo, data_list)
+
+ajuste$cmdstan_diagnose()
+
+ajuste$summary(c("sigma", "sigma_degrees"))
+```
+
+```{r, fig.height = 2}
+muestras <- tibble(posterior::as_draws_df(ajuste$draws(c("sigma", "sigma_degrees"))))
+
+muestras %>% 
+  select(-sigma_degrees) %>% 
+  pivot_longer(cols = c(sigma), names_to = 'parameter') %>% 
+  mutate(Chain = as.factor(.chain)) %>% 
+  ggplot(aes(x = .iteration, y = value)) + 
+    geom_line(aes(group = .chain, color = Chain)) + 
+    facet_wrap(~parameter, ncol = 1, scales = 'free', strip.position="right") + 
+    scale_color_viridis_d(option = 'plasma')
+```
+```{r, out.width = "99%", fig.height = 3}
+modelo_angulo <- function(sigma_radianes){
+  x <- seq(0, 1.1 * max(datos$x), length.out = 50)
+  R.diff <- radios %>% summarise(diff = hoyo - pelota) %>% pull(diff)
+  tibble(x = x, y = 2 * pnorm( atan(R.diff/x)/sigma_radianes) - 1)
+}
+
+curvas_regresion <- muestras %>% 
+  mutate(curva = map(sigma, modelo_angulo)) %>% 
+  select(-sigma_degrees, -sigma) %>% 
+  unnest(curva) %>% 
+  group_by(x) %>% 
+  summarise(mediana = median(y), 
+            q_low = quantile(y, .005), 
+            q_hi = quantile(y, .995), 
+            .groups = 'drop')
+
+g_angulo <- datos %>% 
+  ggplot(aes(x = x, y = y/n)) + 
+    geom_linerange(aes(ymin = y/n - 2 * se, ymax = y/n + 2*se)) + 
+    geom_point(colour = "steelblue", alpha = 1.) + 
+    geom_line(data = curvas_regresion, aes(x = x, y = mediana)) +
+    geom_ribbon(data = curvas_regresion, aes(x = x, ymin = q_low, ymax = q_hi), 
+                alpha = .2, inherit.aes = FALSE) +
+    ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito") + 
+    ggtitle("Modelo con angulo de tiro")
+
+g_logistico + g_angulo
+```
+
 
 <!-- #### Velocidad final -->
 
@@ -298,25 +445,13 @@ tiros).
 <!-- donde $d = 3.26\rho x$. La condición de éxito es entonces -->
 <!-- $$3.26\rho x < v_0^2 < 1.63 + 3.26\rho x$$ -->
 
-### Espacio de observaciones
+<!-- ```{bash} -->
+<!-- sed -n '/^data/,/\}/p' modelos/modelo.stan -->
+<!-- ``` -->
 
-El espacio de observaciones que esperamos del tipo $(x, y)$ donde $x$ es la
-distancia del putt y $y$ indica si se logró o no. Probablemente tendremos los
-datos agregados: para cada distancia aproximada $x$ tendremos un conteo de
-intentos y éxitos sobre los tiros de los jugadores profesionales.
-
-```{bash}
-sed -n '/^data/,/\}/p' modelos/modelo.stan
-```
-
-### Estadísticas resumen
-
-Consideraremos el porcentaje de éxitos para cada distancia dada en las observaciones
-(cada cubeta de distancias) como resumen principal de interés. 
-
-```{bash}
-sed -n '/^transformed/,/\}/p' modelos/modelo.stan
-```
+<!-- ```{bash} -->
+<!-- sed -n '/^transformed/,/\}/p' modelos/modelo.stan -->
+<!-- ``` -->
 
 ### Desarrollo del modelo
 
