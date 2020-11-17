@@ -96,8 +96,9 @@ ajuste <- ajustar_modelo(modelo, data_list)
 ```
 
 Parece que el muestreador no tuvo problemas en correr y podemos checarlo con la
-función de diagnóstico. Más adelante estudiaremos los diágnósticos que
-utilizamos para evaluar modelos. 
+función de
+[diagnóstico](https://mc-stan.org/docs/2_25/cmdstan-guide/diagnose.html). Más
+adelante estudiaremos los diágnósticos que utilizamos para evaluar modelos.
 
 ```{r}
 ajuste$cmdstan_diagnose()
@@ -193,105 +194,111 @@ modelo.
 
 ### Análisis conceptual
 
-Podemos pensar en cada intento que hace un golfista como una prueba independiente
-que puede resultar en éxito o fracaso. La probabilidad de éxito depende
-de la distancia.
+Podemos pensar en cada intento que hace un golfista como una prueba
+independiente que puede resultar en éxito o fracaso. El modelo anterior estable
+la probabilidad de éxito como una función no lineal de la distancia.
 
-El problema es considerablemente complicado conceptualmente (@HolmesGolf, @PennerPutting)
-si consideramos todas las fuentes de variación: ángulo de tiro, potencia de tiro,
-declive en greens y así sucesivamente. 
-Los supuestos que debemos criticar son:
+El problema es considerablemente complicado conceptualmente (@HolmesGolf,
+@PennerPutting) si consideramos todas las fuentes de variación: ángulo de tiro,
+potencia de tiro, declive en greens y así sucesivamente. Los supuestos que
+debemos criticar son:
 
 Seguiremos haciendo la simplificación de superficie plana, pero consideramos
 dos parámetros para el tiro con distintas condiciones de éxito:
 
-1. El ángulo del tiro
-2. La velocidad con la que la pelota llega (o no llega) al hoyo
+1. El ángulo del tiro.
+2. La velocidad con la que la pelota llega (o no llega) al hoyo.
 
-
-El diámetro de una pelota de golf y el hoyo (en centrímetos) es de
+Los radios de una pelota de golf y el hoyo (en centímetros) es de
 
 ```{r}
-diam_pelota <- (1.68 * 2.54) %>% round(1)
-diam_hoyo <- (4.25 * 2.54) %>% round(1)
-c(diam_pelota, diam_hoyo)
+radios <- tibble(pelota = (1.68/2 * 2.54) %>% round(1), 
+                  hoyo  = (4.25/2 * 2.54) %>% round(1))
+
+radios
 ```
 
-Supondremos por el momento que los greens de golf (áreas cerca del hoyo) 
+Supondremos por el momento que los *greens* de golf (áreas cerca del hoyo) 
 son perfectamente planos (lo cual no es cierto, pero refinaremos después),
-de modo que el éxito depende de 
+de modo que el éxito depende de:
 
 1. Tirar la pelota con un ángulo suficientemente cercano a cero con respecto a
 la línea que va del centro de la pelota al centro del hoyo.
-2. Tirar la pelota con una velocidad suficiente para llegue al hoyo pero no tan
-alta que vuele por encima del hoyo.
+2. Tirar la pelota con una velocidad suficiente para que llegue al hoyo pero no
+tan alta que vuele por encima del hoyo.
 
-Mejores datos de los tipos de fallo sería útil, pero por el momento no
-consideramos que estén disponibles.
+Mejores datos de los tipos de fallo sería útil, pero por el momento no los
+tenemos disponibles.
 
 #### Ángulo de tiro
 
-Supongamos que la distancia del centro de la pelota al centro del hoyo es $x$, y que 
-$\theta$ es el ángulo del tiro con respecto a la recta que va del centro de la pelota
-al centro del hoyo. El tiro es exitoso cuando
+Supongamos que la distancia del centro de la pelota al centro del hoyo es $x.$ 
+Idealmente ésta es la trayectoria que el golfista tendría que ejecutar. Sin
+embargo, el tiro puede ser inexacto y denotamos por $\theta$ el ángulo del tiro
+realizado. El tiro es exitoso cuando el angulo de tiro satisface
+$$|\theta| < \tan^{-1}\left(\frac{R - r}{x}\right).$$
+Incorporamos un esquema de esta situación a continuación. 
 
-$$\tan(\theta) < \frac{R - r}{2x}$$
-Por simetría, sólo consideramos $\theta$ con valores positivos (aunque puede
-ser que algunos golfistas tengan fallas asimétricas, eso lo discutimos más adelante).
+```{r, echo = FALSE, fig.cap="Esquema de ángulo de tiro"}
+knitr::include_graphics("imagenes/esquema-tiro.png")
+```
 
-![Tiro de golf](imagenes/golf-put.png)
+
+**Observación.** Aqui hemos hecho un supuesto importante. La distancia reportada
+en los datos que hemos denotado por $x$ es la distancia entre el centro de la
+pelota y el centro del hoyo. ¿Cómo cambiaría nuestra condición de éxito si
+suponemos que la distancia que viaja la pelota es la registrada, es decir si
+fuera $x'$ en nuestro esquema?
+
 En particular para nuestro problema, la condición de éxito es
+$$|\theta| < \tan^{-1}\left( \frac{3.3}{x} \right)$$
 
-$$\tan(\theta) < \frac{3.25}{x}$$
-
-Mejores golfistas tendrán mejor control sobre $\theta > 0$, y conforme
+Mejores golfistas tendrán mejor control sobre $\theta$, y conforme
 $x$ es más grande, la probabilidad de tener éxito baja:
 
 ```{r}
 tibble(x = seq(10, 1500, 1)) %>% 
-  mutate(theta = (180 / pi) * atan(3.25 / x)) %>% 
-ggplot(aes(x, theta)) + geom_point() +
+  mutate(theta = (180 / pi) * atan(3.3 / x)) %>% 
+ggplot(aes(x, theta)) + geom_line() +
   xlab("Distancia (cm)") +
-  ylab(expression(paste("Desviación máxima ", theta))) +
+  ylab(expression(paste("Desviación máxima |", theta,"|"))) +
   labs(subtitle = "Desviación máxima permitida para tener éxito a distintas distancias") +
   scale_y_log10()
 ```
 
-- Esta curva puede variar dependiendo del jugador, pero vamos a modelar el
-conjunto de tiros de profesionales. Suponemos homogeneidad que podríamos checar
-con datos desagregados por jugador. Estos datos podrían tener
-sobrerrepresentación de tiradores malos (que quizá hacen más tiros).
+**Observación.** Esta curva puede variar dependiendo del jugador, pero vamos a
+modelar el conjunto de tiros de jugadores profesionales. Suponemos homogeneidad,
+misma que podríamos checar con datos desagregados por jugador. Estos datos
+podrían tener sobre-representación de tiradores malos (pues quizá hacen más
+tiros).
 
-#### Velocidad final
+<!-- #### Velocidad final -->
 
-Siguiendo [@PennerPutting], existe un rango de velocidades iniciales que
-determinan la condición de éxito.
+<!-- Siguiendo [@PennerPutting], existe un rango de velocidades iniciales que -->
+<!-- determinan la condición de éxito. -->
 
-- La condición de éxito en un tiro recto es que la velocidad final $v_f$ (en
-metros por segundo) de la pelota cumpla
-$$0 < v_f < 1.63$$
-- La aceleración de la pelota al rodar en el green:
-$$a = (10/7)\frac{\rho}{r}g$$
-dond $\rho$ depende de la superficie donde rueda la pelota. Datos experimentales
-indican que la media en greens es de $\rho = 0.131, con un rango de 0.065 a
-0.196.
-- Tomaremos $\rho = 0.131$
+<!-- - La condición de éxito en un tiro recto es que la velocidad final $v_f$ (en -->
+<!-- metros por segundo) de la pelota cumpla -->
+<!-- $$0 < v_f < 1.63$$ -->
+<!-- - La aceleración de la pelota al rodar en el green: -->
+<!-- $$a = (10/7)\frac{\rho}{r}g$$ -->
+<!-- dond $\rho$ depende de la superficie donde rueda la pelota. Datos experimentales -->
+<!-- indican que la media en greens es de $\rho = 0.131, con un rango de 0.065 a -->
+<!-- 0.196. -->
+<!-- - Tomaremos $\rho = 0.131$ -->
 
-La velocidad inicial de la pelota en términos de la velocidad inicial, usando
-esta aceleración, es
-$$v_f^2 = v_0^2 - (10/7)\frac{\rho}{r}gx = v_0^2 - (10/7)\frac{\rho}{4.3}9.8x=v_0^2 - 3.26\rho x$$
-donde $x$ es la distancia de la pelota al hoyo. Ahora podemos despejar para
-calcular las condiciones de éxito sobre la velocidad inicial $v_0$:
+<!-- La velocidad inicial de la pelota en términos de la velocidad inicial, usando -->
+<!-- esta aceleración, es -->
+<!-- $$v_f^2 = v_0^2 - (10/7)\frac{\rho}{r}gx = v_0^2 - (10/7)\frac{\rho}{4.3}9.8x=v_0^2 - 3.26\rho x$$ -->
+<!-- donde $x$ es la distancia de la pelota al hoyo. Ahora podemos despejar para -->
+<!-- calcular las condiciones de éxito sobre la velocidad inicial $v_0$: -->
 
-$$d < v_0^2 < 1.63 + d$$
+<!-- $$d < v_0^2 < 1.63 + d$$ -->
 
-donde $d = 3.26\rho x$. La condición de éxito es entonces
-$$3.26\rho x < v_0^2 < 1.63 + 3.26\rho x$$
+<!-- donde $d = 3.26\rho x$. La condición de éxito es entonces -->
+<!-- $$3.26\rho x < v_0^2 < 1.63 + 3.26\rho x$$ -->
 
 ### Espacio de observaciones
-
-Usaremos datos de tiros de profesionales que incluyen la distancia al hoyo y si
-el tiro fue exitoso o no.
 
 El espacio de observaciones que esperamos del tipo $(x, y)$ donde $x$ es la
 distancia del putt y $y$ indica si se logró o no. Probablemente tendremos los
@@ -630,7 +637,7 @@ Ajustamos:
 ajuste <- modelo$sample(data = datos_golf, 
                         seed = 22103,
                         iter_sampling = 4000, iter_warmup = 4000,
-                        refresh = 500, show_messages = FALSE)
+                        refresh = 4000, show_messages = FALSE)
 ajuste$cmdstan_diagnose()
 ```
 
