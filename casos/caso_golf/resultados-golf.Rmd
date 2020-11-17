@@ -413,9 +413,52 @@ g_angulo <- datos %>%
     geom_ribbon(data = curvas_regresion, aes(x = x, ymin = q_low, ymax = q_hi), 
                 alpha = .2, inherit.aes = FALSE) +
     ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito") + 
-    ggtitle("Modelo con angulo de tiro")
+    ggtitle("Modelo con ángulo de tiro")
 
 g_logistico + g_angulo
+```
+Por el momento parece que el modelo está haciendo un muy buen trabajo. Parece
+ser que no es necesario incluir información previa en los parámetros. 
+
+#### Nuevo conjunto de datos
+
+Después de algunos años se consiguieron mas registros. En particular, el
+profesor Broadie fue el que brindo dichos datos. 
+
+```{r, echo = FALSE}
+datos_bkp <- datos
+```
+
+
+```{r}
+datos_grande <- read_delim("datos/golf_grande.csv", delim = "\t")
+datos_grande <- datos_grande %>% 
+  mutate(x = dis * 30.48, n = count, y = exitos, se = sqrt((y/n)*(1-y/n)/n), fuente = 1) %>% 
+  select(x, n, y, se, fuente)
+
+datos <- rbind(datos %>% mutate(fuente = 0), datos_grande)
+datos <- datos %>% mutate(fuente = as.factor(fuente))
+
+curvas_regresion <- muestras %>% 
+  mutate(curva = map(sigma, modelo_angulo)) %>% 
+  select(-sigma_degrees, -sigma) %>% 
+  unnest(curva) %>% 
+  group_by(x) %>% 
+  summarise(mediana = median(y), 
+            q_low = quantile(y, .005), 
+            q_hi = quantile(y, .995), 
+            .groups = 'drop')
+
+datos %>% 
+  ggplot(aes(x = x, y = y/n)) + 
+    geom_linerange(aes(ymin = y/n - 2 * se, ymax = y/n + 2 * se)) + 
+    geom_point(aes(colour = fuente), alpha = 1.) +
+    geom_line(data = curvas_regresion, aes(x = x, y = mediana)) +
+    geom_ribbon(data = curvas_regresion, aes(x = x, ymin = q_low, ymax = q_hi),
+                alpha = .2, inherit.aes = FALSE) +
+    ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito") +
+    ggtitle("Modelo con ángulo de tiro")
+
 ```
 
 
