@@ -22,6 +22,8 @@ library(tidyverse)
 library(patchwork)
 source("../../funciones-auxiliares/simular_resumenes.R")
 
+register_knitr_engine(override = FALSE)
+
 print_file <- function(file) {
   cat(paste(readLines(file), "\n", sep=""), sep="")
 }
@@ -436,10 +438,10 @@ datos_bkp <- datos
 ```{r, message = FALSE, echo = FALSE}
 datos_grande <- read_delim("datos/golf_grande.csv", delim = "\t")
 datos_grande <- datos_grande %>% 
-  mutate(x = dis * 30.48, n = count, y = exitos, se = sqrt((y/n)*(1-y/n)/n), fuente = 1) %>% 
+  mutate(x = dis * 30.48, n = count, y = exitos, se = sqrt((y/n)*(1-y/n)/n), fuente = "Nuevos") %>% 
   select(x, n, y, se, fuente)
 
-datos <- rbind(datos %>% mutate(fuente = 0), datos_grande)
+datos <- rbind(datos %>% mutate(fuente = "Original"), datos_grande)
 datos <- datos %>% mutate(fuente = as.factor(fuente))
 
 curvas_regresion <- muestras %>% 
@@ -482,8 +484,8 @@ experimentales indican que la media en *greens* es de $\rho_r = 0.131,$ con un
 rango de 0.065 a 0.196. De momento, tomaremos $\rho_r = 0.131.$
 
 
-La velocidad final de la pelota en términos de la velocidad inicial, usando
-la aceleración en el *green,* es
+La velocidad final de la pelota, en términos de la velocidad inicial, utiliza 
+la aceleración en el *green,* lo cual da la siguiente cadenca de igualdades
 $$v_f^2 = v_0^2 - \left(\frac{10}{7}\right) \, {\rho_r}\, g \, x_m = v_0^2 - \left(\frac{10}{7}\right) (0.131) \, (9.81) \, x_m = v_0^2 -  1.835871 \, x_m$$
 donde $x_m$ es la distancia de la pelota al hoyo en metros. Ahora, podemos
 despejar para calcular las condiciones de éxito sobre la velocidad inicial $v_0$
@@ -498,28 +500,47 @@ sobrepasarse.
 
 Ahora, siguiendo las recomendaciones de Mark Broadie en @GolfCase. Suponemos que
 los golfistas tienden a tirar con fuerza suficiente para pasarse del hoyo por un
-pie (30.48 cm), sin embargo la fuerza tiene un error multiplicativo. Esto es, 
+pie (30.48 cm), sin embargo la fuerza tiene un error multiplicativo. La
+intuición es que errores de la misma magnitud afectan en proporción a la
+distancia de tiro.
+
+La distancia que recorre la pelota esta definida como 
 $$ u = (x + 30.48) \cdot (1 + \varepsilon),$$
 donde
 $$ \varepsilon \sim \mathsf{N}(0, \sigma^2_f),$$
 y hemos utilizado la notación $\sigma^2_f$ para hace énfasis en el error
 asociado a la fuerza de tiro. Esto implica que 
-$$ u \sim \mathsf{N}\left(x + 30.48, (x + 30.48)^2  \sigma^2_f\right),$$
+$$u \sim \mathsf{N}\left(x + 30.48, (x + 30.48)^2  \sigma^2_f\right),$$
 y por la tanto el éxito debido a la fuerza de tiro ---la condición $u \in \left
 [\, x, \, x + 145 \,  \right]$--- tiene probabilidad de éxito igual a
 $$\Phi\left(\frac{114.52}{(x + 30.48)  \sigma_f}\right) - \Phi\left(\frac{-30.48}{(x + 30.48)  \sigma_f}\right),$$
+que es un evento que asumimos independiente del ángulo de tiro.
+
+
+Para finalizar, utilizamos las condiciones de éxito que definen ambos eventos
+que asumimos independientes, el ángulo de tiro y la fuerza. Por lo tanto, el
+modelo lo escribimos como
+\begin{align}
+p_j^u & = \Phi\left(\frac{114.52}{(x + 30.48)  \sigma_f}\right) - \Phi\left(\frac{-30.48}{(x + 30.48)  \sigma_f}\right), \\
+p_j^\theta & =  2 \, \Phi\left( \frac{\tan^{-1}((R - r)/x_j)}{\sigma_\theta}\right) - 1,\\
+p_j & = p_j^u \cdot p_j^\theta \\
+y_j & \sim \mathsf{Binomial}\left(n_j, p_j\right), 
+\end{align}
+para $j = 1, \ldots, J.$
 
 El modelo en `Stan` es el siguiente 
 ```{r, echo=FALSE, message=FALSE, warning = FALSE}
 print_file("modelos/modelo_angulo_fuerza.stan")
 ```
 
-<!-- datos <- datos %>% filter(fuente == 1) -->
+
 
 ```{r leer datos nuevos}
+# datos <- datos %>% filter(fuente == 1)
 data_new <- list(x = datos$x, n = datos$n, y = datos$y, J = nrow(datos), 
                  r = radios$pelota, R = radios$hoyo, 
-                 overshot = 30.48, distance_tolerance = 145)
+                 distance_tolerance = 4.5 * 30.48,# 145,
+                 overshot = 30.48)
 ```
 
 ```{r ajuster modelo angulo fuerza}
@@ -568,36 +589,63 @@ datos %>%
     ggtitle("Modelo con ángulo de tiro y fuerza")
 ```
 
-Al explorar los residuales encontramos que parece haber cierto patrón. 
+Al explorar los residuales encontramos que parece haber cierto patrón. Mas aún,
+el modelo parece estar *muy* seguro de los valores esperados de probabilidad de
+éxito ---lo cual podemos apreciar al incorporar los intervalos de probabilidad
+de los residuales que se calculan de las muestras. Esto se puede deber a que el
+número elevado de registros que la nueva base de datos provee. 
+
 
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
 muestras <- tibble(posterior::as_draws_df(ajuste$draws(c("residual"))))
 medias <- muestras %>% 
   pivot_longer(cols = starts_with("residual"), names_to = 'parameters', values_to = 'residuals') %>% 
   group_by(parameters) %>% 
-  summarise(media = mean(residuals), .groups = 'drop') %>% 
+  summarise(media = mean(residuals), 
+            q_lo = quantile(residuals, 0.05),
+            q_hi = quantile(residuals, 0.95), groups = 'drop') %>% 
   mutate(cadena = str_replace_all(parameters, "\\[|\\]", "_")) %>% 
   separate(cadena, into = c("sufijo", "variable"), sep = "_", convert = TRUE) %>% 
-  select(media, variable)
+  select(media, variable, q_lo, q_hi)
 
 datos %>% 
   mutate(variable = seq(1, nrow(datos))) %>% 
   full_join(medias) %>% 
   ggplot(aes(x = x, y = media)) + 
+    geom_linerange(aes(x = x, ymin = q_lo, ymax = q_hi)) + 
     geom_point(aes(color = fuente)) + 
     geom_hline(yintercept = 0, linetype = 'dashed') + 
     ylab('Residuales del modelo ajustado') + 
     xlab('Distancia (cm)') + 
     ggtitle("Modelo con angulo y fuerza de tiro.")
 ```
+En este punto la incertidumbre tan baja se puede deber a efectos latentes en los
+datos, como error de medición, o a una mala especificación del modelo. En
+particular, la proporción de éxitos a tan corta distancia hace que el modelo
+Binomial sobreajuste a éstos. Podríamos incorporar un modelo Binomial-Negativo
+para considerar un modelo capaz de trabajar con una proporción tan alta de
+éxitos.
 
-Podríamos ajustar sólo en los datos nuevos. Pero no tenemos alguna justificación
-específica para descartar los que ya teníamos. Por lo pronto usaremos ambos
-conjuntos sin distinción.
+Alternativamente, podríamos ajustar sólo en los datos nuevos. Pero no tenemos
+alguna justificación específica para descartar los que ya teníamos. Por lo
+pronto usaremos ambos conjuntos sin distinción.
 
-Una forma que tenemos es incorporar una aproximación continua a las proporciones
-reportadas, misma que podemos utilizar para incorporar error de medición. El 
-modelo en `Stan` no cambia mucho y se vuelve un poco mas flexible. 
+Una estrategia es incorporar una aproximación continua a las proporciones
+reportadas, misma que podemos utilizar para incorporar un error de medición
+latente. El modelo queda especificado como
+\begin{align}
+p_j^u & = \Phi\left(\frac{114.52}{(x + 30.48)  \sigma_f}\right) - \Phi\left(\frac{-30.48}{(x + 30.48)  \sigma_f}\right), \\
+p_j^\theta & =  2 \, \Phi\left( \frac{\tan^{-1}((R - r)/x_j)}{\sigma_\theta}\right) - 1,\\
+p_j & = p_j^u \cdot p_j^\theta \\
+\frac{y_j}{n_j} &\sim \mathsf{N}\left( p_j, \frac{p_j (1 - p_j)}{n_j} + \sigma^2_{\textsf{obs}} \right), 
+\end{align}
+para $j = 1, \ldots, J.$
+
+Por otro lado, el modelo en `Stan` no cambia mucho y se vuelve un poco mas
+flexible. Lo cual especificamos en el bloque de modelo
+```{bash, echo = FALSE}
+sed -n '/^model/,/\}/p' modelos/modelo_angulo_fuerza_normal_plano.stan
+```
 
 Podríamos ajustar sin distribución previa como lo hemos hecho antes, pero 
 en este caso si tenemos problemas serios en el ajuste. 
@@ -609,12 +657,19 @@ modelo <- cmdstan_model(ruta)
 ajuste <- ajustar_modelo(modelo, data_new, iter_sampling = 1000)
 
 ajuste$cmdstan_diagnose()
-
-ajuste
 ```
 
-Podemos incorporar información *débil* en los parametros de escala, eso es por
-medio de normales truncadas en la región positiva. 
+Podemos incorporar información *débil* en los parametros de escala, esto es por
+medio de normales truncadas en la región positiva. El modelo completo sería
+\begin{align}
+\sigma^2 &\sim \mathsf{N}^+(0, 1) \\
+p_j^u & = \Phi\left(\frac{114.52}{(x + 30.48)  \sigma_f}\right) - \Phi\left(\frac{-30.48}{(x + 30.48)  \sigma_f}\right), \\
+p_j^\theta & =  2 \, \Phi\left( \frac{\tan^{-1}((R - r)/x_j)}{\sigma_\theta}\right) - 1,\\
+p_j & = p_j^u \cdot p_j^\theta, \\
+\frac{y_j}{n_j} &\sim \mathsf{N}\left( p_j, \frac{p_j (1 - p_j)}{n_j} + \sigma^2_{\textsf{obs}} \right), 
+\end{align}
+para $j = 1, \ldots, J,$ donde $\sigma^2 = (\sigma^2_{\textsf{obs}}, \sigma^2_\theta, \sigma^2_f)$.
+
 
 ```{r}
 ruta <- file.path("modelos/modelo_angulo_fuerza_normal.stan")
@@ -627,25 +682,54 @@ ajuste$cmdstan_diagnose()
 ajuste$summary(c("sigma_angle", "sigma_degrees", "sigma_force", "sigma_obs"))
 ```
 
+Los parámetros estimados los interpretamos como sigue: 
+
+- $\sigma_\theta$ tiene un valor cercano a 0.015 que corresponde a
+$\sigma_{\textsf{grados}} = 0.8.$ De acuerdo a los datos obtenidos los jugadores
+de golf cometen errores de ángulo de *casi* un $1^\circ.$ Si comparamos este
+valor con el de modelos anteriores podemos notar que al incluir errores de
+precisión en la fuerza de tiro ésta desviación disminuye. Ya no es necesario
+corregir con ángulos lo que se puede explicar de otra forma, esta correlación la
+podemos ver gráficamente por medio de un diagrama de dispersión como abajo.
+- $\sigma_f$ tiene un valor esperado de $0.17,$ lo cual implica un error del
+17\% debido a la errores en distancia producto de la fuerza de tiro. 
+- $\sigma_{\textsf{obs}}$ tiene un valor de $0.03$ lo cual incide en errores
+atribuibles a medición del 3 puntos porcentuales.
+
+```{r, echo = FALSE}
+color_scheme_set("darkgray")
+muestras_sigma <- ajuste$draws(c("sigma_angle", "sigma_force", "sigma_obs"))
+mcmc_pairs(muestras_sigma)
+
+```
+La aparente bimodalidad de los gráficos de dispersión se podría explicar a
+traves del efecto de tener mediciones de dos tipos. Un tipo son los datos
+originales en los que parece haber un número limitado de registrados, y las
+nuevas observaciones de Broadie que tienen un número muy grande observaciones a
+distintas distancias.
+
 ```{r, echo =  FALSE, message = FALSE, warning = FALSE}
 muestras <- tibble(posterior::as_draws_df(ajuste$draws(c("residual"))))
 medias <- muestras %>% 
   pivot_longer(cols = starts_with("residual"), names_to = 'parameters', values_to = 'residuals') %>% 
   group_by(parameters) %>% 
-  summarise(media = mean(residuals), .groups = 'drop') %>% 
+  summarise(media = mean(residuals), 
+            q_lo = quantile(residuals, 0.05),
+            q_hi = quantile(residuals, 0.95), groups = 'drop') %>% 
   mutate(cadena = str_replace_all(parameters, "\\[|\\]", "_")) %>% 
   separate(cadena, into = c("sufijo", "variable"), sep = "_", convert = TRUE) %>% 
-  select(media, variable)
+  select(media, variable, q_lo, q_hi)
 
 datos %>% 
   mutate(variable = seq(1, nrow(datos))) %>% 
   full_join(medias) %>% 
   ggplot(aes(x = x, y = media)) + 
+    geom_linerange(aes(x = x, ymin = q_lo, ymax = q_hi)) + 
     geom_point(aes(color = fuente)) + 
     geom_hline(yintercept = 0, linetype = 'dashed') + 
     ylab('Residuales del modelo ajustado') + 
     xlab('Distancia (cm)') + 
-    ggtitle("Modelo con angulo, fuerza de tiro, y error de medición")
+    ggtitle("Modelo con angulo y fuerza de tiro.")
 ```
 
 ## Siguientes pasos
@@ -653,6 +737,5 @@ datos %>%
 - Corregir especificación de modelo.
 - Incorporar modelo jerarquico para extraer información de ambos conjuntos de
 datos.
-- Faltan barras de dispersion en los graficos de residuales. 
 
 ## Referencias
