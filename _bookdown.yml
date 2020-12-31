@@ -1,0 +1,8 @@
+book_filename: "modelacion-bayesiana"
+rmd_subdir: ["notas/"]
+language:
+  ui:
+    chapter_name: "Sección "
+delete_merged_file: true
+new_session: no
+output_dir: ["notas/_book"]
