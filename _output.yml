@@ -3,6 +3,9 @@ bookdown::gitbook:
     in_header: notas/html/in_header.html
     after_body: notas/html/after_body.html
   css: [notas/css/style.css, notas/css/toc.css]
+  toc_depth: 2
+  toolbar: 
+      position: static
   config:
     toc:
       collapse: subsection
@@ -25,7 +28,7 @@ bookdown::pdf_book:
   latex_engine: pdflatex
   citation_package: natbib
   pandoc_args: --top-level-division=chapter
-  toc_depth: 3
+  toc_depth: 2
   toc_unnumbered: yes
   toc_appendix: yes
 bookdown::epub_book: default

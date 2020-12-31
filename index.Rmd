@@ -7,7 +7,7 @@ documentclass: book
 bibliography: [notas/bibs/book.bib, notas/bibs/packages.bib]
 biblio-style: apalike
 link-citations: yes
-github-repo: tereom/fundamentos
+github-repo: ITAM-DS/modelacion-bayesiana
 description: "Curso de Modelación Bayesiana, maestría en Ciencia de Datos, ITAM, Primavera 2021."
 ---
 
@@ -22,8 +22,8 @@ requests](https://github.com/ITAM-DS/modelacion-bayesiana).
 #### Ligas {-}
 
 - Notas: https://fundamentos-est.netlify.app/  
-- Correos: <alfredo.garbuno@itam.mx>.  
-- GitHub: https://github.com/ITAM-DS/modelacion-bayesiana
+- Contacto: <alfredo.garbuno@itam.mx>.  
+- GitHub: https://github.com/ITAM-DS/modelacion-bayesiana  
 - Foro de discusion: [canvas](https://itam.instructure.com/)
 
 </br>

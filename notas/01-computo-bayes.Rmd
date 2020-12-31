@@ -164,12 +164,13 @@ aplicado este teorema en varias ocasiones. Nos ha sido útil cuando
 ejemplo, o usando un método estándar como inversión de la función de distribución acumulada).
 
 ### Ejemplo {-}
-En este ejemplo repetimos cosas que ya hemos visto. En el caso de estimación
-de una proporción $\theta, tenemos como inicial
-$p(\theta) \propto \theta$, que es $\mathsf{Beta}(2,1)$. Si observamos 3 éxitos en 4 pruebas,
-entonces sabemos que la posterior es $p(\theta|x)\propto \theta^4(1-\theta)$, que 
-es $\mathsf{Beta}(5, 2)$. Si queremos calcular media y segundo momento posterior para $\theta$,
-en teoría necesitamos calcular
+
+En este ejemplo repetimos cosas que ya hemos visto. En el caso de estimación de
+una proporción $\theta,$ tenemos como inicial $p(\theta) \propto \theta$, que es
+$\mathsf{Beta}(2,1)$. Si observamos 3 éxitos en 4 pruebas, entonces sabemos que
+la posterior es $p(\theta|x)\propto \theta^4(1-\theta)$, que es
+$\mathsf{Beta}(5, 2)$. Si queremos calcular media y segundo momento posterior
+para $\theta$, en teoría necesitamos calcular
 
 $$\mu = \int_0^1 \theta p(\theta|X = 3)\, d\theta,\,\, \mu_2=\int_0^1 \theta^2 p(\theta|X = 3)\, d\theta$$
 
@@ -271,12 +272,14 @@ no es trivial.
 
 
 ```{block2, type='ejercicio'}
+
 - ¿Cuáles son las probabilidades a priori de que cada sabor sea el preferido
 por la población?
 - ¿Cuál es la integral correspondiente a las probabilidades que acabamos de calcular?
   ¿Qué tan fácil es hacer esta integral de manera analítica?
 - Calcula la probabilidad de que mango sea preferido a limón?
 - ¿Qué conclusión práctica sacas de estos resultados?
+  
 ```
 
 
@@ -403,7 +406,7 @@ g_2 <- ggplot(sims_indep_tbl, aes(x = theta)) +
   labs(subtitle = "rbeta")
 g_1 + g_2
 ```
-Y vemos que esto funciona. Revisa el ejemplo de las islas en @Kruschke (7.2) para 
+Y vemos que esto funciona. Revisa el ejemplo de las islas en @kruschke (7.2) para 
 tener más intuición de cómo funciona este algoritmo.
 
 Nótese sin embargo un aspecto de estas simulaciones que no habíamos encontrado
