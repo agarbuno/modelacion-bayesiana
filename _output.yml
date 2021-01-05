@@ -1,7 +1,4 @@
 bookdown::gitbook:
-  includes:
-    in_header: notas/html/in_header.html
-    after_body: notas/html/after_body.html
   css: [notas/css/style.css, notas/css/toc.css]
   toc_depth: 2
   toolbar: 

@@ -1,85 +1,151 @@
 \mainmatter
 
-# Cómputo probabilistico
-
+# Cómputo probabilístico
 
 ```{r setup, include=FALSE, message=FALSE}
 library(tidyverse)
 library(patchwork)
-knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning=FALSE, fig.align = 'center', fig.width = 5, fig.height=3, cache = TRUE)
+library(scales)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning=FALSE, 
+                      fig.align = 'center', fig.width = 5, fig.height=3, cache = TRUE)
 comma <- function(x) format(x, digits = 2, big.mark = ",")
-theme_set(theme_minimal())
+theme_set(theme_linedraw())
+color.blues <- c(NA,"#BDD7E7", "#6BAED6", "#3182BD", "#08519C", "#074789", "#063e77", "#053464")
+sin_lineas <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+sin_leyenda <- theme(legend.position = "none")
+sin_ejes <- theme(axis.ticks = element_blank(), 
+        axis.text = element_blank())
 ```
+
+Las notas para este curso difieren de las presentadas originalmente en
+[EST-46111](https://fundamentos-est.netlify.app/) en Otoño 2020. En particular,
+la discusión teórica está basada en las notas del curso en Problemas Inversos y
+Asimilación de Datos [@inverse-problems].
 
 Hasta ahora, hemos considerado modelos bayesianos *conjugados*, donde la
 posterior tiene una forma conocida. Esto nos permitió simular directamente
-de la posterior usando las rutinas estándar de `R`, o utilizar cálculos teóricos
-o funciones estándar de `R` para calcular resúmenes de interés, como medias o 
-medianas posteriores o intervalos de credibilidad.
+de la posterior usando generadores estándar de números aleatorios (por ejemplo,
+variables aleatorias normales, Gamma, Poisson, Binomial Negativa, etc.) Por otro
+lado, en algunas situaciones pudimos utilizar cálculos teóricos o funciones
+estándar de `R` para calcular resúmenes de interés, como medias o medianas
+posteriores o intervalos de credibilidad. 
+
+```{block, type = 'ejercicio'}
+
+Escribe el modelo conjugado Poisson-Gamma. Determina los valores posteriores de
+los parámetros. Escribe los valores de media y varianza. Identifica las
+funciones estándar que utilizarías para calcular los parámetros dada una
+muestra.
+
+```
+
 
 Sin embargo, en aplicaciones rara vez es factible este tipo de análisis tan
 simple, pues:
 
-1. Los modelos que estamos considerando son más complejos y la distribución posterior
-conjunta de los parámetros no tiene una forma simple conocida.
-2. Queremos usar distribuciones iniciales que no son conjugadas para utilizar correctamente
-nuestra información inicial.
+1. Los modelos que estamos considerando son más complejos y la distribución
+posterior conjunta de los parámetros no tiene una forma simple conocida.
+2. Queremos usar distribuciones iniciales que no son conjugadas para utilizar
+correctamente nuestra información inicial.
 
-Recordamos que tenemos expresiones explícitas para la inicial $p(\theta)$ y la verosimilitud
-$p(x|\theta)$, así que conocemos explícitamente la posterior, módulo la constante de
-normalización,
+## Integración por discretización {-}
 
-$$p(\theta|x) \propto p(x|\theta) \,  p(\theta).$$
+Recordamos que tenemos expresiones explícitas para la inicial $p(\theta)$ y la
+verosimilitud $p(x|\theta)$, así que conocemos parcialmente la posterior,
+módulo la constante de normalización,
+
+$$p(\theta|x) \propto p(x|\theta) \,\,  p(\theta).$$
+
+En general nos interesa reportar resúmenes de nuestras distribuciones (¿por
+qué?). Esto quiere decir, identificamos una función resumen y promediamos dicha
+función de acuerdo a los pesos que la distribución posterior asigna. Es decir,
+
+$$ \mathbb{E}[f] = \int_\Theta f(\theta) \,\, p(\theta|x) \,\, \text{d}\theta, $$
+
+donde $f$ es la función resumen, y $\Theta$ el soporte de la distribución
+$p(\cdot \, | x).$ Supongamos por ejemplo que quisiéramos calcular la media
+posterior de $\theta \in \mathbb{R}.$
+
+Lo que tenemos que hacer es calcular la integral
+
+$$\hat \theta = \mathbb{E}[{\theta}\, |\, x] = \int_\Theta \theta \, p(\theta|x) \, \text{d}\theta.$$
+Analiticamente necesitamos saber $p(\theta|x)$ para cualquier valor de $\theta$
+de forma cerrada. Esto implica conocer la constante de normalización $p(x)$, que
+resulta de la integral
+
+$$p(x) = \int p(x|\theta) \, p(\theta)\, \text{d}\theta.$$
+
+```{block, type = 'ejercicio'}
+
+Considera una variable aleatoria uniforme $v \sim \textsf{U}[a, b].$ Calcula la
+media y varianza de dicha variable aleatoria. Identifica la función de densidad
+$p(v),$ y las funciones resumen $f$ para cada caso. ¿Puedes identificar la
+constante de normalización?
+
+```
+
+En general, si no tenemos expresiones analíticas simples, tendremos que
+aproximar numéricamente estas integrales de alguna forma. El candidato _natural_
+para efectuar la aproximación es utilizar la definición de integral. Es decir,
+dividir el espacio en intervalos $\{u_1, \ldots, u_n\}$ por medio de una malla de
+$N+1$ puntos, $\{x_0, \ldots, x_N\},$ tal que
+
+$$ \mathbb{E}[f] \approx \sum_{n=1}^N f(u_n) \, p(u_n) \, \Delta u_n,$$
+
+donde $\Delta u_n$ denota la precisión de la malla y el valor del integrando
+$f(u_n) \, p(u_n)$ se asigna de acuerdo a la regla de intregación. A estos
+métodos se les conoce como reglas de *cuadratura*. Los valores $N, x_n, \Delta
+u_n$ se asignan de acuerdo a cierta tolerancia, la función de peso y la regla de
+interpolación.
+
+```{r}
+grid.n <- 11
+grid.size <- 6/(grid.n+1)
+norm.cuadrature <- tibble(x = seq(-3, 3, by = grid.size), y = dnorm(x) )
+
+```
 
 
-Supongamos por ejemplo que quisiéramos calcular las medias posteriores de los
-parámetros $\theta$. En teoría, tendríamos que calcular
+```{r, echo = FALSE, out.width = "95%"}
 
-$$\hat \theta = \mathbb{E}[{\theta}\, |\, x] = \int \theta \, p(\theta|x) \, d\theta$$
-Entonces es necesario calcular también $p(x)$, que resulta de la integral
-$$p(x) = \int p(x|\theta) \, p(\theta)\, d\theta$$
+norm.density <- tibble(x = seq(-5, 5, by = .01), 
+       y = dnorm(x) ) 
+  
+norm.cuadrature %>% 
+  ggplot(aes(x=x + grid.size/2, y=y)) + 
+    geom_area(data = norm.density, aes(x = x, y = y), fill = 'lightblue') + 
+    geom_bar(stat="identity", alpha = .3) + 
+    geom_bar(aes(x = x + grid.size/2, y = -0.01), fill = 'black', stat="identity") + 
+    sin_lineas + xlab('x') + 
+    annotate('text', label = expression(Delta~u[n]), x = .01 + 5 * grid.size/2, y = -.02) + 
+    annotate('text', label = expression(f(u[n]) * p(u[n]) ), x = .01 + 9 * grid.size/2, y = dnorm(.01 + 4 * grid.size/2)) + 
+    annotate('text', label = expression(f(u[n]) * p(u[n]) * Delta~u[n]), 
+             x = .01 + 5 * grid.size/2, y = dnorm(.01 + 4 * grid.size/2)/2, 
+             angle = -90, alpha = .7)
+  
 
-Si no tenemos expresiones analíticas simples, tendremos que aproximar numéricamente
-estas integrales de alguna forma. 
+```
 
-1. Si la posterior tiene una forma conocida, podemos calcular cantidades de interés usando
-fórmulas o rutinas de simulación de distribuciones conocidas que producen muestras independientes.
+La aproximación en este caso es
 
-Cuando la posterior no tiene una forma conocida, sin embargo:
+```{r, echo = FALSE}
+norm.cuadrature %>% 
+  summarise(approx = sum(y * grid.size), N = n()) %>% 
+  round(5)
+```
 
-2. Podemos intentar usar integración numérica usual. Como veremos, este enfoque no es muy escalable.
-3. Podemos usar simulaciones bajo cadenas de Markov (**Markov Chain Monte Carlo**, MCMC),
-que es un enfoque más escalable.
+Las rutinas usuales de integración pueden sernos útiles cuando el número de
+parámetros es chico. En el caso anterior tenemos una buena aproximación con $N=
+17$ evaluaciones del integrando. 
 
-Mucho del uso generalizado actual de la estadística bayesiana se debe a que gracias al
-poder de cómputo disponible y los métodos MCMC, no estamos restringidos al uso de 1 y 2,
-que tienen desventajas grandes. Primero mostraremos cómo el método de integración
-por subdivisión no es escalable.
-
-
-## Integrales mediante subdivisiones {-}
-
-Como tenemos una expresión analítica para el integrando, podemos intentar una
-rutina numérica de integración. Una vez calculada, podríamos entonces
-usar otra rutina numérica para calcular las medias posteriores $\hat{\theta}$.
-
-Las rutinas usuales de integración pueden sernos útiles cuando el número de parámetros
-es chico. Consideremos primero el caso de 1 dimensión, y supongamos que $a\leq\theta\leq b$.
-
-Si dividimos el rango de $\theta$ en intervalos determinados
-por $a = \theta^1<\theta^2<\cdots \theta^M =b$, tales que $\Delta\theta = \theta^{i+1} -\theta^{i}$,
-podríamos aproximar con
-
-$$p(x) \approx \sum_{i=1}^M p(x|\theta^i)p(\theta^i) \Delta\theta$$
-Lo que requiere $M$ evaluaciones del factor $p(x|\theta)p(\theta)$. Podríamos usar
-por ejemplo $M=100$ para tener precisión razonable.
 
 ### Ejemplo: estimación de una proporción {-}
 
-Teníamos que $p(S_n = k|\theta) \propto \theta^k(1-\theta)^{n-k}$ cuando observamos $k$ éxitos
-en $n$ pruebas independientes. Supongamos que nuestra inicial es $p(\theta) = 2\theta$
-(checa que es una densidad), es decir, creemos que es más probable a priori 
-observar proporciones altas. Podemos integrar numéricamente
+Supongamos que $p(S_n = k|\theta) \propto \theta^k(1-\theta)^{n-k}$ cuando
+observamos $k$ éxitos en $n$ pruebas independientes. Supongamos que nuestra
+inicial es $p(\theta) = 2\theta$ (checa que es una densidad), es decir, creemos
+que es más probable a priori observar proporciones altas. Podemos integrar
+numéricamente
 
 ```{r}
 crear_log_post <- function(n, k){
@@ -108,73 +174,185 @@ integral_media <- integrate(media_funcion, lower = 0, upper = 1, subdivisions = 
 media_post <- integral_media$value 
 media_post
 ```
-Podemos verificar nuestro trabajo pues sabemos que la posterior es $\mathsf{Beta}(5, 2)$
-cuya media es
+
+Podemos verificar nuestro trabajo pues sabemos que la posterior es
+$\mathsf{Beta}(5, 2)$ cuya media es
+
 ```{r}
 5/(2+5)
 ```
 
-Y podríamos intentar una estrategia similar, por ejemplo, para calcular intervalos
-de credibilidad. Sin embargo, veremos abajo que este método no escala con el número de
-parámetros.
-
 ### Más de un parámetro {-}
 
-Ahora supongamos que tenemos $2$ parámetros. Dividiríamos cada parámetro
-en 100 intervalos, y luego tendríamos que calcular
+Ahora supongamos que tenemos $2$ parámetros. Es decir, $\theta \in
+\mathbb{R}^2.$ Los intervalos se vuelven regiones rectangulares. Si cada 
+dimensión es discretizada utilizando $N$ puntos, entonces en total tendremos 
+$N^2$ puntos donde deberíamos evaluar el integrando.
 
-$$p(x) \approx \sum_{i=1}^M \sum_{j=1}^M p(x|\theta_1^i, \theta_2^j)p(\theta_1^i, \theta_2^j) \Delta\theta_1\Delta\theta_2$$
-Y esto requeriría $M^2 = 10,000$ evaluaciones de $p(x|\theta)p(\theta)$. 
+```{r, echo = FALSE, out.width  = "99%"}
+# Codigo utilizado: 
+# https://stackoverflow.com/questions/17521438/geom-rect-and-alpha-does-this-work-with-hard-coded-values
 
-Si tenemos $p$ parámetros, entonces tendríamos que hacer $M^p$ evaluaciones de la
-posterior. Incluso cuando $p=10$, **esta estrategia es infactible**, pues tendríamos
-que hacer más de millones de millones de millones de evaluaciones de la posterior. Si sólo 
-tenemos esta técnica disponible, el análisis bayesiano está considerablemente
-restringido. Regresión bayesiana con unas 10 covariables por ejemplo, no podría hacerse.
+m <- ggplot(faithful, aes(x = eruptions, y = waiting)) +
+ xlim(0.5, 6) +
+ ylim(40, 110)
 
-De modo que tenemos que replantearnos cómo atacar el problema de calcular o aproximar
-estas integrales.
+grid.size <- 10 - 1
 
-## Métodos Monte Carlo {-}
+mesh <- expand.grid(x = seq(0.5, 6, by = (6-.5)/grid.size), y = seq(40, 110, by = (110-40)/grid.size))
 
-En varias ocasiones anteriormente hemos usado el método Monte Carlo para
-aproximar integrales: por ejemplo, para calcular medias posteriores.
+m + geom_density_2d_filled(aes(alpha = ..level..), bins = 8) + 
+  scale_fill_manual(values = color.blues) + 
+  sin_lineas + theme(legend.position = "none")  + 
+  geom_point(data = mesh, aes(x = x, y = y)) + 
+  annotate("rect", xmin = .5 + 5 * (6-.5)/grid.size, 
+            xmax = .5 + 6 * (6-.5)/grid.size, 
+            ymin = 40 + 3 * (110-40)/grid.size, 
+            ymax = 40 + 4 * (110-40)/grid.size,
+            linestyle = 'dashed', 
+           fill = 'salmon', alpha = .4) + ylab("") + xlab("") + 
+  annotate('text', x = .5 + 5.5 * (6-.5)/grid.size, 
+                   y = 40 + 3.5 * (110-40)/grid.size, 
+           label = expression(u[n]), color = 'red') +
+  theme(axis.ticks = element_blank(), 
+        axis.text = element_blank())
 
-Supongamos que tenemos una densidad $p(\theta)$. 
-
-```{block2, type='mathblock'}
-**Integración Monte Carlo**. Supongamos que queremos calcular el valor esperado de
-$g(X)$, donde $X\sim p(X\,|\,\theta).$ Es decir, la variable aleatoria $X$ se
-distribuye de acuerdo al modelo probabilistico $p(X \, | \, \theta),$ de tal forma que 
-lo que nos interesa calcular es
-
-$$\mathbb{E}[g(X)] =  \int g(x) p(x|\theta)\, dx.$$
-
-Si tomamos una muestra 
-$x^{(1)},x^{(2)}, \ldots x^{(N)} \overset{iid}{\sim} p(x|\theta)$, entonces
-
-$$\mathbb{E}[g(X)] \approx  \,  \frac1N \,  \sum_{n = 1}^N g(x^{(n)})$$
-
-cuando $N$ es grande.
 ```
 
-Esto es simplemente una manera de escribir la ley de los grandes números, y hemos
-aplicado este teorema en varias ocasiones. Nos ha sido útil cuando 
-**sabemos cómo simular de distribución** $p(\theta | x)$ (usando alguna rutina de `R`, por
-ejemplo, o usando un método estándar como inversión de la función de distribución acumulada).
 
-### Ejemplo {-}
+Generalizando, si tenemos $p$ parámetros, entonces bajo un esquema
+discretización uniforme tendríamos que hacer $N^p$ evaluaciones del integrando.
+Por ejemplo, si $p=10$ **esta estrategia es infactible**, pues tendríamos que
+hacer más de millones de millones de millones de evaluaciones de la posterior.
+Si sólo tenemos esta técnica disponible, el análisis bayesiano está
+considerablemente restringido. Regresión bayesiana con unas 10 covariables por
+ejemplo, no podría hacerse.
 
-En este ejemplo repetimos cosas que ya hemos visto. En el caso de estimación de
-una proporción $\theta,$ tenemos como inicial $p(\theta) \propto \theta$, que es
-$\mathsf{Beta}(2,1)$. Si observamos 3 éxitos en 4 pruebas, entonces sabemos que
-la posterior es $p(\theta|x)\propto \theta^4(1-\theta)$, que es
-$\mathsf{Beta}(5, 2)$. Si queremos calcular media y segundo momento posterior
-para $\theta$, en teoría necesitamos calcular
+Los errores del método de cuadratura están ligadas a la estrategia de
+discretización, el número de elementos, y las reglas de interpolación. En
+general, no habrá poder computacional suficiente para realizar integrales en
+dimensiones elevadas. Por lo que tendremos que *asignar nuestros recursos
+computacionales limitados* de forma inteligente y *donde tengamos mayor
+impacto.*
 
-$$\mu = \int_0^1 \theta p(\theta|X = 3)\, d\theta,\,\, \mu_2=\int_0^1 \theta^2 p(\theta|X = 3)\, d\theta$$
+Los métodos que estudiaremos en esta sección se enfocarán en presentar
+alternativas para poder aproximar estas integrales.
 
-integramos con Monte Carlo
+## Integración Monte Carlo {-}
+
+Anteriormente  hemos usado el método Monte Carlo para aproximar integrales: por
+ejemplo, para calcular medias posteriores. En general, calculamos el valor
+esperado de un resumen, y lo escribimos como
+
+$$\mathbb{E}_\pi[f] = \pi(f) = \int f(x) \pi(x) \text{d}x,$$
+
+donde $f(x)$ es la función de interés y $\pi(x)$ es la función de densidad de la
+variable aleatoria $x.$ Lo que hemos hecho anteriormente es generar muestras 
+independientes del modelo de probabilidad y promediar $f$ evaluada en cada uno 
+de los puntos generados. Esto es, generamos $x^{(n)} \sim \pi(x)$ de manera
+independiente para $n = 1, \ldots, N,$ y escribimos nuestro estimador como
+
+$$\pi_N^{\textsf{MC}}(f) = \frac1N \sum_{n = 1}^N f( x^{(n)}).$$
+
+**Nota:** Aunque $\pi(x)$ denota una densidad, $\pi(f)$ denota un objeto
+completamente distinto. Esto es, el promedio de $f$ bajo la densidad $\pi.$
+
+Podemos utilizar el método Monte Carlo para aproximar el valor de $\pi.$
+Consideremos el experimento de lanzar dardos uniformemente en un cuadrado de
+tamaño 2, el cual contiene un circulo de radio 1. Distintas realizaciones se
+muestran abajo con distintos valores de número de lanzamientos $10^k$ con $k =
+2, 3, 4, 5.$
+
+```{r, echo = FALSE, out.width = "99%", fig.height = 2}
+
+genera_dardos <- function(n = 100){
+  tibble(x1 = runif(n, min = -1, max = 1), 
+         x2 = runif(n, min = -1, max = 1)) %>% 
+    mutate(resultado = ifelse(x1**2 + x2**2 <= 1., 1., 0.))
+}
+
+dardos <- tibble(n = seq(2,5)) %>% 
+  mutate(datos = map(10**n, genera_dardos)) %>% 
+  unnest() 
+
+dardos %>% 
+  ggplot(aes(x = x1, y = x2)) + 
+    geom_point(aes(color = factor(resultado))) + 
+    facet_wrap(~n, nrow = 1) + 
+    sin_lineas + sin_ejes + sin_leyenda
+
+```
+
+Podemos graficar la aproximación del método Monte Carlo, y observarmos un 
+comportamiento que debería de ser familiar para nosotros. ¿Cómo le llamaríamos 
+a nuestro estimador $\pi_N^{\textsf{MC}}(f)?$
+
+```{r, cache = TRUE, out.width = "99%", fig.height = 3, echo = FALSE}
+set.seed(1087)
+
+genera_dardos(n = 2**16) %>% 
+  mutate(n = seq(1, 2**16), 
+         approx = cummean(resultado) * 4) %>% 
+  ggplot(aes(x = n, y = approx)) + 
+    geom_line() + 
+    geom_hline(yintercept = pi, linetype = 'dashed') + 
+    scale_x_continuous(trans='log10', 
+                       labels = trans_format("log10", math_format(10^.x))) + 
+    ylab('Aproximación') + xlab("Muestras") + sin_lineas
+  
+
+```
+
+Este comportamiento no es particular del caso anterior. Se extiende para una familia
+mas amplia de problemas bajo ciertas condiciones de regularidad. El resultado lo
+expresamos en el teorema siguiente.
+
+```{block, type = 'mathblock'}
+
+**Teorema (Error Monte Carlo).** Sea $f : \mathbb{R}^p \rightarrow \mathbb{R}$
+cualquier función *bien comportada*$^\dagger.$ Entonces, el estimador Monte Carlo es
+**insesgado**
+
+$$\mathbb{E}\left[ \pi_N^{\textsf{MC}}(f) - \pi(f)\right] = 0,$$
+
+y tiene **error cuadrático medio acotado**
+
+$$ \sup_{f \in \mathcal{F}} \, \,  \mathbb{E}\left[ \left(\pi_N^{\textsf{MC}}(f) - \pi(f) \right)^2 \right] \leq \frac1N.$$
+
+```
+
+En particular, la varianza del estimador (**error estándar**) satisface la igualdad
+
+$$ \textsf{ee}^2\left(\pi_N^{\textsf{MC}}(f)\right) = \frac{\mathbb{V_\pi(f)}}{N}.$$
+
+De tal forma que se satisface el siguiente teorema. 
+
+```{block, type = 'mathblock'}
+
+**Teorema (TLC para estimadores Monte Carlo).** Sea $f$ una función *bien
+comportada*$^{\dagger\dagger},$ entonces 
+
+$$ \frac{\pi_N^{\textsf{MC}}(f) - \pi(f)}{\mathbb{V}_\pi(f)} \sim \mathsf{N}\left(0, \,\, \frac{1}{\sqrt{N}}\right).$$
+
+```
+
+**Nota:** la cota en la varianza del estimador no depende en la dimensión del 
+problema. Sólo depende del número de simulaciones que hacemos del modelo. Esto, 
+en principio, hace del método Monte Carlo un método escalable aún para
+problemas de un número elevado de parámetros.
+
+### Ejemplo: proporciones {-}
+
+Consideramos la estimación de una proporción $\theta,$ tenemos como inicial
+$p(\theta) \propto \theta$, que es una $\mathsf{Beta}(2,1)$. Si observamos 3
+éxitos en 4 pruebas, entonces sabemos que la posterior es $p(\theta|x)\propto
+\theta^4(1-\theta)$, que es una $\mathsf{Beta}(5, 2)$. Si queremos calcular la
+media y el segundo momento posterior para $\theta$, en teoría necesitamos
+calcular
+
+$$\mu = \int_0^1 \theta \,\, p(\theta|X = 3)\, \text{d}\theta,\qquad  \mu_2=\int_0^1 \theta^2 \,\, p(\theta|X = 3)\, \text{d}\theta.$$
+
+Podemos integrar utilizando el método Monte Carlo
 
 ```{r}
 theta <- rbeta(10000, 5, 2)
@@ -190,16 +368,15 @@ Por ejemplo, podemos aproximar fácilmente $P(e^{\theta}> 2|x)$ haciendo
 ```{r}
 mean(exp(theta) > 2)
 ```
+
 y así sucesivamente. 
 
-Este enfoque, sin embargo, es mucho más flexible y poderoso.
+### Ejemplo: pruebas independientes {-}
 
-### Ejemplo: varias pruebas independientes {-}
-
-Supongamos que probamos el nivel de gusto para 4 sabores distintos de una paleta. Usamos
-4 muestras de aproximadamente 
-50 personas diferentes para cada sabor, y cada uno evalúa si le gustó mucho o no.
-Obtenemos los siguientes resultados:
+Supongamos que probamos el nivel de gusto para 4 sabores distintos de una
+paleta. Usamos 4 muestras de aproximadamente 50 personas diferentes para cada
+sabor, y cada uno evalúa si le gustó mucho o no. Obtenemos los siguientes
+resultados:
 
 ```{r}
 datos <- tibble(
@@ -223,7 +400,8 @@ independientes, podemos mostrar que las posteriores son independientes:
 
 $$p(\theta_1,\theta_2,\theta_3, \theta_4|k_1,k_2,k_3,k_4) = p(\theta_4|k_1)p(\theta_4|k_2)p(\theta_4|k_3)p(\theta_4|k_4)$$
 
-De forma que podemos trabajar individualmente con cada muestra. Calculamos los parámetros de las posteriores individuales:
+De forma que podemos trabajar individualmente con cada muestra. Calculamos los
+parámetros de las posteriores individuales:
 
 ```{r}
 datos <- datos %>% 
@@ -237,7 +415,7 @@ que los parámetros son independientes para la posterior. Eso quiere decir
 que podemos simular de cada parámetro independientemente para obtener simulaciones
 de la conjunta posterior.
 
-```{r}
+```{r, cache = TRUE}
 simular_conjunta <- function(rep, datos){
   datos %>% mutate(valor_sim = map2_dbl(a_post, b_post, ~ rbeta(1, .x, .y))) %>% 
     select(sabor, valor_sim) 
@@ -254,7 +432,6 @@ sims_posterior <- tibble(rep = 1:5000) %>%
 sims_posterior
 ```
 
-
 Y ahora podemos aproximar fácilmente la probabilidad de interés:
 
 ```{r}
@@ -266,9 +443,10 @@ sims_posterior %>%
   ungroup() %>% 
   mutate(prop = n / sum(n))
 ```
+
 Y vemos que los mejores sabores son mango y limón. La probabilidad posterior de
-que mango sea el sabor preferido por la población es de 66%. La integral correspondiente
-no es trivial.
+que mango sea el sabor preferido por la población es de 66%. La integral
+correspondiente no es trivial.
 
 
 ```{block2, type='ejercicio'}
@@ -283,71 +461,326 @@ por la población?
 ```
 
 
-## Simulando de la posterior {-}
+## Integración Monte Carlo vía Cadenas de Markov {-}
 
-Hemos establecido que podemos contestar varias preguntas de inferencia
-usando simulación Monte Carlo, y que este enfoque es potencialmente
-escalable (en contraste con métodos de integración numérica por cuadrícula). Ahora
-el problema que necesitamos resolver es el siguiente:
+Hasta ahora hemos visto que el método Monte Carlo nos ayuda a aproximar
+integrales de manera numérica. Sin embargo, para que este método funcione
+necesitamos poder simular muestras independientes de la distribución de interés.
 
-- Conocemos $p(\theta |x)$ módulo una constante de integración.
-- En general, $p(\theta|x)$ no tiene una forma reconocible que corresponda a un
+Sin embargo, en aplicaciones como en inferencia bayesiana: 
+
+- la distribución la conocemos módulo una constante de normalización. 
+- la distribución no tiene una forma reconocible que corresponda a un
 simulador estándar.
-- ¿Cómo simulamos de esta posterior cuando sólo sabemos calcular $p(x|\theta)p(\theta)$?
+- ¿cómo podemos simular si sólo conocemos parcialmente la expresión analítica?
 
-Hay varias maneras de hacer esto. Presentaremos los algoritmos en términos
-de una distribución cualquiera $p(\theta) = K f(\theta)$, donde sólo conocemos
-la función $f(\theta)$.
+Podemos aproximar integrales de interés utilizando muestras correlacionadas, lo 
+cual implica relajar el supuesto de independencia, y construir una secuencia de 
+simulaciones que tengan como distribución límite la distribución que nos
+interesa. Para ser completamente explícitos, lo que queremos es resolver problemas
+del estilo 
 
+$$\pi(f) = \int f(x) \,\, \pi(x) \,\, \text{d}x, $$
 
-## Método de Metrópolis {-}
+donde $\pi(x)$ es la función de densida de la variable aleatoria $x.$ 
+Lo que necesitamos es generar una *secuencia* de puntos en el soporte de $x$ de 
+tal forma que podamos utilizar 
 
-En el método de Metrópolis, uno de los más antiguos, comenzamos
-con un valor inicial de los parámetros $\theta^{(0)}$ en el soporte de $p(\theta)$,
-es decir $p(\theta^{(0)})>0.$
+$$\pi(f) \approx \frac1N \sum_{n= 1}^N f(u^{(n)}).$$
 
-Para $i=1, \ldots, M$, hacemos:
+Lo que pedimos es que la secuencia tenga una correlación débil que expresamos 
+a través de la propiedad Markoviana (cadena de Markov) para aproximar integrales
+como si fuera el método Monte Carlo. Es decir, utilizamos integración Monte
+Carlo vía Cadenas de Markov (MCMC por sus siglas en inglés).
 
-1. Partiendo de $\theta^{(i)}$, hacemos un saltogit 
-corto en una dirección al azar para obtener una propuesta $\theta^* \sim q(\theta \, |\, \theta^{(i)}).$
-2. Aceptamos or rechazamos el salto:
-  - Si $\alpha = \frac{f(\theta^*)}{f(\theta^{(i)})} \geq 1$, aceptamos el salto
-  y ponemos $\theta^{(i+1)}=\theta^*$. Regresamos a 1 para la siguiente
-  iteración $i\leftarrow i + 1.$
-  - Si $\alpha = \frac{f(\theta^*)}{f(\theta^{(i)})} < 1$, entonces aceptamos
-  con probabilidad $\alpha$ el salto, ponemos $\theta^{(i+1)}=\theta^*$ y
-  regresamos a 1 para la siguiente iteración $i \leftarrow i + 1$. Si rechazamos
-  el salto, ponemos entonces $\theta^{(i+1)}=\theta^{(i)}$ y regresamos a 1 para
-  la siguiente iteración $i\leftarrow i + 1.$
+### Fundamentos e ideas {-}
 
-Requerimos también que la función que propone los saltos sea simétrica: es
-decir, $q(\theta^*|\theta^{(i)})$ debe ser igual a $q(\theta^{(i)}|\theta^*)$.
-Se puede modificar el algoritmo para tratar con una propuesta que no sea
-simétrica.
+Implementar MCMC requiere de definir un mecanismo de muestreo (que llamamos
+*kernel* Markoviano) que permita tener como distribución límite la distribución
+objetivo $\pi$. De tal forma que podamos seguir aproximando $\pi(f)$ por medio de 
 
-Una elección común es escoger $q(\theta^* |\theta^{(i)})$ como
-una $\mathsf{N}(\theta^{(i)}, \sigma_{salto})$.
+$$\pi(f) \approx \frac1N \sum_{n= 1}^N f(u^{(n)}).$$
 
-```{block,type="comentario"}
-En este curso, escribiremos varios métodos de cadenas de Markov para estimación
-Monte Carlo (*Markov Chain Monte Carlo*, MCMC) desde cero para entender los
-básicos de cómo funciona. Sin embargo, **en la práctica no hacemos esto**, sino
-que usamos software estándar (Stan, JAGS, BUGS, etc.) para hacer este trabajo.
+Bajo ciertas condiciones de regularidad el estimador se vuelve *insesgado* y
+satisface una versión del teorema de límite central para ciertas funciones $f.$
+Estudiar el diseño y analisis de métodos de MCMC escapa a los objetivos del
+curso pero pueden ser estudiados desde teorica ergódica [@mcmcStability]. 
 
-**Expertos** en MCMC, métodos numéricos, y estadística a veces escriben partes
-de sus rutinas de simulación, y pueden lograr mejoras de desempeño
-considerables. Excepto para modelos simples, esto no es trivial de hacer
-garantizando resultados correctos.
+#### Ejemplo: vendedor ambulante {-}
+
+Por simplicidad, estudiaremos una clase de algoritmos que se denominan
+Metropolis-Hastings dentro de toda la familia de MCMC. Primero veremos un
+ejemplo para establecer un poco de intuición.
+
+Supongamos que un nuevo vendedor de *Yakult* trabajará a lo largo de una cadena
+de 5 islas:
+
+* La idea que tiene es viajar constantemente entre las islas ofreciendo sus
+productos;
+
+* Al final de un día de trabajo decide si permanece en la misma isla o se 
+transporta a una de las $2$ islas vecinas;
+
+* El vendedor sólo tiene información local y no lleva un registro de cuántas
+islas hay en el archipielago; sin embargo, una vez que se encuentra en una isla
+puede investigar la población de la misma y también de la isla a la que se
+propone viajar después.
+
+* El objetivo del vendedor es visitar las islas de manera proporcional a la 
+población de cada una. Con esto en mente el vendedor utiliza el siguiente 
+proceso: 
+
+    1) Lanza un volado, si el resultado es águila se propone ir a la isla 
+del lado izquierdo de su ubicación actual y si es sol a la del lado derecho.
+    2) Si la isla propuesta tiene población mayor a la población de la isla actual,
+el vendedor decide viajar a ella. Si la isla vecina tiene población menor,
+entonces visita la isla propuesta con una probabilidad que depende de la
+proporción de la población de las islas. 
+
+Es decir, en el $t-$ésimo día la decisión del vendedor es como sigue. Sea
+$\pi^*$ la población de la isla propuesta y $\pi_{t}$ la población de la isla
+actual. Entonces el vendedor cambia de isla con probabilidad
+
+$$\alpha_{\textsf{mover}}= \frac{\pi^*}{\pi_{t}}$$
+Nota que entre mas parecidas sean las poblaciones de las islas mas *indeciso*
+será de moverse y además $\alpha_{\textsf{mover}} \in (0,1)$ por definición. De
+hecho, podemos definir la probabilidad de viajar a otra isla por medio de
+
+$$\alpha(t, *) = \min \Bigg\{ 1, \frac{\pi^*}{\pi_{t}}\Bigg\},$$
+
+pues incluye los dos casos. 
+
+A la larga, si el vendedor sigue la heurística anterior la probabilidad de que
+el vendedor este en alguna de las islas coincide con la población relativa de
+la isla. 
+
+```{r, fig.height=6, fig.width=3.5}
+
+set.seed(1087)
+
+islas <- tibble(islas = 1:5, pob = 1:5)
+camina_isla <- function(i){ # i: isla actual
+    u <- runif(1) # volado
+    v <- ifelse(u < 0.5, i - 1, i + 1)  # isla vecina (índice)
+    if (v < 1 | v > 5) { # si estas en los extremos y el volado indica salir
+      return(i)
+    }
+    u2 <- runif(1)
+    p_move = min(islas$pob[v] / islas$pob[i], 1)
+    if (p_move  > u2) {
+        return(v) # isla destino
+    }
+    else {
+      return(i) # me quedo en la misma isla
+    }
+}
+pasos <- 100000
+iteraciones <- numeric(pasos)
+iteraciones[1] <- sample(1:5, 1) # isla inicial
+for (j in 2:pasos) {
+    iteraciones[j] <- camina_isla(iteraciones[j - 1])
+}
+caminata <- tibble(pasos = 1:pasos, isla = iteraciones)
+plot_caminata <- ggplot(caminata[1:500, ], aes(x = pasos, y = isla)) +
+    geom_point(size = 0.8) +
+    geom_path(alpha = 0.5) +
+    coord_flip() + 
+    labs(title = "Caminata aleatoria") +
+    scale_x_continuous(trans = "log10", "Tiempo", breaks = c(1, 2, 5, 20, 100, 500)) +
+    scale_y_continuous( expression(theta))
+plot_dist <- ggplot(caminata, aes(x = isla)) +
+    geom_bar(fill = "darkgray", aes(y = (..count..)/sum(..count..))) +
+    scale_x_continuous(expression(theta), breaks = 1:10) +
+    labs(title = "Distribución objetivo", 
+       y = expression(pi(theta)))
+plot_caminata / plot_dist
 ```
 
-En resumen, todo el código de esta sección es de carácter ilustrativo.
-Utiliza implementaciones establecidas en las aplicaciones.
+Entonces:
 
-Abajo implementamos el algoritmo con un salto de tipo normal:
+* Para aproximar la distribución objetivo debemos permitir que el vendedor 
+recorra las islas durante una sucesión larga de pasos y registramos sus visitas. 
+
+* Nuestra aproximación de la distribución es justamente el registro de sus 
+visitas. 
+
+* Más aún, debemos tener cuidado y excluir la porción de las visitas que se 
+encuentran bajo la influencia de la posición inicial. Esto es, debemos excluir 
+el **periodo de calentamiento**. 
+
+* Una vez que tenemos un registro _largo_ de los viajes del vendedor (excluyendo 
+el calentamiento) podemos aproximar la distribución objetivo 
+simplemente contando el número relativo de veces que el vendedor visitó
+dicha isla.
+
+```{r, warning=FALSE, message=FALSE, fig.width=8, fig.height=7.5}
+t <- 4**(0:8)
+plots_list <- map(t, function(i){
+    ggplot(caminata[1:i, ], aes(x = isla)) +
+        geom_bar(fill = "darkgray", aes(y = (..count..)/sum(..count..))) +
+        labs(y = "", x = "", title = paste("t = ", i, sep = "")) +
+        scale_x_continuous(expression(theta), breaks = 1:5, limits = c(0, 6))
+})
+wrap_plots(plots_list)
+```
+
+Escribamos el algoritmo, para esto indexamos las islas por el valor
+$\theta$, es así que la isla del extremo oeste corresponde a $\theta=1$ y la 
+población relativa de cada isla es $\pi(\theta)$:
+
+1. El vendedor se ubica en una isla al tiempo $t$, lo cual denotamos por
+$\theta^{(t)}$ y propone moverse a la izquierda o derecha $\theta^{(*)}$ con
+probabilidad $0.5$. El rango de los posibles valores para moverse, y la
+probabilidad de proponer cada uno se conoce como **distribución propuesta**, en
+nuestro ejemplo sólo toma dos valores cada uno con probabilidad $0.5$.
+
+2. Una vez que se propone un movimiento, decidimos si aceptarlo. La decisión de
+aceptar se basa en el valor de la distribución **objetivo** en la posición
+propuesta, relativo al valor de la distribución objetivo en la posición actual:
+$$\alpha\left(\theta^{(t)}, \theta^{(*)}\right)=\min\bigg\{\frac{\pi(\theta^{(*)})}{\pi(\theta^{(t)})},1\bigg\},$$
+donde $\alpha$ denota la probabilidad de hacer el cambio de isla. 
+
+Notemos que la distribución objetivo $\pi(\theta)$ no necesita estar
+normalizada, esto es porque lo que nos interesa es el cociente
+$\pi(\theta^*)/\pi(\theta^{(t)})$.
+
+3. Una vez que propusimos un movimiento y calculamos la probabilidad de aceptar
+el movimiento, aceptamos o rechazamos el movimiento generando un valor de una
+distribución uniforme, si dicho valor es menor a la probabilidad de cambio,
+$\alpha,$ entonces hacemos el movimiento.
+
+Entonces, para utilizar el algoritmo necesitamos ser capaces de:
+
+* Generar un valor de la distribución propuesta en este caso es una decisión
+binaria con probabilidad $0.5$.
+
+* Evaluar la distribución objetivo en cualquier valor propuesto (para calcular
+$\pi(\theta^{(*)})/\pi(\theta^{(t)})$).
+
+* Generar un valor uniforme (para movernos con probabilidad $\alpha$).
+
+Las $3$ puntos anteriores nos permiten generar muestras aleatorias de la
+distribución objetivo, sin importar si esta está normalizada. Esta técnica es
+particularmente útil cuando cuando la distribución objetivo la conocemos módulo
+la constante de normalización. Como por ejemplo, en inferencia bayesiana cuando
+tenemos $p(x|\theta)p(\theta)$ (en nuestra notación Bayesiana).
+
+Para entender porque funciona el algoritmo anterior hace falta entender $2$
+puntos, primero que la distribución objetivo es **estable** para el modelo de
+transición. Esto lo verificamos cuando la probabilidad _actual_ de ubicarse en
+una posición coincide con la probabilidad en la distribución objetivo, entonces
+el algoritmo para generar los saltos preserva las probabilidades en el límite.
+
+```{r, warning=FALSE, message=FALSE, fig.width=8, fig.height=7.5}
+library(expm)
+transMat <- function(P){ # recibe vector de probabilidades (o población)
+    T <- matrix(0, 5, 5)
+    n <- length(P - 1) # número de estados
+    for (j in 2:n - 1) { # llenamos por fila
+        T[j, j - 1] <- 0.5 * min(P[j - 1] / P[j], 1)
+        T[j, j] <- 0.5 * (1 - min(P[j - 1] / P[j], 1)) + 
+                   0.5 * (1 - min(P[j + 1] / P[j], 1))
+        T[j, j + 1] <- 0.5 * min(P[j + 1] / P[j], 1)
+    }
+    # faltan los casos j = 1 y j = n
+    T[1, 1] <- 0.5 + 0.5 * (1 - min(P[2] / P[1], 1))
+    T[1, 2] <- 0.5 * min(P[2] / P[1], 1)
+    T[n, n] <- 0.5 + 0.5 * (1 - min(P[n - 1] / P[n], 1))
+    T[n, n - 1] <- 0.5 * min(P[n - 1] / P[n], 1)
+    T
+}
+T <- transMat(islas$pob)
+w <- c(0, 1, rep(0, 3))
+t <- 4**(0:8)
+expT <- map_df(t, ~data.frame(t = ., w %*% (T %^% .)))
+expT_long <- expT %>%
+    gather(theta, P, -t) %>% 
+    mutate(theta = parse_number(theta))
+ggplot(expT_long, aes(x = theta, y = P)) +
+    geom_bar(stat = "identity", fill = "darkgray") + 
+    facet_wrap(~ t) +
+    scale_x_continuous(expression(theta), breaks = 1:5, limits = c(0, 6))
+```
+
+El segundo punto es que el proceso converge a la distribución objetivo. 
+Podemos ver, (en nuestro ejemplo sencillo) que sin importar el punto de inicio
+se alcanza la distribución objetivo.
+
+```{r, warning=FALSE, message=FALSE, fig.width=8, fig.height=7.5}
+inicio_p <- function(i){
+    w <- rep(0, 5)
+    w[i] <- 1
+    t <- c(1, 10, 50, 100)
+    exp_t <- map_df(t, ~ data.frame(t = .x, inicio = i, w %*% (T %^% .))) %>%
+        gather(theta, P, -t, -inicio) %>% 
+        mutate(theta = parse_number(theta))
+    exp_t
+}
+exp_t <- map_df(c(1, 3, 5), inicio_p)
+ggplot(exp_t, aes(x = as.numeric(theta), y = P)) +
+    geom_bar(stat = "identity", fill = "darkgray") + 
+    facet_grid(inicio ~ t) +
+    scale_x_continuous(expression(theta), breaks = 1:5, limits = c(0, 6))
+```
+
+## El método Metropolis-Hastings {-}
+
+Ahora formalicemos lo que hicimos con nuestro vendedor ambulante. 
+El algoritmo necesita dos ingredientes: *una generador de saltos* $q(u, v),$ que 
+es el *kernel* de transición; y una probabilidad de aceptación $\alpha(u,v),$
+que convierte el *kernel* de transición en un *kernel* que preserva la
+distribución objetivo $\pi.$ 
+
+En el ejemplo del vendedor de *Yakults* no sólo bastaba con seleccionar de las
+islas vecinas al azar. También es importante que la transición se haga de manera
+relativa a las poblaciones. La conjunción de ambas es lo que permite la
+construccion de una cadena ergódica.
+
+Usando estos dos elementos hacemos lo siguiente. Partiendo de la $n-$ésima
+iteración localizada en $u^{(n)}$, generamos un candidato $u^{(*)}$ por medio de
+
+$$u^{(*)} \sim q(u^{(n)}, \,\cdot\,),$$
+
+y aceptamos el salto con probabilidad $\alpha(u^{(n)}, u^{(*)})$ donde la 
+probabilidad de aceptación de salto está dada por 
+
+$$\alpha(u^{(n)}, u^{(*)}) = \min \bigg\{ \frac{\pi(u^{(n)})}{\pi(u^{(*)}) } \cdot \frac{q(u^{(n)}, u^{(*)})}{q(u^{(*)}, u^{(n)})}, \, 1\bigg\}.$$
+
+```{block, type = 'comentario'}
+
+- Lo que necesitamos para poder implementar el Metropolis-Hastings es poder
+simular de manera independiente del *kernel* propuesta $q(u, \cdot)$ para
+cualquier valor de $u.$
+
+- Del cálculo de la probabilidad de aceptación podemos ver que si sólo conocemos la 
+densidad módulo una constante de normalización, ¡no importa! Pues el cociente 
+$\pi(u)/\pi(v)$ cancela la constante. 
+
+- El método se puede simplificar bastante si consideramos propuestas simétricas.
+Es decir, $q(u,v) = q(v, u).$ En este caso podemos notar que el método aceptará
+transiciones de manera *automática* a zonas de alta densidad, y con un
+movimiento aleatorio a zonas de menor densidad.
+
+- El algoritmo es bastante flexible para escoger $q(u, v),$ sin embargo, el 
+comportamiento ergódico dependerá en gran medida de esta elección.
+
+- Aceptar con probabilidad $\alpha$ se puede simular por medio de una variable
+aleatoria $\phi \sim \mathsf{U}[0,1].$ Si $phi \in [0, \alpha)$ entonces la 
+propuesta se acepta ($u^{(n+1)} = u^*$); se rechaza en caso contrario
+($u^{(n+1)} = u^{(n)}$).
+
+```
+
+Una elección común es escoger $q(u, v)$ como una $\mathsf{N}(u, \sigma^2)$.
+Donde el parámetro $\sigma^2$ se ajusta para tener un comportamiento deseado.
+Mas adelante veremos formas de establecer diágnosticos de interés.
+
+Ilustraremos con un caso artificial
 
 ```{r}
 crear_metropolis <- function(fun_log, sigma_salto = 0.1){
-  # la entrada es la log posterior
+  # fun_log es la funcion objetivo en escaa logaritmica
+  # sigma_salto es la varianza de los saltos en la propuesta
   iterar_metropolis <- function(theta_inicial, n){
     p <- length(theta_inicial)
     nombres <- names(theta_inicial)
@@ -375,7 +808,7 @@ crear_metropolis <- function(fun_log, sigma_salto = 0.1){
 }
 ```
 
-E intentamos simular de una exponencial no normalizada:
+e intentamos simular de una exponencial no normalizada:
 
 ```{r}
 exp_no_norm <- function(x) {
@@ -383,9 +816,18 @@ exp_no_norm <- function(x) {
   log(z)
 }
 
-iterador_metro <- crear_metropolis(exp_no_norm, sigma_salto = 0.25)
-sims_tbl <- iterador_metro(c(theta = 0.5), 50000)
-ggplot(sims_tbl, aes(x = theta)) + geom_histogram()
+iterador_metro <- crear_metropolis(exp_no_norm, sigma_salto = 0.5)
+sims_tbl <- iterador_metro(c(theta = 0.5), 10000)
+g_exp_mh <- ggplot(sims_tbl, aes(x = theta)) + 
+  geom_histogram(aes(y = ..density..)) + 
+  xlim(0, 20) + ggtitle("Metropolis-Hastings")
+
+g_exp_rexp <- tibble(theta = rexp(10000, rate = .5)) %>% 
+  ggplot(aes(x = theta)) + 
+  geom_histogram(aes(y = ..density..)) + 
+  xlim(0, 20) + ggtitle("rexp")
+
+g_exp_mh + g_exp_rexp
 ```
 
 Ahora probemos con una $\mathsf{Beta}(3, 2):$
@@ -399,20 +841,20 @@ beta_no_norm <- function(x) {
 iterador_metro <- crear_metropolis(beta_no_norm, sigma_salto = 0.04)
 sims_metro_tbl <- iterador_metro(c(theta = 0.5), 50000)
 sims_indep_tbl <- tibble(iter_num = 1:30000, theta = rbeta(30000, 3, 2))
-g_1 <- ggplot(sims_metro_tbl, aes(x = theta)) + geom_histogram() +
-  labs(subtitle = "Metrópolis")
+g_1 <- ggplot(sims_metro_tbl, aes(x = theta)) + 
+  geom_histogram(aes(y = ..density..)) +
+  labs(subtitle = "Metropolis-Hastings")
 g_2 <- ggplot(sims_indep_tbl, aes(x = theta)) + 
-  geom_histogram() +
+  geom_histogram(aes(y = ..density..)) +
   labs(subtitle = "rbeta")
 g_1 + g_2
 ```
-Y vemos que esto funciona. Revisa el ejemplo de las islas en @kruschke (7.2) para 
-tener más intuición de cómo funciona este algoritmo.
+y vemos que esto funciona.
 
-Nótese sin embargo un aspecto de estas simulaciones que no habíamos encontrado
-en el curso. Aunque la distribución final de las simulaciones es muy cercana
-a la de la distribución que queremos simular, lo cual era nuestro propósito,
-las **simulaciones no son extracciones independientes** de esa distribución.
+Nótese un aspecto de estas simulaciones que no habíamos encontrado en el curso.
+Aunque la distribución final de las simulaciones es muy cercana a la de la
+distribución que queremos simular, lo cual era nuestro propósito, las
+**simulaciones no son extracciones independientes** de esa distribución.
 
 La construcción del algoritmo muestra eso, pero podemos también graficar las
 simulaciones:
@@ -421,7 +863,7 @@ simulaciones:
 g_metropolis <- sims_metro_tbl %>% 
   filter(iter_num < 500) %>% 
   ggplot(aes(x = iter_num, y = theta)) +
-  geom_line() + labs(subtitle = "Metrópolis")
+  geom_line() + labs(subtitle = "Metropolis-Hastings")
 g_indep <- sims_indep_tbl %>% 
   filter(iter_num < 500) %>% 
   ggplot(aes(x = iter_num, y = theta)) +
@@ -429,37 +871,21 @@ g_indep <- sims_indep_tbl %>%
 g_metropolis + g_indep
 ```
 
-Donde vemos claramente que las simulaciones de metropolis están autocorrelacionadas:
-la siguiente simulación depende de la anterior. Esto define una cadena de Markov.
+Donde vemos claramente que las simulaciones de Metropolis-Hastings están
+autocorrelacionadas: la siguiente simulación depende de la anterior. Esto define
+una cadena de Markov.
 
-En cualquiera de los dos casos, como vimos en los histogramas de arriba,
-las simulaciones "visitan" cada parte [0,1] de manera proporcional a la densidad,
-de manera que podemos usar ambos tipos de simulaciones para aproximar la integral
-o cantidad que nos interesa. Por ejemplo, la media posterior es:
+En cualquiera de los dos casos, como vimos en los histogramas de arriba, las
+simulaciones "visitan" cada parte [0,1] de manera proporcional a la densidad, de
+manera que podemos usar ambos tipos de simulaciones para aproximar la integral o
+cantidad que nos interesa. Por ejemplo, la media posterior es:
 
 ```{r}
 media_1 <- sims_metro_tbl %>% summarise(media_post = mean(theta)) %>% pull(media_post)
 media_2 <- sims_indep_tbl %>% summarise(media_post = mean(theta)) %>% pull(media_post)
 media_exacta <- 3/(3 + 2)
-tibble(metodo = c("sim Metrópolis", "sim Independiente", "exacto"),
+tibble(metodo = c("sim Metropolis-Hastings", "sim Independiente", "exacto"),
        media_post = c(media_1, media_2, media_exacta))
-```
-
-
-
-```{block, type='mathblock'}
-Supongamos que queremos simular de una distribución $p(\theta)$, 
-pero sólo conocemos $p(\theta)$ módulo una constante. Bajo ciertas condiciones de regularidad:
-
-El **algoritmo Metrópolis** para la distribución $p(\theta)$ define una **cadena
-de Markov** cuya distribución a largo plazo es $p(\theta)$. Esto implica que si
-$\theta^{(1)},\theta^{(2)}, \ldots, \theta^{(M)}$ es una simulación de esta
-cadena, y $M$ es suficientemente grande
-
-1. La distribución de las $\theta^{(i)}$ es aproximadamente $p(\theta)$,
-2. Tenemos que
-$$ \frac1M \sum_{m = 1}^M h(\theta^{(m)}) \to \int h(\theta)p(\theta)\, d\theta$$
-cuando $M\to \infty$
 ```
 
 **Observaciones**: 
@@ -468,17 +894,23 @@ cuando $M\to \infty$
 generalmente el supuesto es que la cadena de Markov construída es
 [ergódica](https://en.wikipedia.org/wiki/Ergodic_theory), y hay varias
 condiciones que garantizan esta propiedad. Una condición simple, por ejemplo, es
-que el soporte de la distribución $p(\theta)$ es un conjunto conexo del espacio
+que el soporte de la distribución $\pi(\theta)$ es un conjunto conexo del espacio
 de parámetros.
 
-2. Más crucialmente, este resultado no dice qué tan grande debe ser $M$ para que
-la aproximación sea buena. Esto depende de cómo es $p(\theta)$, y de la
+2. Más crucialmente, este resultado no dice qué tan grande debe ser $N$ para que
+la aproximación sea buena. Esto depende de cómo es $\pi(\theta)$, y de la
 distribución que se utiliza para obtener los saltos propuestos. Dependiendo de
 estos dos factores, la convergencia puede ser rápida (exponencial) o tan lenta
 que es infactible usarla. Más adelante veremos diagnósticos para descartar los
 peores casos de falta de convergencia.
 
-## Ajustando el tamaño de salto {-}
+3. El método Metropolis-Hastings con propuestas simétricas se conoce como el
+método de Metropolis. Aunque en nuestra exposición parece que Metropolis se
+deriva de Metropolis-Hastings. Lo contrario pasó en la literatura. Pimero fue
+formalizado el método de Metropolis en [@metropolis] y luego extendido a lo que
+conocemos como Metropolis-Hastings en [@hastings].
+
+## Ajustando la distribución de propuesta {-}
 
 En el algoritmo Metrópolis, generalmente es importante escoger la 
 dispersión de la distribución que genera propuestas con cuidado. 
@@ -504,8 +936,17 @@ log_f_dist <- function(x) 210 + dgamma(x, 20, 100, log = TRUE)
 # iterar
 iterador_metro_chico <- crear_metropolis(log_f_dist, sigma_salto = 0.001)
 sims_chico_tbl <- iterador_metro_chico(c(theta = 0.02), 50000)
-g_sim <- ggplot(sims_chico_tbl %>% filter(iter_num < 3000), aes(x = iter_num, y = theta)) + geom_line() + ylim(c(0, 0.5))
-dist_bplot <- ggplot(tibble(x = rgamma(10000, 20, 100)), aes(y = x, x = "a")) + geom_violin() + ylab("") + ylim(0, 0.5)
+g_sim <- ggplot(sims_chico_tbl %>% filter(iter_num < 3000), 
+                aes(x = iter_num, y = theta)) + 
+  geom_line() + 
+  ylim(c(0, 0.5))
+
+dist_bplot <- ggplot(tibble(x = rgamma(10000, 20, 100)), 
+                     aes(y = x, x = "a")) + 
+  geom_violin() + 
+  ylab("") + 
+  ylim(0, 0.5)
+
 g_sim + dist_bplot + plot_layout(widths = c(5, 1))
 ```
 
@@ -522,7 +963,12 @@ Ahora vemos qué pasa si ponemos el tamaño de salto demasiado grande:
 set.seed(831)
 iterador_metro_grande <- crear_metropolis(log_f_dist, sigma_salto = 20)
 sims_grande_tbl <- iterador_metro_grande(c(theta = 0.02), 50000)
-g_sim <- ggplot(sims_grande_tbl %>% filter(iter_num < 3000), aes(x = iter_num, y = theta)) + geom_line() + ylim(c(0, 0.5))
+
+g_sim <- ggplot(sims_grande_tbl %>% filter(iter_num < 3000), 
+                aes(x = iter_num, y = theta)) + 
+  geom_line() + 
+  ylim(c(0, 0.5))
+
 g_sim + dist_bplot + plot_layout(widths = c(5, 1))
 ```
 
@@ -591,217 +1037,16 @@ Repite este proceso varias veces. Verifica que:
   - Repite para otra estadística, como la desviación estándar o el rangon intercuartil.
 ```
 
+## Metropolis con varios parámetros {-}
 
-## ¿Por qué funciona Metrópolis? {-}
-
-Veremos un ejemplo relativemente simple que nos puede ayudar
-a mejorar nuestra intuición acerca de este algoritmo.
-
-Supongamos que un vendedor de *Yakult* trabaja a lo largo de una cadena de
-islas:
-
-* Constantemente viaja entre las islas ofreciendo sus productos;
-
-* Al final de un día de trabajo decide si permanece en la misma isla o se 
-transporta a una de las $2$ islas vecinas;
-
-* El vendedor ignora la distribución de la población en las islas y el número
-total de islas; sin embargo, una vez que se encuentra en una isla puede
-investigar la población de la misma y también  de la isla a la que se propone
-viajar después.
-
-* El objetivo del vendedor es visitar las islas de manera proporcional a la 
-población de cada una. Con esto en mente el vendedor utiliza el siguiente 
-proceso: 
-    1) Lanza un volado, si el resultado es águila se propone ir a la isla 
-del lado izquierdo de su ubicación actual y si es sol a la del lado derecho.
-    2) Si la isla propuesta en el paso anterior tiene población mayor a la 
-población de la isla actual, el vendedor decide viajar a ella. Si la isla vecina 
-tiene población menor, entonces visita la isla propuesta con una probabilidad que 
-depende de la población de las islas. Sea $P^*$ la población de la isla 
-propuesta y $P_{t}$ la población de la isla actual. Entonces el vendedor
-cambia de isla con probabilidad 
-$$q_{mover}=P^*/P_{t}$$
-
-A la larga, si el vendedor sigue la heurística anterior la probabilidad de que
-el vendedor este en alguna de las islas coincide con la población relativa de
-la isla. 
-
-```{r, fig.height=6, fig.width=3.5}
-islas <- tibble(islas = 1:10, pob = 1:10)
-camina_isla <- function(i){ # i: isla actual
-    u <- runif(1) # volado
-    v <- ifelse(u < 0.5, i - 1, i + 1)  # isla vecina (índice)
-    if (v < 1 | v > 10) { # si estas en los extremos y el volado indica salir
-      return(i)
-    }
-    u2 <- runif(1)
-    p_move = min(islas$pob[v] / islas$pob[i], 1)
-    if (p_move  > u2) {
-        return(v) # isla destino
-    }
-    else {
-      return(i) # me quedo en la misma isla
-    }
-}
-pasos <- 100000
-iteraciones <- numeric(pasos)
-iteraciones[1] <- sample(1:10, 1) # isla inicial
-for (j in 2:pasos) {
-    iteraciones[j] <- camina_isla(iteraciones[j - 1])
-}
-caminata <- tibble(pasos = 1:pasos, isla = iteraciones)
-plot_caminata <- ggplot(caminata[1:1000, ], aes(x = pasos, y = isla)) +
-    geom_point(size = 0.8) +
-    geom_path(alpha = 0.5) +
-    coord_flip() + 
-    labs(title = "Caminata aleatoria") +
-    scale_y_continuous(expression(theta), breaks = 1:10) +
-    scale_x_continuous("Tiempo")
-plot_dist <- ggplot(caminata, aes(x = isla)) +
-    geom_histogram() +
-    scale_x_continuous(expression(theta), breaks = 1:10) +
-    labs(title = "Distribución objetivo", 
-       y = expression(P(theta)))
-plot_caminata / plot_dist
-```
-
-Entonces:
-
-* Para aproximar la distribución objetivo debemos permitir que el vendedor 
-recorra las islas durante una sucesión larga de pasos y registramos sus visitas. 
-
-* Nuestra aproximación de la distribución es justamente el registro de sus 
-visitas. 
-
-* Más aún, debemos tener cuidado y excluir la porción de las visitas que se 
-encuentran bajo la influencia de la posición inicial. Esto es, debemos excluir 
-el **periodo de calentamiento**. 
-
-* Una vez que tenemos un registro _largo_ de los viajes del vendedor (excluyendo 
-el calentamiento) podemos aproximar la distribución objetivo 
-simplemente contando el número relativo de veces que el vendedor visitó
-dicha isla.
-
-```{r, warning=FALSE, message=FALSE, fig.width=8, fig.height=7.5}
-t <- c(1:10, 20, 50, 100, 200, 1000, 5000)
-plots_list <- map(t, function(i){
-    ggplot(caminata[1:i, ], aes(x = isla)) +
-        geom_histogram() +
-        labs(y = "", x = "", title = paste("t = ", i, sep = "")) +
-        scale_x_continuous(expression(theta), breaks = 1:10, limits = c(0, 11))
-})
-wrap_plots(plots_list)
-```
-
-
-Escribamos el algoritmo, para esto indexamos las islas por el valor
-$\theta$, es así que la isla del extremo oeste corresponde a $\theta=1$ y la 
-población relativa de cada isla es $P(\theta)$:
-
-1. El vendedor se ubica en $\theta^{(i)}$ y propone moverse a la izquierda
-o derecha con probabilidad $0.5$.  
-El rango de los posibles valores para moverse, y la probabilidad de proponer 
-cada uno se conoce como **distribución propuesta**, en nuestro ejemplo sólo 
-toma dos valores cada uno con probabilidad $0.5$. 
-
-2. Una vez que se propone un movimiento, decidimos si aceptarlo. La decisión de
-aceptar se basa en el valor de la distribución **objetivo** en la posición
-propuesta, relativo al valor de la distribución objetivo en la posición actual:
-$$\alpha=\min\bigg\{\frac{P(\theta^*)}{P(\theta^{(i)})},1\bigg\},$$
-donde $\alpha$ denota la probabilidad de hacer el cambio de isla. 
-
-Notemos que la distribución objetivo $P(\theta)$ no necesita estar normalizada, 
-esto es porque lo que nos interesa es el cociente $P(\theta^*)/P(\theta^{(i)})$.
-
-3. Una vez que propusimos un movimiento y calculamos la probabilidad de aceptar
-el movimiento aceptamos o rechazamos el movimiento generando un valor de una
-distribución uniforme, si dicho valor es menor a la probabilidad de cambio,
-$\alpha,$ entonces hacemos el movimiento.
-
-Entonces, para utilizar el algoritmo necesitamos ser capaces de:
-
-* Generar un valor de la distribución propuesta, que hemos denotado por $q,$
-(para crear $\theta^*$).
-
-* Evaluar la distribución objetivo en cualquier valor propuesto (para calcular
-$P(\theta^*)/P(\theta^{(i)})$).
-
-* Generar un valor uniforme (para movernos con probabilidad $\alpha$).
-
-Las $3$ puntos anteriores nos permiten generar muestras aleatorias de la
-distribución objetivo, sin importar si esta está normalizada. Esta técnica es
-particularmente útil cuando cuando la distribución objetivo es una posterior
-proporcional a $p(x|\theta)p(\theta)$.
-
-
-Para entender porque funciona el algoritmo de Metrópolis hace falta entender $2$
-puntos, primero que la distribución objetivo es **estable**: si la probabilidad
-_actual_ de ubicarse en una posición coincide con la probabilidad en la 
-distribución objetivo, entonces el algoritmo preserva las probabilidades.
-
-```{r, warning=FALSE, message=FALSE, fig.width=8, fig.height=7.5}
-library(expm)
-transMat <- function(P){ # recibe vector de probabilidades (o población)
-    T <- matrix(0, 10, 10)
-    n <- length(P - 1) # número de estados
-    for (j in 2:n - 1) { # llenamos por fila
-        T[j, j - 1] <- 0.5 * min(P[j - 1] / P[j], 1)
-        T[j, j] <- 0.5 * (1 - min(P[j - 1] / P[j], 1)) + 
-                   0.5 * (1 - min(P[j + 1] / P[j], 1))
-        T[j, j + 1] <- 0.5 * min(P[j + 1] / P[j], 1)
-    }
-    # faltan los casos j = 1 y j = n
-    T[1, 1] <- 0.5 + 0.5 * (1 - min(P[2] / P[1], 1))
-    T[1, 2] <- 0.5 * min(P[2] / P[1], 1)
-    T[n, n] <- 0.5 + 0.5 * (1 - min(P[n - 1] / P[n], 1))
-    T[n, n - 1] <- 0.5 * min(P[n - 1] / P[n], 1)
-    T
-}
-T <- transMat(islas$pob)
-w <- c(0, 1, rep(0, 8))
-t <- c(1:10, 20, 50, 100, 200, 1000, 5000)
-expT <- map_df(t, ~data.frame(t = ., w %*% (T %^% .)))
-expT_long <- expT %>%
-    gather(theta, P, -t) %>% 
-    mutate(theta = parse_number(theta))
-ggplot(expT_long, aes(x = theta, y = P)) +
-    geom_bar(stat = "identity", fill = "darkgray") + 
-    facet_wrap(~ t) +
-    scale_x_continuous(expression(theta), breaks = 1:10, limits = c(0, 11))
-```
-
-El segundo punto es que el proceso converge a la distribución objetivo. 
-Podemos ver, (en nuestro ejemplo sencillo) que sin importar el punto de inicio
-se alcanza la distribución objetivo.
-
-```{r, warning=FALSE, message=FALSE, fig.width=8, fig.height=7.5}
-inicio_p <- function(i){
-    w <- rep(0, 10)
-    w[i] <- 1
-    t <- c(1, 10, 50, 100)
-    exp_t <- map_df(t, ~ data.frame(t = .x, inicio = i, w %*% (T %^% .))) %>%
-        gather(theta, P, -t, -inicio) %>% 
-        mutate(theta = parse_number(theta))
-    exp_t
-}
-exp_t <- map_df(c(1, 3, 5, 9), inicio_p)
-ggplot(exp_t, aes(x = as.numeric(theta), y = P)) +
-    geom_bar(stat = "identity", fill = "darkgray") + 
-    facet_grid(inicio ~ t) +
-    scale_x_continuous(expression(theta), breaks = 1:10, limits = c(0, 11))
-```
-
-## Metrópolis con varios parámetros {-}
-
-Ahora aplicaremos el algoritmo Metrópolis cuando tenemos varios parámetros. La idea
-es la misma, pero nuestra distribución de salto debe ser multivariada. Una selección
-usual es usando saltos normales independientes para cada parámetro, es decir, la
- normal multivariada con matriz de varianza y covarianza diagonal.
+Ahora aplicaremos el algoritmo Metrópolis cuando tenemos varios parámetros. La
+idea es la misma, pero nuestra distribución de salto debe ser multivariada. Una
+selección usual es usando saltos normales independientes para cada parámetro, es
+decir, la normal multivariada con matriz de varianza y covarianza diagonal.
 
 ### Ejemplo: el modelo normal {-}
 
-Veremos cómo simular con Metrópolis para el problema de los cantantes. 
+Veremos cómo simular con Metropolis para el problema de los cantantes. 
 Sabemos como calcular la posterior:
 
 ```{r}
@@ -1021,6 +1266,7 @@ g_1 <- ggplot(sim_tbl, aes(x = theta_azar, y = theta_corr))  +
   geom_point(alpha = 0.05) + coord_equal() 
 g_1
 ```
+
 Nótese que hay cierta correlación entre las dos proporciones, y esto produce
 intervalos posteriores relativamente amplios. Esto es de esperarse, pues
 los datos son consistentes con una proporción relativamente chica de
@@ -1039,406 +1285,7 @@ sim_tbl %>%
 ```
 
 
-## Muestreador de Gibbs {-}
-
-El algoritmo de Metrópolis es muy general y se puede aplicar a una gran variedad
-de problemas. Sin embargo, afinar los parámetros de la distribución propuesta
-para que el algoritmo funcione correctamente puede ser complicado. El 
-muestredor de Gibbs no necesita de una distribución propuesta y por lo tanto
-no requiere afinar estos parámetros.
-
-**Para implementar un muestreador de Gibbs se necesita ser capaz de generar
-muestras de la distribución posterior condicional a cada uno de los 
-parámetros individuales.** Esto es, el muestreador de Gibbs permite generar 
-muestras de la posterior:
-$$p(\theta_1,...,\theta_p|x)$$
-siempre y cuando podamos generar valores de todas las distribuciones 
-condicionales:
-$$\theta_k \sim p(\theta_k|\theta_1,...,\theta_{k-1},\theta_{k+1},...,\theta_p,x).$$
-
-El proceso del muestreador de Gibbs es una caminata aleatoria a lo largo del 
-espacio de parámetros. La caminata inicia en un punto arbitrario y en cada 
-tiempo el siguiente paso depende únicamente de la posición actual. Por tanto
-el muestredor de Gibbs es un proceso cadena de Markov vía Monte Carlo. La 
-diferencia entre Gibbs y Metrópolis radica en como se deciden los pasos. 
-
-
-**Muestreador Gibbs** 
-
-En cada punto de la caminata se selecciona uno de los
-componentes del vector de parámetros (típicamente se cicla en orden):
-
-1. Supongamos que se selecciona el parámetro $k$-ésimo después de haber
-modificado los $k-1$ anteriores, entonces obtenemos un nuevo valor para este
-parámetro generando una simulación de la distribución condicional
-$$\theta_k^{(i+1)} \sim p(\theta_k|\theta_1^{(i+1)},\ldots,\theta_{k-1}^{(i+1)},\theta_{k+1}^{(i)},\ldots,\theta_p^{(i)},x)$$
-
-2. El nuevo valor $\theta_k^{(i+1)}$ junto con los valores
-$\theta_1^{(i+1)},\ldots,\theta_{k-1}^{(i+1)},\theta_{k+1}^{(i)},\ldots,\theta_p^{(i)}$
-constituyen la nueva posición en la caminata aleatoria.
-
-3. Seleccionamos una nueva componente $\theta_{k+1}^{(i+1)}$ y repetimos el proceso.
-
-
-El muestreador de Gibbs es útil cuando no podemos determinar de manera analítica
-la distribución conjunta y no se puede simular directamente de ella, pero sí 
-podemos determinar todas las distribuciones condicionales y simular de ellas.
-
-### Ejemplo: dos proporciones {-}
-
-Supongamos que queremos evaluar el balanceo de *dos dados* de 20 lados que
-produce una fábrica. En particular, evaluar la probabilidad de tirar un 20, y
-quizá escoger el dado que nos de mayor probabilidad de tirar un 20.
-
-Tiramos cada dado $n$ veces, y denotamos por $X_1$ y $X_2$ el número
-de 20's que tiramos en cada ocasión. El modelo de datos está dado por
-$$p(x_1, x_2|\theta_1, \theta_2)\propto \theta_1^{x_1}(1-\theta_1)^{n - x_1}\theta_2^{x_2}(1-\theta_2)^{n - x_2},$$
-que es el producto de dos densidades binomiales, pues suponemos que
-las tiradas son independientes cuando conocemos los parámetros
-$\theta_1$ y $\theta_2$.
-
-Ahora ponemos una inicial
-$$p(\theta_i)\sim \mathsf{Beta}(100, 1900)$$
-
-y aquí están las razones de nuestra elección:
-```{r}
-media <- 1/20
-k <- 2000
-a <- media * k
-b <- (1 - media) * k
-c(a,b)
-qbeta(c(0.05, 0.95), a, b) %>% round(3)
-```
-y suponemos que 
-
-$$p(\theta_1,\theta_2) = p (\theta_1)p(\theta_2)$$
-
-es decir, apriori saber el desempeño de un dado no nos da información adicional del otro (esto podría no ser cierto, por ejemplo, si el defecto es
-provocado por la impresión del número 20).
-
-Por lo tanto, la posterior es
-
-$$p(\theta_1,\theta_2|x_1, x_2)\propto \theta_1^{x_1+100-1}(1-\theta_1)^{n - x_1 + 1900-1}\theta_2^{x_2+100 -1}(1-\theta_2)^{n - x_2 + 1900-1}$$
-
-Ahora consideramoso qué pasa cuando conocemos $\theta_2$ y los datos. Pensamos en todo lo que no sea $\theta_1$ como constante de modo que nos
-queda:
-
-$$p(\theta_1 | \theta_2, x) \propto \theta_1^{x_1+100 -1}(1-\theta_1)^{n - x_1 + 1900 -1}$$
-que es $\mathsf{Beta}(x_1 + 100, n - x_1 + 1900)$, y por la misma razón,
-
-$$p(\theta_2 | \theta_1, x) \propto \theta_2^{x_2+100-1}(1-\theta_2)^{n - x_2 + 1900-1}$$
-
-que también es es $\mathsf{Beta}(x_1 + 100, n - x_1 + 1900)$
-
-De hecho, estas condicionales son fáciles de deducir de otra manera: en
-realidad estamos haciendo dos experimentos separados (pues suponemos
-que las iniciales son independientes y las pruebas también), así que
-podriamos usar el análisis Beta-Binomial para cada uno de ellos. En realidad no es necesario usar MCMC para este ejemplo.
-
-Usaremos esta función para hacer nuestras iteraciones de Gibbs:
-
-
-```{r}
-iterar_gibbs <- function(pasos, n, x_1, x_2){
-  iteraciones <- matrix(0, nrow = pasos + 1, ncol = 2) # vector guardará las simulaciones
-  iteraciones[1, 1] <- 0.5 # valor inicial media
-  colnames(iteraciones) <- c("theta_1", "theta_2")
-  # Generamos la caminata aleatoria
-  for (j in seq(2, pasos, 2)) {
-    # theta_1
-    a <- x_2 + 100 - 1
-    b <- n - x_2 + 1900 - 1
-    iteraciones[j, "theta_2"] <- rbeta(1, a, b) # Actualizar theta_1
-    iteraciones[j, "theta_1"] <- iteraciones[j-1, "theta_1"]
-    # theta_2
-    a <- x_1 + 100 - 1
-    b <- n - x_1 + 1900 - 1
-    iteraciones[j + 1, "theta_1"] <- rbeta(1, a, b) # Actualizar theta_1
-    iteraciones[j + 1, "theta_2"] <- iteraciones[j, "theta_2"]
-  }
-  iteraciones
-}
-```
-
-
-Y supongamos que estamos comparando los dados de dos compañías: Chessex y GameScience. Tiramos cada dado 10 mil veces, y obtenemos:
-
-```{r}
-# Datos de https://www.awesomedice.com/blogs/news/d20-dice-randomness-test-chessex-vs-gamescience
-n <- 10000
-x_1 <- 408 # Chessex, alrededor de 0.85 dólares por dado
-x_2 <- 474 # GameScience, alrededor 1.60 dólares por dado
-```
-
-E iteramos:
-
-```{r}
-iteraciones <- iterar_gibbs(20000, n, x_1, x_2) %>% 
-  as_tibble() %>% 
-  mutate(iter_num = row_number())
-head(iteraciones)
-```
-
-```{r}
-ggplot(filter(iteraciones, iter_num > 1000, iter_num< 1050), 
-       aes(x = theta_1, y = theta_2)) + 
-  geom_path(alpha = 0.3) + geom_point() 
-```
-
-```{r}
-g_1 <- ggplot(iteraciones, 
-       aes(x = theta_1, y = theta_2)) + 
-  geom_path(alpha = 0.3) + geom_point() 
-g_2 <- ggplot(iteraciones %>% filter(iter_num > 10), 
-       aes(x = theta_1, y = theta_2)) + 
-  geom_path(alpha = 0.3) + geom_point() +
-  geom_abline(colour = "red") +
-  geom_point(data= tibble(theta_1=1/20, theta_2=1/20), colour = "red", size = 5)
-g_1 + g_2
-```
-
-Notamos el dado de Cheesex no es consistente con 1/20 de tiros de 20s,
-pero el dado de GameScience sí lo es. De este gráfica vemos
-que Cheesex está sesgado hacia abajo, así que deberíamos escoger
-el dado de GameScience
-
-Podemos ver directamente cómo se distribuye la diferencia $\theta_1 - \theta_2$. Cualquier estadística es fácil de evaluar, pues simplemente
-la calculamos para cada simulación y después resumimos:
-
-```{r}
-iteraciones <- iteraciones %>% 
-  mutate(dif = theta_1 - theta_2)
-ggplot(iteraciones %>% filter(iter_num > 10), aes(x = dif)) +
-  geom_histogram(bins = 100) +
-  geom_vline(xintercept = 0, colour = "red")
-```
-
-Y vemos que es altamente probable que el dado de Cheesex produce
-más 20's que el dado de GameScience.
-
-```{r}
-iteraciones %>% mutate(theta_1_mayor = dif > 0) %>% 
-  summarise(prob_theta_1_mayor = mean(theta_1_mayor))
-```
-
-
-Finalmente, verificamos nuestro modelo y cuánto aprendimos. Podemos
-hacerlo simulando de la inicial y comparando con la posterior:
-
-```{r}
-inicial_tbl <- tibble(theta_1 = rbeta(20000, 100, 1900),
-                      theta_2 = rbeta(20000, 100, 1900),
-                      dist = "inicial")
-posterior_tbl <- iteraciones %>% filter(iter_num > 10) %>% 
-  mutate(dist = "posterior")
-sims_tbl <- bind_rows(inicial_tbl, posterior_tbl)
-ggplot(sims_tbl, aes(x = theta_1, y = theta_2, colour = dist)) +
-  geom_point(alpha = 0.2)
-```
-donde vemos que el resultado que obtuvimos es razonablemente consistente
-con nuestra información inicial, y las 10 mil tiradas de dado
-fueron altamente informativas. 
-
-```{block2, type="ejercicio"}
-
-- ¿Qué crees que pasaría si sólo hubieramos tirado 40 veces cada
-dado? ¿Qué tanto habríamos aprendido? Puedes usar datos
-simulados y repetir este ejercicio.
-
-- Puedes examinar los resultados para cada cara con los datos originales.
-Un modelo apropiado es el Dirichlet-Multinomial.
-
-```
-
-
-
-
-
-### Ejemplo: Modelo normal no conjugado {-}
-
-Retomemos el caso de observaciones normales, supongamos que tenemos una muestra 
-$X_1,...,X_n$ de observaciones independientes e identicamente distribuidas, 
-con $X_i \sim \mathsf{N}(\mu, \sigma^2)$.
-
-Usaremos iniciales distintas al modelo anterior:
-
-$$p(\mu, \sigma^2) = p(\sigma^2)p(\mu)$$
-con $\mu$ $\mathsf{N}(\mu_0, \sigma_0)$ y $\tau = 1/\sigma^2$ con distribución
-$\mathsf{Gamma}(a,b)$. Esto no nos da el modelo conjugado que vimos antes (nota
-la diferencia de la especificación de la inicial conjunta).
-
-Comenzamos por escribir 
-$$p(\mu, \sigma^2|x) \propto \frac{1}{{\sigma^{n/2} }}  \exp\left(-\sum\frac{(x_i-\mu)²}{2\sigma^2}\right) \exp\left(- \frac{(\mu - \mu_0)^2}{2\sigma_0^2}\right )\frac{1}{(\sigma^2)^{a + 1}}\exp\left (-\beta/\sigma^2\right)$$
-
-Comenzamos analizando $p(\mu|\sigma^2, x)$. Por la ecuación de arriba, e ignorando
-los términos que **no** dependen de $\mu$:
-$$p(\mu|\sigma^2, x) \propto \exp \left[ - \sum_i \left(\frac{(\mu - x_i)^2}{2\sigma^2} - \frac{(\mu - \mu_0)^2}{2n\sigma_0^2}\right)\right]$$
-que es una distribución normal (completa cuadrados):
-
-$$\mu|\sigma^2,x \sim \mathsf{N}\bigg(\frac{\sigma^2}{\sigma^2 + n\sigma_0^2}\mu_0 + \frac{n\sigma_0^2}{\sigma^2 + n \sigma_0^2}\bar{x}, \frac{\sigma \sigma_0}{\sqrt{\sigma^2 + n\sigma_0^2}}\bigg)$$
-
-Ahora consideramos $p(\sigma^2|mu,x)$. Ignoramos en $p(\mu,\sigma^2|x)$ los términos que *no** dependen de $\sigma^2$:
-
-$$p(\sigma^2|\mu, x) \propto \frac{1}{{\sigma^{n/2} }}  \exp\left(-\sum\frac{(x_i-\mu)²}{2\sigma^2}\right) \frac{1}{(\sigma^2)^{a + 1}}\exp\left (-\beta/\sigma^2\right)$$
-que simplificando da
-
-$$ = \frac{1}{\sigma^{n/2 + a + 1}}\exp\left( -\frac{\beta +\frac{1}{2}\sum(x_i - \mu)^2}{\sigma^2}  \right)$$
-de modo que 
-
-$$\sigma^2|\mu, x \sim \mathsf{GI}\left(a +n/2, b + \frac{1}{2}\sum(x_i -\mu)^2\right)$$
-
-### Ejemplo {-}
-
-Usaremos este muestreador para el problema de la estaturas de
-los tenores. Comenzamos definiendo las distribuciones iniciales:
-
-* $\mu \sim \mathsf{N}(175, 3)$
-
-* $\tau = 1/\sigma^2 \sim \mathsf{GI}(3, 150)$, esto es $a = 3$ y $b = 150$.
-
-Escribimos el muestreador de Gibbs.
-
-```{r}
-n <- 20
-x <- cantantes$estatura_cm
-m <- 175; sigma_0 <- 3; alpha <- 3; beta <- 150 # parámetros de iniciales
-pasos <- 20000
-iteraciones <- matrix(0, nrow = pasos + 1, ncol = 2) # vector guardará las simulaciones
-iteraciones[1, 1] <- 0 # valor inicial media
-colnames(iteraciones) <- c("mu", "sigma")
-# Generamos la caminata aleatoria
-for (j in seq(2, pasos, 2)) {
-  # sigma^2
-  mu <- iteraciones[j - 1, "mu"]
-  a <- n / 2 + alpha
-  b <- sum((x  - mu) ^ 2) / 2 + beta
-  iteraciones[j, "sigma"] <- sqrt(1/rgamma(1, a, b)) # Actualizar sigma
-  iteraciones[j, "mu"] <- iteraciones[j-1, "mu"]
-  # mu
-  sigma <- iteraciones[j, "sigma"]
-  media <- (n * sigma_0^2 * mean(x) + sigma^2 * m) / (n * sigma_0^2 + sigma^2)
-  varianza <- sigma^2 * sigma_0^2 / (n * sigma_0^2 + sigma^2)
-  iteraciones[j+1, "mu"] <- rnorm(1, media, sd = sqrt(varianza)) # actualizar mu
-  iteraciones[j+1, "sigma"] <- iteraciones[j, "sigma"]
-}
-caminata <- data.frame(pasos = 1:pasos, mu = iteraciones[1:pasos, "mu"], 
-  sigma = iteraciones[1:pasos, "sigma"])
-caminata_g <- caminata %>%
-  gather(parametro, val, mu, sigma) %>%
-  arrange(pasos)
-```
-
-
-Veamos primero algunos pasos:
-
-```{r}
-ggplot(filter(caminata, pasos > 1000, pasos< 1010), 
-       aes(x = mu, y = sigma)) + 
-  geom_path(alpha = 0.3) + geom_point() 
-```
-
-Donde vemos cómo en cada iteración se actualiza un solo parámetro.
-Una alternativa es conservar únicamente ciclos completos de la 
-caminata u esto es lo que hacen varios programas que implementan Gibbs, sin
-embargo ambas cadenas (cadenas completas y conservando únicamente ciclos 
-completos) convergen a la misma distribución posterior.
-
-Si tomamos iteraciones completas:
-
-```{r}
-ggplot(filter(caminata, pasos > 1000, pasos< 1020, pasos %% 2 == 0), 
-       aes(x = mu, y = sigma)) + 
-  geom_path(alpha = 0.3) + geom_point() 
-```
-Y ahora vemos cómo se ven las simulaciones:
-
-```{r}
-ggplot(filter(caminata, pasos > 1000, pasos< 10000, pasos %% 2 == 0), 
-       aes(x = mu, y = sigma)) +  geom_point(alpha = 0.1) 
-```
-
-Y el diagnóstico de cada cadena:
-
-```{r}
-ggplot(filter(caminata_g, pasos > 15000), aes(x = pasos, y = val)) +
-  geom_path(alpha = 0.3) +
-  facet_wrap(~parametro, ncol = 1, scales = "free") +
-  scale_y_continuous("")
-```
-Estas cadenas parecen estar mezclando bien. Podemos resumirlas:
-
-```{r, fig.width = 4}
-ggplot(filter(caminata_g, pasos > 5000), aes(x = val)) +
-  geom_histogram(fill = "gray") +
-  facet_wrap(~parametro, ncol = 1, scales = "free") 
-```
-```{r}
-caminata_g %>%
-  filter(pasos > 1000) %>% # eliminamos la etapa de calentamiento
-  group_by(parametro) %>%
-  summarise(
-    mean(val), 
-    sd(val), 
-    median(val)
-    ) %>% 
-  mutate(across(is_double, round, 2))
-```
-Y obtenemos un resultado similar a los anteriores.
-
-
-
-## Conclusiones y observaciones Metrópolis y Gibbs {-}
-
-* Una generalización del algoritmo de Metrópolis es Metrópolis-Hastings. 
-
-    El algoritmo de Metrópolis es como sigue:
-    1. Generamos un punto inicial tal que $p(\theta)>0$.
-    2. Para $i = 1,2,...$
-        + Se propone un nuevo valor $\theta^*$ con una distribución
-        propuesta $g(\theta^*|\theta^{(i)})$ es común  que $g(\theta^*|\theta^{(i)})$ sea una normal centrada en 
-        $\theta^{(i)}$.
-    3. Calculamos la probabilidad de aceptación
-    
-    $$\alpha=\min\bigg\{\frac{p(\theta^*)}{p(\theta^{(i)})},1\bigg\},$$
-    y aceptamos $\theta^*$ con probabilidad $p_{mover}$. Es así que el
-    algorito requiere que podamos calcular el cociente en $p_{mover}$ para todo
-    $\theta^{(i)}$ y $\theta^*$, así como simular de la distribución propuesta
-    $g(\theta^*|\theta^{(i)})$, adicionalmente debemos poder generar valores
-    uniformes para decidir si aceptar/rechazar.
-    
-    En el caso de **Metrópolis** un requerimiento adicional es que la distribución
-    propuesta $g(\theta_{a}|\theta_b)$ debe ser simétrica, es decir 
-    $g(\theta_{a}|\theta_b) = g(\theta_{b}|\theta_a)$ para todo $\theta_{a}$, 
-    $\theta_{b}$.
-    
-    **Metrópolis-Hastings** generaliza Metrópolis, eliminando la restricción de
-    simetría en la distribución propuesta $g(\theta_{a}|\theta_b)$, sin embargo para
-    corregir por esta asimetría debemos calcular $\alpha$ como sigue:
-    
-    $$\alpha=\min\bigg\{ \frac{p(\theta^*)}{g(\theta^*|\theta^{(i)})} \cdot  \frac{g(\theta^{(i)}|\theta^*)}{p(\theta^{(i)})},1\bigg\}$$
-La generalización de Metrópolis-Hastings puede resultar en algoritmos más 
-veloces.
-
-* Se puede ver Gibbs como una generalización de Metrópolis-Hastings, cuando 
-estamos actualizando un componente de los parámetros, la distribución propuesta 
-es la distribución posterior para ese parámetro, por tanto siempre es aceptado.
-
-* Comparado con Metrópolis, Gibbs tiene la ventaja de que no se necesita afinar
-los parámetros de una distribución propuesta (o seleccionar siquiera una 
-distribución propuesta). Además que no hay pérdida de simulaciones debido a 
-rechazo. Por su parte, la desventaja debemos conocer las distribuciones 
-condicionales y poder simular de ellas.
-
-* En el caso de modelos complicados se utilizan combinaciones de Gibbs y 
-Metrópolis. Cuando se consideran estos dos algoritmos Gibbs es un método más 
-simple y es la primera opción para modelos condicionalmente conjugados. Sí solo
-podemos simular de un subconjunto de las distribuciones condicionales 
-posteriores, entonces podemos usar Gibbs siempre que se pueda y Metrópolis 
-unidimensional para el resto, o de manera más general separamos en bloques, un 
-bloque se actualiza con Gibbs y otro con Metrópolis.
-
-* El algoritmo de Gibbs puede *atorarse* cuando hay correlación alta entre los 
-parámetros, reparametrizar puede ayudar, o se pueden usar otros algoritmos.
+## Conclusiones y observaciones {-}
 
 * [JAGS](http://mcmc-jags.sourceforge.net) (Just Another Gibbs Sampler), WinBUGS
 y OpenBUGS son programas que implementan métodos MCMC para generar simulaciones 
@@ -1448,322 +1295,4 @@ simplemente debe especificar las distribuciones iniciales, la verosimilitud y
 los datos observados. Para aprender a usar JAGS se puede revisar la sección 
 correspondiente en las [notas de 2018](https://tereom.github.io/est-computacional-2018/jags.html),
 ahora nos concentraremos en el uso de Stan.
-
-## HMC y Stan {-}
-
-> It appears to be quite a general principle that, whenever there is a 
-randomized way of doinf something, then there is a nonrandomized way that 
-delivers better performance but requires more thought. -E.T. Jaynes
-
-`Stan` es un programa para generar muestras de una distribución posterior de los 
-parámetros de un modelo, el nombre del programa hace referencia a [Stanislaw Ulam (1904-1984)](https://en.wikipedia.org/wiki/Stanislaw_Ulam) que fue pionero en 
-los métodos de Monte Carlo. A diferencia de JAGS y BUGS, los pasos de la cadena 
-de Markov se generan con un método llamado *Monte Carlo Hamiltoniano* (HMC). HMC 
-es computacionalmente más costoso que Metrópolis o Gibbs, sin embargo, sus 
-propuestas suelen ser más eficientes, y por consiguiente no necesita muestras
-tan grandes. En particular cuando se ajustan modelos grandes y complejos (por 
-ejemplo, con variables con correlación alta) HMC supera a otros.
-
-
-
-
-
-## Diagnósticos generales para MCMC {-}
-
-Cuando generamos una muestra de la distribución posterior usando MCMC, sin 
-importar el método (Metrópolis, Gibbs, HMC), buscamos que:
-
-1. Los valores simulados sean representativos de la distribución posterior. Esto  implica que no deben estar influenciados por el valor inicial (arbitrario) y deben explorar todo el rango de la posterior, con suficientes retornos para evaluar cuánta masa hay en cada región.
-
-2. Debemos tener suficientes simulaciones de tal manera que las
-estimaciones sean precisas y estables.
-
-3. Queremos tener un método eficiente para generar las simulaciones.
-
-
-En la práctica intentamos cumplir lo más posible estos objetivos, pues aunque en principio los métodos MCMC garantizan que una cadena infinitamente larga logrará  una representación perfecta, siempre debemos tener un criterio para cortar la cadena y evaluar la calidad de las simulaciones. 
-
-### Representatividad {-}
-
-**Burn-in e iteraciones iniciales**- En primer lugar, en muchas ocasiones las condiciones iniciales de las
-cadenas están en partes del espacio de parámetros que son "atípicos" en
-términos de la posterior. Así que es común quitar algunas observaciones
-iniciales (iteraciones de *burn-in*) para minimizar su efecto en
-resúmenes posteriores. 
-
-
-Por ejemplo, para el ejemplo de los cantantes, podemos
-ver que las iteraciones iniciales tienen como función principal
-llegar a las regiones de probabilidad posterior alta:
-
-```{r}
-log_p <- crear_log_posterior_norm(cantantes$estatura_cm, mu_0, n_0, a, b) 
-log_post <- function(pars) { log_p(pars[1], pars[2]) }
-set.seed(823)
-metro_normal <- crear_metropolis(log_post, sigma_salto = 0.5)
-sim_tbl <- metro_normal(c(mu = 162, sigma = 1), 5000) 
-ggplot(sim_tbl %>% filter(iter_num < 500), aes(x = mu, y = sigma)) + geom_path(alpha = 0.5) + geom_point(aes(colour = iter_num))
-```
-
-De modo que puede ser buena idea eliminar las
-primeras iteraciones. En teoría, no es necesario hacer esto si
-hacemos suficientes iteraciones, pues la cadena va a terminar
-en su estado estable explorando la posterior. En la práctica, y
-con pocas iteraciones, puede ayudar un poco a mejorar la precisión
-numérica de las cantidades que queramos calcular.
-
-```{r, fig.width=7}
-sim_g <- sim_tbl %>% pivot_longer(-iter_num, 
-                                    names_to = "parametro",
-                                    values_to = "valor")
-todas <- ggplot(sim_g, aes(x = iter_num, y = valor)) +
-  geom_line(alpha = 0.5) +
-  facet_wrap(~ parametro, ncol = 1, scales = "free_y") +
-  labs(subtitle = "Todas las simulaciones")
-sin_burnin <- 
-  sim_g %>% filter(iter_num > 200) %>% 
-  ggplot(aes(x = iter_num, y = valor)) +
-  geom_line(alpha = 0.5) +
-  facet_wrap(~ parametro, ncol = 1, scales = "free_y") +
-  labs(subtitle = "Quitando 200 de burn-in")
-todas + sin_burnin
-```
-
-
-
-
-**Convergencia a estado límite**. Para determinar la convergencia es conveniente
-realizar **más de una cadena**:  buscamos ver si realmente se ha olvidado el
-estado inicial, si las distribuciones de cada cadena son consistentes unas con
-otras, y revisar  que algunas cadenas no hayan quedado *atoradas* en regiones
-inusuales del espacio de parámetros.
-
-Inicializamos las cadenas con valores al azar en rangos
-razonables (por ejemplo simulando de la inicial):
-
-```{r}
-set.seed(8513)
-valores_iniciales  <- tibble(mu_0 = rnorm(4, 160, 20), 
-                             sigma_0 = runif(4, 0, 20),
-                             cadena = 1:4)
-sims_tbl <- valores_iniciales %>% 
-  mutate(sims = map2(mu_0, sigma_0, 
-    ~ metro_normal(c(mu = .x, sigma = .y), 300) )) %>% 
-  unnest(sims)
-
-ggplot(sims_tbl, aes(x = iter_num, y = sigma, colour = factor(cadena))) +
-  geom_line()
-```
-
-Y este es un ejemplo donde claramente las cadenas **no** han alcanzado
-un estado estable: tienen muy distintas medias y varianzas. Por ejemplo:
-
-
-```{r}
-set.seed(83243)
-sims_tbl <- valores_iniciales %>% 
-  mutate(sims = map2(mu_0, sigma_0, 
-    ~ metro_normal(c(mu = .x, sigma = .y), 20000) )) %>% 
-  unnest(sims)
-
-ggplot(sims_tbl, aes(x = iter_num, y = sigma, colour = factor(cadena))) +
-  geom_line()
-```
-
-Y este resultado se ve mejor. La parte *transición* hacia las zonas
-de alta probabilidad pasa antes de unas 1000 iteraciones. Podemos
-hacer más simulaciones, o eliminar como *burn-in* las primiras iteraciones:
-
-```{r, fig.width = 6}
-media_g <- ggplot(sims_tbl %>% filter(iter_num > 2000),
-                  aes(x = iter_num, y = mu, colour = factor(cadena))) +
-  geom_line()
-sigma_g <- ggplot(sims_tbl %>% filter(iter_num > 2000),
-                  aes(x = iter_num, y = sigma, colour = factor(cadena))) +
-  geom_line()
-media_g / sigma_g
-```
-
-Las gráficas anteriores nos ayudan a determinar si elegimos un periodo de 
-calentamiento adecuado o si alguna cadena está alejada del resto.
-
-Una vez que las cadenas están en estado estable, podemos usar
-**todas** las simulaciones juntas para resumir:
-
-```{r}
-head(sims_tbl)
-# medias posteriores
-sims_tbl %>% 
-  summarise(mu = mean(mu), sigma = mean(sigma))
-```
-
-
-
-
-
-Además de realizar gráficas podemos usar la medida de convergencia $\hat{R}$. La medida $\hat{R}$ se conoce como el **factor de reducción potencial de 
-escala** o *diagnóstico de convergencia de Gelman-Rubin*, esta es una estimación 
-de la posible reducción en la longitud de un intervalo de confianza si las 
-simulaciones continuaran infinitamente. $\hat{R}$ es aproximadamente la raíz 
-cuadrada de la varianza de todas las 
-cadenas juntas dividida entre la varianza dentro de cada cadena. Si $\hat{R}$ es
-mucho mayor a 1 esto indica que las cadenas no se han mezclado bien. Una regla
-usual es iterar hasta alcanzar un valor $\hat{R} \leq 1.1$ para todos los 
-parámetros.
-
-$$\hat{R} \approx \sqrt{\frac{\hat{V}}{W}}$$
-
-donde $B$ es la varianza entre las cadenas, $W$ es la varianza dentro de las cadenas 
-
-$$B = \frac{N}{M-1}\sum_m (\hat{\theta}_m - \hat{\theta})^2$$
-$$W = \frac{1}{M}\sum_m \hat{\sigma}_m^2$$
-
-Y $\hat{V}$ es una estimación del varianza de posterior de $\theta$:
-
-$$\hat{V} = \frac{N-1}{N}W + \frac{M+1}{MN}B$$
-#### Ejemplo {-}
-En nuestro ejemplo anterior, tenemos
-```{r}
-sims_tbl %>% 
-  pivot_longer(mu:sigma, names_to = "parametro", values_to = "valor") %>% 
-  group_by(parametro, cadena) %>% 
-  summarise(media = mean(valor), num = n(), sigma2 = var(valor)) %>% 
-  summarise(N = first(num),
-            M = n_distinct(cadena), 
-            B = N * var(media),
-            W = mean(sigma2),
-            V_hat = ((N - 1) / N) * W + (M + 1)/(M * N) * B, 
-            R_hat = sqrt(V_hat / W))  
-  
-```
-Y verificamos que los valores de $\hat{R}$ son cercanos a uno, lo
-cual indica que este diagnóstico es aceptable. Si hubiéramos
-trabajado con las primeras 300 iteraciones
-
-```{r}
-sims_tbl %>% 
-  filter(iter_num < 300) %>% 
-  pivot_longer(mu:sigma, names_to = "parametro", values_to = "valor") %>% 
-  group_by(parametro, cadena) %>% 
-  summarise(media = mean(valor), num = n(), sigma2 = var(valor)) %>% 
-  summarise(N = first(num),
-            M = n_distinct(cadena), 
-            B = N * var(media),
-            W = mean(sigma2),
-            V_hat = ((N - 1) / N) * W + (M + 1)/(M * N) * B, 
-            R_hat = sqrt(V_hat / W))  
-  
-```
-Y estos valores indican problemas en la convergencia de las cadenas. Es
-necesario diagnosticar el problema, que en este caso resolvemos
-incrementando el número de iteraciones.
-
-
-### Precisión {-}
-
-Una vez que tenemos una muestra representativa de la 
-distribución posterior, nuestro objetivo es asegurarnos de que la muestra es lo suficientemente grande 
-para producir estimaciones estables y precisas de la distribución.
-
-Para ello usaremos el 
-**tamaño efectivo de muestra**, Si las simulaciones fueran independientes 
-$N_{eff}$ sería el número total de simulaciones; sin embargo, las simulaciones de MCMC suelen estar correlacionadas, de modo que cada iteración 
-de MCMC es menos informativa que si fueran independientes.
-
-**Ejemplo**: Si graficaramos simulaciones independientes, esperaríamos valores de 
-autocorrelación chicos:
-
-```{r}
-acf(rgamma(1000,1,1))
-```
-Sin embargo, los valores que simulamos tienen el siguiente perfil de
-autocorrelación:
-
-```{r}
-sigma_metro_sims <- sims_tbl %>% filter(cadena==4) %>% pull(mu)
-acf(sigma_metro_sims)
-```
-
-El tamaño efectivo de muestra nos dice qué tamaño de 
-muestra de observaciones independientes nos daría la misma información que las
-simulaciones de la cadena. Una manera de manera relativamente simple de 
-estimarlo es:
-
-$$N_{eff} = \frac{N}{1+2\sum_{k=1}^\infty ACF(k)} $$
-
-Usualmente nos gustaría obtener un tamaño efectivo de al menos $100$ (para
-cálculo de medias y varianzas posteriores). Esta
-cantidad usualmente se reporta en el software (con mejores estimaciones que
-la de la fórmula de arriba), y es necesario checarlo. 
-
-En nuestro ejemplo hacemos una aproximación como sigue:
-
-```{r}
-calc_acf <- function(x){
-  valores_acf <- acf(x, lag.max = 1000, plot = FALSE)$acf %>% as.numeric()
-  valores_acf[-1]
-}
-acf_tbl <- sims_tbl %>% 
-  pivot_longer(mu:sigma, "parametro", values_to = "valor") %>%
-  group_by(parametro, cadena) %>%
-  summarise(N = n_distinct(iter_num), k = 1:1000, acf = calc_acf(valor)) %>% 
-  summarise(N = first(N), N_eff = N / (1 + 2 * sum(acf)))
-acf_tbl
-```
-
-Nótese que algunas cadenas tienen un tamaño efectivo de muestra relativamente
-bajo para el número de iteraciones que hicimos. De cualquier forma, el agregado
-sobre todas las cadenas es suficientemente grande para calcular resúmenes básicos:
-
-```{r}
-acf_tbl %>% group_by(parametro) %>% 
-  summarise(N = sum(N), N_eff = sum(N_eff))
-```
-Sin embargo, podemos hacer más simulaciones si es necesario, por ejemplo
-para aproximar de manera apropiada percentiles en las colas.
-
-
-
-
-### Eficiencia {-}
-
-Hay varias maneras para mejorar la eficiencia de un proceso MCMC:
-
-
-* Paralelizar, no disminuimos el número de pasos en las simulaciones pero 
-podemos disminuir el tiempo que tarda en correr.
-
-* Cambiar la parametrización del modelo o transformar los datos. 
-
-* Adelgazar la muestra cuando tenemos problemas de uso de memoria,
-
-consiste en guardar únicamente los $k$-ésimos pasos de la cadena y resulta
-en cadenas con menos autocorrelación .
-
-### Recomendaciones generales {-}
-
-@gelman-hill recomienda los siguientes pasos cuando uno esta simulando de la
-posterior:
-
-1. Cuando definimos un modelo por primera vez establecemos un valor bajo para
-el número de iteraciones. La razón es que la mayor parte de las veces los 
-modelos no funcionan a la primera por lo que sería pérdida de tiempo dejarlo 
-correr mucho tiempo antes de descubrir el problema.
-
-2. Si las simulaciones no han alcanzado convergencia aumentamos las iteraciones 
-a $500$ ó $1000$ de tal forma que las corridas tarden segundos o unos cuantos 
-minutos.
-
-3. Si tarda más que unos cuantos minutos (para problemas del tamaño que 
-veremos en la clase) y aún así no alcanza convergencia 
-entonces _juega_ un poco con el modelo (por ejemplo intenta transformaciones lineales), para JAGS Gelman 
-sugiere más técnicas para acelerar la convergencia en el 
-capitulo $19$ del libro 
-*Data Analysis Using Regression and Multilevel/Hierarchical models*. En el 
-caso de Stan veremos ejemplos de reparametrización, y se puede leer más en 
-la [guía](https://mc-stan.org/docs/2_21/stan-users-guide/reparameterization-section.html).
-
-4. Otra técnica conveniente cuando se trabaja con bases de datos grandes 
-(sobre todo en la parte exploratoria) es trabajar con un 
-subconjunto de los  datos, quizá la mitad o una quinta parte.
 
