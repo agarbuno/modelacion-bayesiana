@@ -1201,7 +1201,7 @@ Y una muestra se ve como sigue:
 ```{r}
 set.seed(12)
 muestra <- map_dbl(1:200, ~ sim_formas(0.35, 0.5))
-qplot(muestra)
+qplot(muestra, geom = 'bar')
 ```
 
 Supongamos que no conocemos la probabildad de contestar correctamente  ni la
@@ -1287,6 +1287,13 @@ sim_tbl %>%
 
 ## Conclusiones y observaciones {-}
 
+* El método de Metropolis-Hastings es muy flexible y existe una colección
+numerable de versiones diferentes que pueden ser empleadas en contextos muy
+particulares. Una buena referencia que incluye métodos de simulación por medio
+de cadena de Markov se encuentra en [@liuMonte], donde incluso se pueden 
+encontrar generalizaciones con *kernels* asimétricos. 
+
+
 * [JAGS](http://mcmc-jags.sourceforge.net) (Just Another Gibbs Sampler), WinBUGS
 y OpenBUGS son programas que implementan métodos MCMC para generar simulaciones 
 de distribuciones posteriores. Los paquetes `rjags` y `R2jags` permiten ajustar 
@@ -1295,4 +1302,25 @@ simplemente debe especificar las distribuciones iniciales, la verosimilitud y
 los datos observados. Para aprender a usar JAGS se puede revisar la sección 
 correspondiente en las [notas de 2018](https://tereom.github.io/est-computacional-2018/jags.html),
 ahora nos concentraremos en el uso de Stan.
+
+
+## Simulación por sistema Hamiltoniano {-}
+
+> It appears to be quite a general principle that, whenever there is a 
+randomized way of doinf something, then there is a nonrandomized way that 
+delivers better performance but requires more thought. -E.T. Jaynes
+
+`Stan` es un programa para generar muestras de una distribución posterior de los
+parámetros de un modelo, el nombre del programa hace referencia a [Stanislaw
+Ulam (1904-1984)](https://en.wikipedia.org/wiki/Stanislaw_Ulam) que fue pionero
+en los métodos de Monte Carlo. A diferencia de JAGS y BUGS, los pasos de la
+cadena de Markov se generan con un método llamado *Monte Carlo Hamiltoniano*
+(HMC). HMC es computacionalmente más costoso que Metrópolis o Gibbs, sin
+embargo, sus propuestas suelen ser más eficientes, y por consiguiente no
+necesita muestras tan grandes. En particular cuando se ajustan modelos grandes y
+complejos (por ejemplo, con variables con correlación alta) HMC supera a otros.
+
+
+
+
 
