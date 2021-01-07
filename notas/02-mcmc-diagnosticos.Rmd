@@ -1,5 +1,5 @@
 
-## Diagnósticos generales para MCMC {-}
+# Diagnósticos generales para MCMC {-}
 
 Cuando generamos una muestra de la distribución posterior usando MCMC, sin 
 importar el método (Metrópolis, Gibbs, HMC), buscamos que:

@@ -541,12 +541,12 @@ Es decir, en el $t-$ésimo día la decisión del vendedor es como sigue. Sea
 $\pi^*$ la población de la isla propuesta y $\pi_{t}$ la población de la isla
 actual. Entonces el vendedor cambia de isla con probabilidad
 
-$$\alpha_{\textsf{mover}}= \frac{\pi^*}{\pi_{t}}$$
+$$\alpha_{\textsf{mover}}= \frac{\pi^\star}{\pi_{t}}$$
 Nota que entre mas parecidas sean las poblaciones de las islas mas *indeciso*
 será de moverse y además $\alpha_{\textsf{mover}} \in (0,1)$ por definición. De
 hecho, podemos definir la probabilidad de viajar a otra isla por medio de
 
-$$\alpha(t, *) = \min \Bigg\{ 1, \frac{\pi^*}{\pi_{t}}\Bigg\},$$
+$$\alpha(t, \star) = \min \Bigg\{ 1, \frac{\pi^\star}{\pi_{t}}\Bigg\},$$
 
 pues incluye los dos casos. 
 
@@ -554,7 +554,7 @@ A la larga, si el vendedor sigue la heurística anterior la probabilidad de que
 el vendedor este en alguna de las islas coincide con la población relativa de
 la isla. 
 
-```{r, fig.height=6, fig.width=3.5}
+```{r, fig.height=3, fig,width = 3.5, out.width = "99%"}
 
 set.seed(1087)
 
@@ -587,13 +587,13 @@ plot_caminata <- ggplot(caminata[1:500, ], aes(x = pasos, y = isla)) +
     coord_flip() + 
     labs(title = "Caminata aleatoria") +
     scale_x_continuous(trans = "log10", "Tiempo", breaks = c(1, 2, 5, 20, 100, 500)) +
-    scale_y_continuous( expression(theta))
+    scale_y_continuous( expression(theta)) + sin_lineas
 plot_dist <- ggplot(caminata, aes(x = isla)) +
     geom_bar(fill = "darkgray", aes(y = (..count..)/sum(..count..))) +
     scale_x_continuous(expression(theta), breaks = 1:10) +
     labs(title = "Distribución objetivo", 
-       y = expression(pi(theta)))
-plot_caminata / plot_dist
+       y = expression(pi(theta))) + sin_lineas
+plot_caminata + plot_dist
 ```
 
 Entonces:
@@ -619,7 +619,8 @@ plots_list <- map(t, function(i){
     ggplot(caminata[1:i, ], aes(x = isla)) +
         geom_bar(fill = "darkgray", aes(y = (..count..)/sum(..count..))) +
         labs(y = "", x = "", title = paste("t = ", i, sep = "")) +
-        scale_x_continuous(expression(theta), breaks = 1:5, limits = c(0, 6))
+        scale_x_continuous(expression(theta), breaks = 1:5, limits = c(0, 6)) + 
+    sin_lineas
 })
 wrap_plots(plots_list)
 ```
@@ -629,7 +630,7 @@ $\theta$, es así que la isla del extremo oeste corresponde a $\theta=1$ y la
 población relativa de cada isla es $\pi(\theta)$:
 
 1. El vendedor se ubica en una isla al tiempo $t$, lo cual denotamos por
-$\theta^{(t)}$ y propone moverse a la izquierda o derecha $\theta^{(*)}$ con
+$\theta^{(t)}$ y propone moverse a la izquierda o derecha $\theta^{(\star)}$ con
 probabilidad $0.5$. El rango de los posibles valores para moverse, y la
 probabilidad de proponer cada uno se conoce como **distribución propuesta**, en
 nuestro ejemplo sólo toma dos valores cada uno con probabilidad $0.5$.
@@ -637,7 +638,7 @@ nuestro ejemplo sólo toma dos valores cada uno con probabilidad $0.5$.
 2. Una vez que se propone un movimiento, decidimos si aceptarlo. La decisión de
 aceptar se basa en el valor de la distribución **objetivo** en la posición
 propuesta, relativo al valor de la distribución objetivo en la posición actual:
-$$\alpha\left(\theta^{(t)}, \theta^{(*)}\right)=\min\bigg\{\frac{\pi(\theta^{(*)})}{\pi(\theta^{(t)})},1\bigg\},$$
+$$\alpha\left(\theta^{(t)}, \theta^{(\star)}\right)=\min\bigg\{\frac{\pi(\theta^{(\star)})}{\pi(\theta^{(t)})},1\bigg\},$$
 donde $\alpha$ denota la probabilidad de hacer el cambio de isla. 
 
 Notemos que la distribución objetivo $\pi(\theta)$ no necesita estar
@@ -655,7 +656,7 @@ Entonces, para utilizar el algoritmo necesitamos ser capaces de:
 binaria con probabilidad $0.5$.
 
 * Evaluar la distribución objetivo en cualquier valor propuesto (para calcular
-$\pi(\theta^{(*)})/\pi(\theta^{(t)})$).
+$\pi(\theta^{(\star)})/\pi(\theta^{(t)})$).
 
 * Generar un valor uniforme (para movernos con probabilidad $\alpha$).
 
@@ -671,7 +672,7 @@ transición. Esto lo verificamos cuando la probabilidad _actual_ de ubicarse en
 una posición coincide con la probabilidad en la distribución objetivo, entonces
 el algoritmo para generar los saltos preserva las probabilidades en el límite.
 
-```{r, warning=FALSE, message=FALSE, fig.width=8, fig.height=7.5}
+```{r, warning=FALSE, message=FALSE, fig.width=8, fig.height=6.5}
 library(expm)
 transMat <- function(P){ # recibe vector de probabilidades (o población)
     T <- matrix(0, 5, 5)
@@ -699,14 +700,15 @@ expT_long <- expT %>%
 ggplot(expT_long, aes(x = theta, y = P)) +
     geom_bar(stat = "identity", fill = "darkgray") + 
     facet_wrap(~ t) +
-    scale_x_continuous(expression(theta), breaks = 1:5, limits = c(0, 6))
+    scale_x_continuous(expression(theta), breaks = 1:5, limits = c(0, 6)) + 
+  sin_lineas
 ```
 
 El segundo punto es que el proceso converge a la distribución objetivo. 
 Podemos ver, (en nuestro ejemplo sencillo) que sin importar el punto de inicio
 se alcanza la distribución objetivo.
 
-```{r, warning=FALSE, message=FALSE, fig.width=8, fig.height=7.5}
+```{r, warning=FALSE, message=FALSE, fig.width=8, fig.height=6.5}
 inicio_p <- function(i){
     w <- rep(0, 5)
     w[i] <- 1
@@ -720,7 +722,8 @@ exp_t <- map_df(c(1, 3, 5), inicio_p)
 ggplot(exp_t, aes(x = as.numeric(theta), y = P)) +
     geom_bar(stat = "identity", fill = "darkgray") + 
     facet_grid(inicio ~ t) +
-    scale_x_continuous(expression(theta), breaks = 1:5, limits = c(0, 6))
+    scale_x_continuous(expression(theta), breaks = 1:5, limits = c(0, 6)) + 
+  sin_lineas
 ```
 
 ## El método Metropolis-Hastings {-}
@@ -737,14 +740,14 @@ relativa a las poblaciones. La conjunción de ambas es lo que permite la
 construccion de una cadena ergódica.
 
 Usando estos dos elementos hacemos lo siguiente. Partiendo de la $n-$ésima
-iteración localizada en $u^{(n)}$, generamos un candidato $u^{(*)}$ por medio de
+iteración localizada en $u^{(n)}$, generamos un candidato $u^{(\star)}$ por medio de
 
-$$u^{(*)} \sim q(u^{(n)}, \,\cdot\,),$$
+$$u^{(\star)} \sim q(u^{(n)}, \,\cdot\,),$$
 
-y aceptamos el salto con probabilidad $\alpha(u^{(n)}, u^{(*)})$ donde la 
+y aceptamos el salto con probabilidad $\alpha(u^{(n)}, u^{(\star)})$ donde la 
 probabilidad de aceptación de salto está dada por 
 
-$$\alpha(u^{(n)}, u^{(*)}) = \min \bigg\{ \frac{\pi(u^{(n)})}{\pi(u^{(*)}) } \cdot \frac{q(u^{(n)}, u^{(*)})}{q(u^{(*)}, u^{(n)})}, \, 1\bigg\}.$$
+$$\alpha(u^{(n)}, u^{(\star)}) = \min \bigg\{ \frac{\pi(u^{(n)})}{\pi(u^{(\star)}) } \cdot \frac{q(u^{(n)}, u^{(\star)})}{q(u^{(\star)}, u^{(n)})}, \, 1\bigg\}.$$
 
 ```{block, type = 'comentario'}
 
@@ -810,7 +813,7 @@ crear_metropolis <- function(fun_log, sigma_salto = 0.1){
 
 e intentamos simular de una exponencial no normalizada:
 
-```{r}
+```{r, fig.height = 2.8}
 exp_no_norm <- function(x) {
   z <- ifelse(x > 0, exp(-0.5 * x), 0)
   log(z)
@@ -820,19 +823,19 @@ iterador_metro <- crear_metropolis(exp_no_norm, sigma_salto = 0.5)
 sims_tbl <- iterador_metro(c(theta = 0.5), 10000)
 g_exp_mh <- ggplot(sims_tbl, aes(x = theta)) + 
   geom_histogram(aes(y = ..density..)) + 
-  xlim(0, 20) + ggtitle("Metropolis-Hastings")
+  xlim(0, 20) + ggtitle("Metropolis-Hastings")+ sin_lineas
 
 g_exp_rexp <- tibble(theta = rexp(10000, rate = .5)) %>% 
   ggplot(aes(x = theta)) + 
   geom_histogram(aes(y = ..density..)) + 
-  xlim(0, 20) + ggtitle("rexp")
+  xlim(0, 20) + ggtitle("rexp")+ sin_lineas
 
 g_exp_mh + g_exp_rexp
 ```
 
 Ahora probemos con una $\mathsf{Beta}(3, 2):$
 
-```{r}
+```{r, fig.height = 2.8}
 beta_no_norm <- function(x) {
   z <- ifelse(x > 0 && x < 1, (x^2)*(1-x), 0)
   log(z)
@@ -843,10 +846,10 @@ sims_metro_tbl <- iterador_metro(c(theta = 0.5), 50000)
 sims_indep_tbl <- tibble(iter_num = 1:30000, theta = rbeta(30000, 3, 2))
 g_1 <- ggplot(sims_metro_tbl, aes(x = theta)) + 
   geom_histogram(aes(y = ..density..)) +
-  labs(subtitle = "Metropolis-Hastings")
+  labs(subtitle = "Metropolis-Hastings")+ sin_lineas
 g_2 <- ggplot(sims_indep_tbl, aes(x = theta)) + 
   geom_histogram(aes(y = ..density..)) +
-  labs(subtitle = "rbeta")
+  labs(subtitle = "rbeta")+ sin_lineas
 g_1 + g_2
 ```
 y vemos que esto funciona.
@@ -863,11 +866,11 @@ simulaciones:
 g_metropolis <- sims_metro_tbl %>% 
   filter(iter_num < 500) %>% 
   ggplot(aes(x = iter_num, y = theta)) +
-  geom_line() + labs(subtitle = "Metropolis-Hastings")
+  geom_line() + labs(subtitle = "Metropolis-Hastings")+ sin_lineas
 g_indep <- sims_indep_tbl %>% 
   filter(iter_num < 500) %>% 
   ggplot(aes(x = iter_num, y = theta)) +
-  geom_line() + labs(subtitle = "Independientes")
+  geom_line() + labs(subtitle = "Independientes")+ sin_lineas
 g_metropolis + g_indep
 ```
 
@@ -925,12 +928,12 @@ en explorar las distintas partes de la distribución objetivo.
 Supongamos que queremos simular usando metróplis de una distribución 
 $\textsf{Gamma}(20, 100)$. Abajo vemos la forma de esta distribución:
 
-```{r}
+```{r, fig.height = 2.5}
 sim_indep <- tibble(theta = rgamma(10000, 20, 100))
-ggplot(sim_indep, aes(x = theta)) + geom_histogram()
+ggplot(sim_indep, aes(x = theta)) + geom_histogram()+ sin_lineas
 ```
 
-```{r}
+```{r, fig.height = 2.8}
 # logaritmo de densidad no normalizada
 log_f_dist <- function(x) 210 + dgamma(x, 20, 100, log = TRUE)
 # iterar
@@ -938,13 +941,13 @@ iterador_metro_chico <- crear_metropolis(log_f_dist, sigma_salto = 0.001)
 sims_chico_tbl <- iterador_metro_chico(c(theta = 0.02), 50000)
 g_sim <- ggplot(sims_chico_tbl %>% filter(iter_num < 3000), 
                 aes(x = iter_num, y = theta)) + 
-  geom_line() + 
+  geom_line() + sin_lineas + 
   ylim(c(0, 0.5))
 
 dist_bplot <- ggplot(tibble(x = rgamma(10000, 20, 100)), 
                      aes(y = x, x = "a")) + 
   geom_violin() + 
-  ylab("") + 
+  ylab("") + sin_lineas +
   ylim(0, 0.5)
 
 g_sim + dist_bplot + plot_layout(widths = c(5, 1))
@@ -959,14 +962,14 @@ iteraciones.
 
 Ahora vemos qué pasa si ponemos el tamaño de salto demasiado grande:
 
-```{r}
+```{r, fig.height = 2.8}
 set.seed(831)
 iterador_metro_grande <- crear_metropolis(log_f_dist, sigma_salto = 20)
 sims_grande_tbl <- iterador_metro_grande(c(theta = 0.02), 50000)
 
 g_sim <- ggplot(sims_grande_tbl %>% filter(iter_num < 3000), 
                 aes(x = iter_num, y = theta)) + 
-  geom_line() + 
+  geom_line() + sin_lineas + 
   ylim(c(0, 0.5))
 
 g_sim + dist_bplot + plot_layout(widths = c(5, 1))
@@ -986,12 +989,12 @@ infactible.
 
 Un valor intermedio nos dará mucho mejores resultados:
 
-```{r}
+```{r, fig.height = 2.8}
 set.seed(831)
 iterador_metro_apropiada <- crear_metropolis(log_f_dist, sigma_salto = 0.1)
 sims_tbl <-iterador_metro_apropiada(c(theta = 0.02), 50000)
 g_sim <- ggplot(sims_tbl %>% filter(iter_num < 3000), 
-  aes(x = iter_num, y = theta)) + geom_line() + ylim(c(0, 0.5))
+  aes(x = iter_num, y = theta)) + geom_line() + ylim(c(0, 0.5)) + sin_lineas
 g_sim + dist_bplot + plot_layout(widths = c(5, 1))
 ```
 Donde vemos que esta cadena parece mezclar bien (está explorando la totalidad
@@ -1037,14 +1040,120 @@ Repite este proceso varias veces. Verifica que:
   - Repite para otra estadística, como la desviación estándar o el rangon intercuartil.
 ```
 
+
 ## Metropolis con varios parámetros {-}
 
-Ahora aplicaremos el algoritmo Metrópolis cuando tenemos varios parámetros. La
-idea es la misma, pero nuestra distribución de salto debe ser multivariada. Una
-selección usual es usando saltos normales independientes para cada parámetro, es
-decir, la normal multivariada con matriz de varianza y covarianza diagonal.
+Ahora aplicaremos el algoritmo Metrópolis cuando tenemos varios parámetros
+$\theta \in \mathbb{R}^p.$ La idea es la misma, pero nuestra distribución de
+salto $q(u, \cdot)$ debe ser multivariada. Una selección usual es usando saltos
+normales independientes para cada parámetro, es decir, la normal multivariada
+con matriz de varianza y covarianza diagonal
 
-### Ejemplo: el modelo normal {-}
+$$
+v \, | \, u \sim  \mathsf{N}(u, \Sigma), \qquad \Sigma = \text{diag}(\sigma_1^2, \ldots, \sigma_p^2).
+$$
+
+A ésta elección se le llama también *caminata aleatoria*. El caso más sencillo 
+es utilizar 
+
+$$\Sigma = \sigma^2 \cdot I_p,$$
+
+donde $I_p$ es la matriz identidad de tamaño $p \times p.$
+
+Primero veremos el modelo para un caso bivariado. En este caso consideraremos
+que queremos muestrear de una variable aleatoria Gaussiana en $\mathbb{R}^2.$
+Ambas componentes estan correlacionadas, por lo que consideramos que la densidad 
+que nos interesa es 
+
+$$
+\theta \sim \mathsf{N}(\textsf{m}, \textsf{S}), \qquad \textsf{m} = (1,2)^\top, \qquad \mathsf{S} = \begin{pmatrix}1. & .75\\.75 &1 \end{pmatrix}.
+$$
+
+La siguiente figura muestra distintas trayectorias partiendo del mismo punto
+utilizando diferentes valores para la escala de las propuestas. 
+
+
+```{r, echo = FALSE, include = FALSE}
+library(mvtnorm)
+
+mu <- c(1, 2)
+Sigma <- matrix(c(1, .75, .75, 1), nrow = 2)
+
+crear_log_norm <- function(mu, Sigma){
+  # calcula log_posterior
+  log_norm <- function(x){
+      log_verosim <- dmvnorm(x, mu, Sigma, log = TRUE)
+  }
+  log_norm
+}
+
+log_norm <- crear_log_norm(mu, Sigma)
+
+calibra_metropolis <- function(sigma){
+  
+  metro_normal <- crear_metropolis(log_norm, sigma_salto = sigma)
+  metro_normal(c(x1 = 0, x2 = 0), 100) %>% 
+    select(-iter_num) %>% 
+    unique() %>% 
+    summarise(accep = n()/100) %>% 
+    pull(accep)
+  
+}
+
+tibble(sigma = c(.1, .5, .75, 1., 2.33/sqrt(2), 2.5)) %>% 
+  mutate(accep = map_dbl(sigma, calibra_metropolis))
+
+```
+
+```{r, echo = FALSE, out.width = "99%", fig.height = 10, fig.asp = 1.}
+
+set.seed(1087)
+
+# plot.grid <- %>% 
+  
+plot.grid <- expand_grid(x = seq(-2,5, by = 7/99), y = seq(-1,5, by = 6/99))
+
+plot.grid <- plot.grid %>% 
+  mutate(density = dmvnorm(plot.grid, mean = mu, sigma = Sigma))
+
+plot.breaks <- plot.grid %>% 
+  summarise(breaks = quantile(density, probs = c(.67, .90, .99))) %>% 
+  pull(breaks)
+
+
+cadena_normal <- function(sigma){
+  
+  metro_normal <- crear_metropolis(log_norm, sigma_salto = sigma)
+  metro_normal(c(x1 = -2, x2 = 4), 50)
+  
+}
+
+tibble(sigma = c(.1, .5, .75, 2.33/sqrt(2), 2.5, 5)) %>% 
+  mutate(cadenas = map(sigma, cadena_normal)) %>% 
+  unnest(cadenas) %>% 
+  ggplot(aes(x = x1, y = x2)) + 
+    geom_contour(data = plot.grid, aes(x,y,z = density), breaks = plot.breaks) + 
+    geom_path() + geom_point() + 
+    geom_point(data = tibble(x = -2, y = 4), aes(x, y), color = 'red') + 
+    facet_wrap(~round(sigma,2)) + 
+    xlab(expression(x[1])) + ylab(expression(x[2])) + 
+    sin_lineas
+
+
+```
+
+
+```{block , type = 'comentario'}
+
+**Observación:** El ajuste y la escala de la distribución propuesta depende
+mucho del problema. Esto es en términos de correlaciones, escala, y número de
+dimensiones. La maldición de la dimensionalidad también se materializa en el 
+campo de probabilidad bajo el nombre de **concentración de medida.**
+
+```
+
+
+### Ejemplo: el modelo normal gamma--inverso {-}
 
 Veremos cómo simular con Metropolis para el problema de los cantantes. 
 Sabemos como calcular la posterior:
@@ -1090,14 +1199,15 @@ sim_tbl <- metro_normal(c(mu = 172, sigma = 3), 50000)
 ggplot(sim_tbl %>% filter(iter_num < 100), 
        aes(x = mu, y = sigma)) + 
   geom_path() +
-  geom_point()
+  geom_point() + sin_lineas
 ```
 
 Y ahora vemos todas las simulaciones:
 
 ```{r}
 g_normal <- ggplot(sim_tbl, aes(x = mu, y = sigma)) + 
-  geom_point(alpha = 0.05)+ coord_equal() + ylim(c(0, 14))
+  geom_point(alpha = 0.05)+ coord_equal() + ylim(c(0, 14)) + 
+  sin_lineas
 g_normal
 ```
 
@@ -1147,21 +1257,23 @@ set.seed(8231)
 metro_normal <- crear_metropolis(log_post, sigma_salto = 0.5)
 sim_tbl <- metro_normal(c(mu = 172, sigma = 5), 50000) 
 g_normal_2 <- ggplot(sim_tbl, aes(x = mu, y = sigma))  +
-  geom_point(alpha = 0.05) + coord_equal() + ylim(c(0, 14))
+  geom_point(alpha = 0.05) + coord_equal() + ylim(c(0, 14)) + sin_lineas
 g_normal + g_normal_2
 ```
-Los resultados son similares, pero en 
-nuestras estimaciones bajo el segundo modelo, la $\sigma$ está
-concentrada en valores un poco más bajos que el modelo normal-gamma inversa.
-Las medias posteriores son:
+
+Los resultados son similares, pero en nuestras estimaciones bajo el segundo
+modelo, la $\sigma$ está concentrada en valores un poco más bajos que el modelo
+normal-gamma inversa. Las medias posteriores son:
 
 ```{r}
+
 sim_tbl %>% summarise(across(is.numeric, mean))
+
 ```
 
 Nótese que la inicial para el modelo normal-gamma inversa pone muy poca
-probabilidad para valores bajos de $\sigma$, mientras que el segundo
-modelo hay un 10% de probabilidad de que la $\sigma$ sea menor que 4.
+probabilidad para valores bajos de $\sigma$, mientras que el segundo modelo hay
+un 10% de probabilidad de que la $\sigma$ sea menor que 4.
 
 ```{r}
 tau <- rgamma(5000, 3, 150)
@@ -1169,7 +1281,6 @@ sigma <- 1/sqrt(tau)
 quantile(sigma, c(0.01,0.1, 0.9, 0.99))
 quantile(runif(5000, 2, 25), c(0.01,0.1, 0.9, 0.99))
 ```
-
 
 
 ### Ejemplo: exámenes {-}
@@ -1201,7 +1312,7 @@ Y una muestra se ve como sigue:
 ```{r}
 set.seed(12)
 muestra <- map_dbl(1:200, ~ sim_formas(0.35, 0.5))
-qplot(muestra, geom = 'bar')
+qplot(muestra, geom = 'bar') + sin_lineas
 ```
 
 Supongamos que no conocemos la probabildad de contestar correctamente  ni la
@@ -1263,7 +1374,7 @@ set.seed(8231)
 metro_examenes <- crear_metropolis(log_post, sigma_salto = 0.02)
 sim_tbl <- metro_examenes(c(theta_azar = 0.5, theta_corr = 0.5), 20000)
 g_1 <- ggplot(sim_tbl, aes(x = theta_azar, y = theta_corr))  +
-  geom_point(alpha = 0.05) + coord_equal() 
+  geom_point(alpha = 0.05) + coord_equal() + sin_lineas
 g_1
 ```
 
@@ -1284,43 +1395,248 @@ sim_tbl %>%
   pivot_wider(names_from = f, values_from = cuantil)
 ```
 
+## ¿Por qué funciona Metropolis-Hastings? {-}
+
+En esta sección esbozaremos el por qué el método de Metropolis-Hastings funciona. 
+Hemos visto que para su implementación necesitamos una distribución propuesta
+$q(u,v)$ y una probabilidad de aceptación $\alpha(u, v).$ En conjunto podemos
+escribir la propuesta Metropolis-Hastings como
+
+$$p_{\textsf{MH}}(u,v) = \alpha(u, v) \,\,q(u,v) ,$$
+
+que no es más que el evento bietapico de generación y aceptación de una muestra. 
+A ésta última ecuación le llamamos el *kernel* de Metropolis-Hastings.
+
+Ahora veremos que la propuesta Metropolis-Hastings satisface una propiedad
+crucial para generar muestras de $\pi.$
+
+
+```{block, type = 'mathblock'}
+
+**Definición.** Un *kernel* Markoviano $p(u,v)$ satisface las *ecuaciones de balance* con 
+respecto a $\pi$ si para todas $u, v \in \mathbb{R}^p,$ tenemos 
+
+$$\pi(u) \,\, p(u, v) = \pi(v) \,\, p(v, u).$$
+
+Por otro lado, decimos que $\pi$ es *invariante* al *kernel* Markoviano $p(u,v)$
+si para todo $v\in \mathbb{R}^p,$
+
+$$\int_{\mathbb{R}^p} \pi(u) \,\, p(u,v) \,\, \text{d} u = \pi(v). $$
+
+```
+
+De ésta definición podemos observar que si un *kernel* satisface las ecuaciones 
+de balance con respecto a $\pi$ entonces éste preservará la distribución $\pi.$ 
+Es decir, $\pi$ será un invariante respecto a éste.
+
+Lo importante de ésta propiedad es que si al tiempo $t$ la cadena ya se
+distribuye de acuerdo a la distribución $\pi$ entonces al tiempo $t + 1$ también 
+se distribuirá de acuerdo a $\pi.$
+
+Esto lo ilustraremos con nuestro ejemplo normal bivariado empezando en dos puntos
+iniciales distintos. Podemos observar que para la cadena que empieza *en* la
+distribución objetivo ésta se mantiene en la región adecuada. Pro otro lado,
+para la cadena que empieza *lejos* no podriamos garantizar (al menos al
+principio) que los estados pertenecen a la distribución objetivo. ¡Justo cómo
+argumentamos con el ejemplo del vendedor ambulante!
+
+
+```{r, echo = FALSE, out.width = "99%"}
+
+set.seed(1087)
+
+mu <- c(1, 2)
+Sigma <- matrix(c(1, .75, .75, 1), nrow = 2)
+
+crear_log_norm <- function(mu, Sigma){
+  # calcula log_posterior
+  log_norm <- function(x){
+      log_verosim <- dmvnorm(x, mu, Sigma, log = TRUE)
+  }
+  log_norm
+}
+
+log_norm <- crear_log_norm(mu, Sigma)
+
+corre_metropolis <- function(x1, x2){
+  
+  n_muestras <- 1000
+  metro_normal <- crear_metropolis(log_norm, sigma_salto = 1.645)
+  metro_normal(c(x1 = x1, x2 = x2), n_muestras) 
+  
+}
+
+tibble(x0 = c(-2, 0), y0 = c(4, 0), id = seq(1,2)) %>% 
+  mutate(cadena = map2(x0, y0, corre_metropolis)) %>%
+  unnest(cadena) %>% 
+  ggplot(aes(x = x1, y = x2)) + 
+      geom_contour(data = plot.grid, aes(x,y,z = density), breaks = plot.breaks) + 
+      geom_path() + geom_point() + 
+      geom_point(aes(x0, y0), color = 'red') + 
+      facet_wrap(~id) + 
+      xlab(expression(x[1])) + ylab(expression(x[2])) + 
+      sin_lineas
+
+```
+
+La figura anterior también nos muestra un efecto que tiene el método de
+Metropolis-Hastings. En particular nos recuerda una observación que habiamos
+hecho del método de Metropolis: la cadena se mueve hacia la zona de alta
+probabilidad de la distribución $\pi.$ Y es por esto que en el *mediano plazo*
+esperaríamos que nuestra cadena se distirbuya de acuerdo a la distribución que
+nos interesa.
+
+Qué tanto tarda en entrar en esta zona depende del problema, las condiciones
+iniciales y las escalas de la distribución propuesta en relación a la distribución
+objetivo.
+
+## Generando cadenas más eficientes {-}
+
+Como vimos anteriormente el método Metropolis-Hastings asigna preferencia a 
+regiones de alta probabilidad. Una idea natural es incorporar información de 
+primer orden (gradientes) con el objetivo de generar propuestas hacia zonas de
+alta probabilidad. Un ejemplo de esta alternativa es el método de difusiones de
+Langevin metropolizadas (MALA [@mala]), donde la propuesta deriva de un sistema 
+de difusión Langevin [@LangevinMonte]. Esto se traduce en modificar la 
+dirección de la propuesta siguiendo el gradiente de la densidad. Lo cual queda
+escrito como
+
+$$q(u,\cdot) = \mathsf{N}\left( u + \tau \nabla \log \pi(u), \,\,2\tau  \right)$$
+
+donde $\tau$ es una constante de escala producto de la discretización en tiempo
+ficticio del sistema de difusión.
+
+```{block, type = 'ejercicio'}
+
+Escribe la regla de actualizaciôn del método MALA en términos del *kernel* de
+Metropolis-Hastings, $p_{\textsf{MH}}(u,v)$. Es decir escribe cómo
+calcularíamos la probabilidad de aceptación $\alpha(u,v)$. Describe si MALA 
+podría verse como un algoritmo sólo de tipo Metropolis.
+
+```
+
+El problema de este método es que tiende a ser muy costoso pues se necesitan
+pasos muy cortos ($\tau$ pequeña) para poder generar puntos de la distribución
+$\pi.$ Otro detalle es que no es un método que escala tán fácil a distribuciones
+complicadas o sistemas de grandes dimensiones. Se puede incorporar información
+de segundo orden (Hessiana) para mejorar la generación de propuestas pero tanto
+la teoría necesaria (geometría diferencial) como el *software* necesario se
+encuentra en su infancia [@manifold].
+
+Una alternativa a estos problemas conceptuales, teóricos y computacionales se ha
+alcanzado con el método de simulación Hamiltoniano o Híbrido (HMC). La idea es la
+misma que ha funcionado en optimización numérica. Esto es, aumentar el espacio
+de variables e incorporar información de inercia junto con el gradiente. El
+efecto es que de alguna manera "recordamos" la velocidad con la "descendemos"
+hacia el mínimo de la densidad, $-\pi.$
+
+En general el método funciona al escribir la distribución conjunta 
+como 
+
+$$\pi(\theta, \vartheta) = \pi(\vartheta | \theta) \cdot \pi(\theta),$$
+
+donde $\pi(\theta)$ es la distribución de la que originalmente queremos muestrear
+para aproximar cantidades como 
+
+$$\int f(\theta) \,\,  \pi(\theta) \,\, \text{d}\theta,$$
+
+y $\vartheta$ son las coordenadas extendidas que incorpora la inercia del
+sistema. Identificamos un sistema Hamiltoniano (de mecánica clásica) como 
+
+$$H(\theta, \vartheta) = - \log \pi(\theta, \vartheta),$$
+
+donde utilizamos la descomposición 
+
+$$ 
+\begin{align} 
+H(\theta, \vartheta) &= -\log \pi(\vartheta | \theta) -\log \pi(\theta) \\
+& = K(\vartheta, \theta ) + V(\theta),
+\end{align}
+$$ 
+
+donde las funciones $K$ y $V$ pueden ser interpretadas como las funciones de
+energía quinética y potencial respectivamente del sistema Hamiltoniano. 
+
+En general el sistema descrito arriba se puede simular en tiempo ficticio 
+por medio del sistema de ecuaciones de movimiento 
+
+$$ \frac{\text{d}\theta}{\text{d}t} = \frac{\partial H}{\partial \vartheta}, \qquad \frac{\text{d}\vartheta}{\text{d}t} = -\frac{\partial H}{\partial \theta}, $$
+
+lo cual pone en evidencia que es un sistema que conserva la energía y que
+interpretamos como un sistema de evolución de particulas que se "mantiene"
+dentro de las curvas de nivel. Lo cual es de suma importancia pues 
+quisiéramos que, para un nivel de inercia dado $\vartheta^\star$, la trayectoria
+del sistema $(\theta, \vartheta^\star)$ se mantenga unfirmomente dentro de la
+curva $H(\theta, \vartheta^\star),$ pues esto representa uniformidad dentro de
+la curva dictada por $\pi(\theta).$
+
+El sistema de ecuaciones Hamiltonianas se resuelve en un tiempo discreto
+ficticio. Cualquier patología que se encuentre en este simulación determinista
+puede indicar problemas con el modelo $\pi(\theta),$ lo cual veremos mas
+adelante. El componenente aleatorio viene de generar de manera independiente el 
+componente de inercia $\vartheta$ de la distribución $\pi(\vartheta|\theta).$
+Ésta última se considera por simplicidad como una variable aleatoria Gaussiana. 
+Las derivadas parciales en el sistema Hamiltoniano se encargan de incorporar 
+la complejidad adecuada de las trayectorias. 
+
+HMC es computacionalmente más costoso que Metrópolis o Gibbs, sin embargo, sus
+propuestas suelen ser más eficientes, y por consiguiente no necesita muestras
+tan grandes. En particular cuando se ajustan modelos grandes y complejos (por
+ejemplo, con variables con correlación alta) HMC supera a otros.
+
+HMC ha sido desarrollado y materializado en `Stan` el cual usa rutinas
+automáticas para determinar la función de energía quinética adecuada y ajusta el
+tiempo de simulación en cada paso del algoritmo. El método derivado de HMC que
+utiliza `Stan` se conoce como *No U-Turn Sampler* [@nuts; @stan].
 
 ## Conclusiones y observaciones {-}
 
 * El método de Metropolis-Hastings es muy flexible y existe una colección
-numerable de versiones diferentes que pueden ser empleadas en contextos muy
-particulares. Una buena referencia que incluye métodos de simulación por medio
-de cadena de Markov se encuentra en [@liuMonte], donde incluso se pueden 
-encontrar generalizaciones con *kernels* asimétricos. 
+numerable de versiones que pueden ser empleadas en contextos muy particulares.
+Una buena referencia que incluye métodos de simulación por medio de cadenas de
+Markov se encuentra en [@liuMonte], donde incluso se pueden encontrar
+generalizaciones con *kernels* asimétricos y extensiones a problemas de
+dimensiones variables. El libro [@monteHandbook] presenta el estado del arte al 2010.
 
+* Inferencia Bayesiana se popularizó con el desarrollo de computadoras personales
+y con avances en el desarrollo de *software* y teoría que explota la
+factorización de una distribución conjunta de probabilidad. En particular, el
+avance en teoría de grafos para representar una distribución conjunta como un
+Grafo Acíclico Dirigido (DAG) que se materalizó en software como `BUGS` o
+[`WinBUGS`](https://www.mrc-bsu.cam.ac.uk/software/bugs/the-bugs-project-winbugs/).
+Para estas aplicaciones el muestreador utilizado es un muestreador de Gibbs (el
+cual pueden consultar en el libro de [@kruschke] o la sección correspondiente en
+las notas de [Fundamentos de Estadística](https://fundamentos-est.netlify.app/)). 
 
-* [JAGS](http://mcmc-jags.sourceforge.net) (Just Another Gibbs Sampler), WinBUGS
-y OpenBUGS son programas que implementan métodos MCMC para generar simulaciones 
-de distribuciones posteriores. Los paquetes `rjags` y `R2jags` permiten ajustar 
-modelos en JAGS desde `R`. Es muy fácil utilizar estos programas pues uno 
-simplemente debe especificar las distribuciones iniciales, la verosimilitud y 
-los datos observados. Para aprender a usar JAGS se puede revisar la sección 
-correspondiente en las [notas de 2018](https://tereom.github.io/est-computacional-2018/jags.html),
-ahora nos concentraremos en el uso de Stan.
+* La desventaja del muestreador de Gibbs es que tiende a ser muy lento en
+problemas de tamaño grande. Ha habido estrategias que aceleran la simulación
+aunque al costo de utilizar aproximaciones. Estas estrategias han sido
+materializadas en lenguajes de programación mas generales como
+[`Infer.NET`](https://dotnet.github.io/infer/). 
 
+* [`JAGS`](http://mcmc-jags.sourceforge.net) (Just Another Gibbs Sampler), es 
+una generalización implementan métodos MCMC para generar simulaciones
+de distribuciones posteriores. Los paquetes `rjags` y `R2jags` permiten ajustar
+modelos en JAGS desde `R` [@rjags; @r2jags]. Es muy fácil utilizar estos
+programas pues uno simplemente debe especificar las distribuciones iniciales, la
+verosimilitud y los datos observados. Para aprender a usar JAGS se puede revisar
+la sección correspondiente en las [notas de
+2018](https://tereom.github.io/est-computacional-2018/jags.html). 
 
-## Simulación por sistema Hamiltoniano {-}
+* [`pymc3`](https://docs.pymc.io/) [@pymc3] es un muestreador *híbrido* que
+permite utilizar Metropolis-Hastings para la simulación de la posterior. Aunque 
+también es mucho más flexible y brinda muestreadores más modernos basados en
+particulas e información de primer orden (gradientes). 
 
-> It appears to be quite a general principle that, whenever there is a 
-randomized way of doinf something, then there is a nonrandomized way that 
-delivers better performance but requires more thought. -E.T. Jaynes
-
-`Stan` es un programa para generar muestras de una distribución posterior de los
-parámetros de un modelo, el nombre del programa hace referencia a [Stanislaw
-Ulam (1904-1984)](https://en.wikipedia.org/wiki/Stanislaw_Ulam) que fue pionero
-en los métodos de Monte Carlo. A diferencia de JAGS y BUGS, los pasos de la
-cadena de Markov se generan con un método llamado *Monte Carlo Hamiltoniano*
-(HMC). HMC es computacionalmente más costoso que Metrópolis o Gibbs, sin
-embargo, sus propuestas suelen ser más eficientes, y por consiguiente no
-necesita muestras tan grandes. En particular cuando se ajustan modelos grandes y
-complejos (por ejemplo, con variables con correlación alta) HMC supera a otros.
-
-
-
-
-
+* Existen otras alternativas para construir cadenas de Markov. Por ejemplo, 
+hay algoritmos que buscan evolucionar un sistema de partículas que se 
+comunican entre si para generar una caminata aleatoria en el espacio del soporte
+de la distribución. Ejemplos de éstos son el *t-walk* [@twalk] o un ensamble de 
+cadenas linealmente relacionadas como en [@emcee].
+ 
+* [`Stan`](https://mc-stan.org/) es un programa para generar muestras de una
+distribución posterior de los parámetros de un modelo, el nombre del programa
+hace referencia a [Stanislaw Ulam
+(1904-1984)](https://en.wikipedia.org/wiki/Stanislaw_Ulam) que fue pionero en
+los métodos de Monte Carlo [@metropolis]. A diferencia de JAGS y BUGS, los pasos
+de la cadena de Markov se generan con HMC.

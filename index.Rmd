@@ -34,7 +34,7 @@ requests](https://github.com/ITAM-DS/modelacion-bayesiana).
 
 #### Repaso {-}
 
-Referencias: [@kruschke], [@bda]
+Referencias: [@kruschke; @bda]
 
 0. Inferencia, análisis y principios 
 
@@ -42,7 +42,7 @@ Referencias: [@kruschke], [@bda]
 #### Cómputo probabilistico {-}
 
 
-Referencias: [@kruschke], [@bayes-regression]
+Referencias: [@kruschke; @bayes-regression]
 
 1. Métodos Monte Carlo
 2. Muestreadores
@@ -59,7 +59,7 @@ Referencias: [@bayes-regression]
 
 #### Flujo de trabajo Bayesiano {-}
 
-Referencias: [@bayes-regression], [@bda]
+Referencias: [@bayes-regression; @bda]
 
 8. Validación de modelos
 9. Evaluación de modelos 
