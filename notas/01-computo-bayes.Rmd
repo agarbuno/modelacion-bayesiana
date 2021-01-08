@@ -591,8 +591,8 @@ plot_caminata <- ggplot(caminata[1:500, ], aes(x = pasos, y = isla)) +
 plot_dist <- ggplot(caminata, aes(x = isla)) +
     geom_bar(fill = "darkgray", aes(y = (..count..)/sum(..count..))) +
     scale_x_continuous(expression(theta), breaks = 1:10) +
-    labs(title = "Distribución objetivo", 
-       y = expression(pi(theta))) + sin_lineas
+    labs(title = "Distribución objetivo (Histograma)", 
+       y = expression(hat(pi)(theta))) + sin_lineas
 plot_caminata + plot_dist
 ```
 
@@ -823,12 +823,14 @@ iterador_metro <- crear_metropolis(exp_no_norm, sigma_salto = 0.5)
 sims_tbl <- iterador_metro(c(theta = 0.5), 10000)
 g_exp_mh <- ggplot(sims_tbl, aes(x = theta)) + 
   geom_histogram(aes(y = ..density..)) + 
-  xlim(0, 20) + ggtitle("Metropolis-Hastings")+ sin_lineas
+  xlim(0, 20) + ggtitle("Metropolis-Hastings")+ sin_lineas + 
+  xlab(expression(theta))
 
 g_exp_rexp <- tibble(theta = rexp(10000, rate = .5)) %>% 
   ggplot(aes(x = theta)) + 
   geom_histogram(aes(y = ..density..)) + 
-  xlim(0, 20) + ggtitle("rexp")+ sin_lineas
+  xlim(0, 20) + ggtitle("rexp")+ sin_lineas + 
+  xlab(expression(theta))
 
 g_exp_mh + g_exp_rexp
 ```
@@ -846,10 +848,10 @@ sims_metro_tbl <- iterador_metro(c(theta = 0.5), 50000)
 sims_indep_tbl <- tibble(iter_num = 1:30000, theta = rbeta(30000, 3, 2))
 g_1 <- ggplot(sims_metro_tbl, aes(x = theta)) + 
   geom_histogram(aes(y = ..density..)) +
-  labs(subtitle = "Metropolis-Hastings")+ sin_lineas
+  labs(subtitle = "Metropolis-Hastings")+ sin_lineas + xlab(expression(theta))
 g_2 <- ggplot(sims_indep_tbl, aes(x = theta)) + 
   geom_histogram(aes(y = ..density..)) +
-  labs(subtitle = "rbeta")+ sin_lineas
+  labs(subtitle = "rbeta")+ sin_lineas + xlab(expression(theta))
 g_1 + g_2
 ```
 y vemos que esto funciona.
@@ -866,11 +868,13 @@ simulaciones:
 g_metropolis <- sims_metro_tbl %>% 
   filter(iter_num < 500) %>% 
   ggplot(aes(x = iter_num, y = theta)) +
-  geom_line() + labs(subtitle = "Metropolis-Hastings")+ sin_lineas
+  geom_line() + labs(subtitle = "Metropolis-Hastings")+ sin_lineas + 
+  ylab(expression(theta))
 g_indep <- sims_indep_tbl %>% 
   filter(iter_num < 500) %>% 
   ggplot(aes(x = iter_num, y = theta)) +
-  geom_line() + labs(subtitle = "Independientes")+ sin_lineas
+  geom_line() + labs(subtitle = "Independientes")+ sin_lineas + 
+  ylab(expression(theta))
 g_metropolis + g_indep
 ```
 
@@ -930,7 +934,8 @@ $\textsf{Gamma}(20, 100)$. Abajo vemos la forma de esta distribución:
 
 ```{r, fig.height = 2.5}
 sim_indep <- tibble(theta = rgamma(10000, 20, 100))
-ggplot(sim_indep, aes(x = theta)) + geom_histogram()+ sin_lineas
+ggplot(sim_indep, aes(x = theta)) + geom_histogram()+ sin_lineas + 
+  xlab(expression(theta))
 ```
 
 ```{r, fig.height = 2.8}
@@ -941,7 +946,7 @@ iterador_metro_chico <- crear_metropolis(log_f_dist, sigma_salto = 0.001)
 sims_chico_tbl <- iterador_metro_chico(c(theta = 0.02), 50000)
 g_sim <- ggplot(sims_chico_tbl %>% filter(iter_num < 3000), 
                 aes(x = iter_num, y = theta)) + 
-  geom_line() + sin_lineas + 
+  geom_line() + sin_lineas + ylab(expression(theta)) + 
   ylim(c(0, 0.5))
 
 dist_bplot <- ggplot(tibble(x = rgamma(10000, 20, 100)), 
@@ -969,7 +974,7 @@ sims_grande_tbl <- iterador_metro_grande(c(theta = 0.02), 50000)
 
 g_sim <- ggplot(sims_grande_tbl %>% filter(iter_num < 3000), 
                 aes(x = iter_num, y = theta)) + 
-  geom_line() + sin_lineas + 
+  geom_line() + sin_lineas + ylab(expression(theta)) + 
   ylim(c(0, 0.5))
 
 g_sim + dist_bplot + plot_layout(widths = c(5, 1))
@@ -994,7 +999,8 @@ set.seed(831)
 iterador_metro_apropiada <- crear_metropolis(log_f_dist, sigma_salto = 0.1)
 sims_tbl <-iterador_metro_apropiada(c(theta = 0.02), 50000)
 g_sim <- ggplot(sims_tbl %>% filter(iter_num < 3000), 
-  aes(x = iter_num, y = theta)) + geom_line() + ylim(c(0, 0.5)) + sin_lineas
+  aes(x = iter_num, y = theta)) + geom_line() + ylim(c(0, 0.5)) + sin_lineas + 
+  ylab(expression(theta))
 g_sim + dist_bplot + plot_layout(widths = c(5, 1))
 ```
 Donde vemos que esta cadena parece mezclar bien (está explorando la totalidad
@@ -1199,7 +1205,8 @@ sim_tbl <- metro_normal(c(mu = 172, sigma = 3), 50000)
 ggplot(sim_tbl %>% filter(iter_num < 100), 
        aes(x = mu, y = sigma)) + 
   geom_path() +
-  geom_point() + sin_lineas
+  geom_point() + sin_lineas + 
+  xlab(expression(mu)) + ylab(expression(sigma))
 ```
 
 Y ahora vemos todas las simulaciones:
@@ -1207,7 +1214,7 @@ Y ahora vemos todas las simulaciones:
 ```{r}
 g_normal <- ggplot(sim_tbl, aes(x = mu, y = sigma)) + 
   geom_point(alpha = 0.05)+ coord_equal() + ylim(c(0, 14)) + 
-  sin_lineas
+  sin_lineas + xlab(expression(mu)) + ylab(expression(sigma))
 g_normal
 ```
 
@@ -1257,7 +1264,8 @@ set.seed(8231)
 metro_normal <- crear_metropolis(log_post, sigma_salto = 0.5)
 sim_tbl <- metro_normal(c(mu = 172, sigma = 5), 50000) 
 g_normal_2 <- ggplot(sim_tbl, aes(x = mu, y = sigma))  +
-  geom_point(alpha = 0.05) + coord_equal() + ylim(c(0, 14)) + sin_lineas
+  geom_point(alpha = 0.05) + coord_equal() + ylim(c(0, 14)) + sin_lineas + 
+  xlab(expression(mu)) + ylab(expression(sigma))
 g_normal + g_normal_2
 ```
 
@@ -1374,7 +1382,8 @@ set.seed(8231)
 metro_examenes <- crear_metropolis(log_post, sigma_salto = 0.02)
 sim_tbl <- metro_examenes(c(theta_azar = 0.5, theta_corr = 0.5), 20000)
 g_1 <- ggplot(sim_tbl, aes(x = theta_azar, y = theta_corr))  +
-  geom_point(alpha = 0.05) + coord_equal() + sin_lineas
+  geom_point(alpha = 0.05) + coord_equal() + sin_lineas + 
+  xlab(expression(theta['azar'])) + ylab(expression(theta['corr']))
 g_1
 ```
 
@@ -1435,7 +1444,7 @@ se distribuirá de acuerdo a $\pi.$
 
 Esto lo ilustraremos con nuestro ejemplo normal bivariado empezando en dos puntos
 iniciales distintos. Podemos observar que para la cadena que empieza *en* la
-distribución objetivo ésta se mantiene en la región adecuada. Pro otro lado,
+distribución objetivo ésta se mantiene en la región adecuada. Por otro lado,
 para la cadena que empieza *lejos* no podriamos garantizar (al menos al
 principio) que los estados pertenecen a la distribución objetivo. ¡Justo cómo
 argumentamos con el ejemplo del vendedor ambulante!
@@ -1483,7 +1492,7 @@ La figura anterior también nos muestra un efecto que tiene el método de
 Metropolis-Hastings. En particular nos recuerda una observación que habiamos
 hecho del método de Metropolis: la cadena se mueve hacia la zona de alta
 probabilidad de la distribución $\pi.$ Y es por esto que en el *mediano plazo*
-esperaríamos que nuestra cadena se distirbuya de acuerdo a la distribución que
+esperaríamos que nuestra cadena se distribuya de acuerdo a la distribución que
 nos interesa.
 
 Qué tanto tarda en entrar en esta zona depende del problema, las condiciones
@@ -1572,12 +1581,15 @@ la curva dictada por $\pi(\theta).$
 
 El sistema de ecuaciones Hamiltonianas se resuelve en un tiempo discreto
 ficticio. Cualquier patología que se encuentre en este simulación determinista
-puede indicar problemas con el modelo $\pi(\theta),$ lo cual veremos mas
+puede indicar problemas con el modelo $\pi(\theta),$ esto lo veremos más
 adelante. El componenente aleatorio viene de generar de manera independiente el 
 componente de inercia $\vartheta$ de la distribución $\pi(\vartheta|\theta).$
-Ésta última se considera por simplicidad como una variable aleatoria Gaussiana. 
-Las derivadas parciales en el sistema Hamiltoniano se encargan de incorporar 
-la complejidad adecuada de las trayectorias. 
+Ésta última se considera por simplicidad como una variable aleatoria Gaussiana
+
+$$\vartheta \, | \, \theta \sim \mathsf{N}(0, M^{-1}).$$
+ 
+Por otro lado, las derivadas parciales en el sistema Hamiltoniano se encargan de
+incorporar la complejidad adecuada de las trayectorias.
 
 HMC es computacionalmente más costoso que Metrópolis o Gibbs, sin embargo, sus
 propuestas suelen ser más eficientes, y por consiguiente no necesita muestras
@@ -1586,8 +1598,8 @@ ejemplo, con variables con correlación alta) HMC supera a otros.
 
 HMC ha sido desarrollado y materializado en `Stan` el cual usa rutinas
 automáticas para determinar la función de energía quinética adecuada y ajusta el
-tiempo de simulación en cada paso del algoritmo. El método derivado de HMC que
-utiliza `Stan` se conoce como *No U-Turn Sampler* [@nuts; @stan].
+tiempo de simulación determinista en cada paso del algoritmo. El método derivado
+de HMC que utiliza `Stan` se conoce como *No U-Turn Sampler* [@nuts; @stan].
 
 ## Conclusiones y observaciones {-}
 
