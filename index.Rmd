@@ -1,5 +1,5 @@
 --- 
-title: "Modelacion Bayesiana"
+title: "EST-46114: Modelos lineales generalizados"
 author: "Alfredo Garbuno"
 site: bookdown::bookdown_site
 output: bookdown::gitbook

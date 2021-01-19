@@ -771,7 +771,7 @@ movimiento aleatorio a zonas de menor densidad.
 comportamiento ergódico dependerá en gran medida de esta elección.
 
 - Aceptar con probabilidad $\alpha$ se puede simular por medio de una variable
-aleatoria $\phi \sim \mathsf{U}[0,1].$ Si $phi \in [0, \alpha)$ entonces la 
+aleatoria $\phi \sim \mathsf{U}[0,1].$ Si $\phi \in [0, \alpha)$ entonces la 
 propuesta se acepta ($u^{(n+1)} = u^*$); se rechaza en caso contrario
 ($u^{(n+1)} = u^{(n)}$).
 
@@ -1559,12 +1559,10 @@ $$H(\theta, \vartheta) = - \log \pi(\theta, \vartheta),$$
 
 donde utilizamos la descomposición 
 
-$$ 
 \begin{align} 
 H(\theta, \vartheta) &= -\log \pi(\vartheta | \theta) -\log \pi(\theta) \\
 & = K(\vartheta, \theta ) + V(\theta),
 \end{align}
-$$ 
 
 donde las funciones $K$ y $V$ pueden ser interpretadas como las funciones de
 energía quinética y potencial respectivamente del sistema Hamiltoniano. 
