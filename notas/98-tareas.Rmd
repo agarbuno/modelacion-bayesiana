@@ -1,6 +1,6 @@
 # Tareas {-}
 
-```{r setup, include=FALSE, message=FALSE}
+```{r, include=FALSE, message=FALSE}
 library(tidyverse)
 library(patchwork)
 library(scales)
@@ -56,9 +56,8 @@ trayectorias con estos distintos valores?
 la situación del lanzamiento del Challenger en 1986. La explosión se originó 
 por la falla de un anillo que sella ciertos componentes de la nave espacial.
 Se cree que el accidente se originó por las bajas temperaturas al momento de 
-lanzamiento. Y se considera que la probabilidad de falla aumenta cuando la 
-temperatura decrece. 
-Se tienen datos históricos
+lanzamiento. Se considera que la probabilidad de falla aumenta cuando la 
+temperatura decrece. Se tienen datos históricos
 ```{r, echo = FALSE}
 datos <- tibble(falla = c(1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0,1, 
                           0, 0, 0, 0, 0), 
@@ -78,5 +77,3 @@ con distribución previa de la forma
 $$\pi(\alpha, \beta) = \pi(\alpha |\beta) \, \pi(\beta) \propto \frac1b e^\alpha \exp\left(-\frac{e^\alpha}{b}\right) \,,$$
 donde se asume $\log \alpha \sim \mathsf{Exp}(b),$ y una distribución
 proporcional a una constante para $\beta.$
-
-
