@@ -39,7 +39,9 @@ marginal de $x.$
     
     - En el contexto de los puntos anteriores, sean $x|y \sim \mathsf{Gamma}(y,
     1)$ y $y \sim \mathsf{Exp}(1).$ Utiliza la técnica de arriba para calcular
-    la densidad marginal de x.
+    la densidad marginal de x. *Hint:* Considera un soporte amplio para $x.$ Por
+    ejemplo, considera aproximar la densidad en 100 puntos equidistantes en el
+    intervalo $(0,10).$
 
 2. Implementa el método Metropolis para muestrear de una
 $\mathsf{Poisson}(\lambda).$ Prueba con $\lambda = 3, 5,$ y $10.$ Para la 
@@ -74,6 +76,99 @@ $$\mathbb{P}(Y = 1 | X ) = p(X) = \frac{\exp(\alpha + \beta X)}{1 + \exp(\alpha 
 Consideramos la muestra como observaciones 
 $$Y_i \sim \mathsf{Bernoulli}(p(X_i))\,,$$
 con distribución previa de la forma
-$$\pi(\alpha, \beta) = \pi(\alpha |\beta) \, \pi(\beta) \propto \frac1b e^\alpha \exp\left(-\frac{e^\alpha}{b}\right) \,,$$
-donde se asume $\log \alpha \sim \mathsf{Exp}(b),$ y una distribución
+$$\pi(\alpha, \beta) = \pi(\alpha) \, \pi(\beta) \propto \alpha^{a - 1}\exp\left(- b \, \alpha \right) \,.$$
+Es decir, se asume $\alpha \sim \mathsf{Gamma}(a, b),$ y una distribución
 proporcional a una constante para $\beta.$
+
+El parámetro $\alpha$ define la probabilidad de falla considerando una
+temperatura de $0^\circ$ centígrados. De acuerdo a estudios anteriores esta 
+probabilidad de falla se encuentra en el intervalo de $(85\%, 99\%)$.
+
+Construye una distribución Gamma adecuada para capturar este intervalo con 
+$90\%$ de probabilidad. Esta densidads la denotaremos como $\pi(\alpha | a_0,
+b_0).$
+
+```{r, echo = FALSE, out.width = '99%', fig.width = 7, include = FALSE}
+# renv::install("nleqslv")
+library("nleqslv")
+
+logit <- function(p){
+    log(p/(1-p))
+}
+
+probs  <- c(.85, .99)
+limits <- logit(probs)
+p_cota <- .1
+
+gamma.limits <- function(x){
+  # reparametrizamos para que el problema sea mas "fácil" en términos numéricos.
+  log_alpha <- x[1]
+  log_beta  <- x[2]
+  
+  # definimos las cotas de probabilidad
+  p_cota <- 0.01
+  c(    pgamma(limits[1], exp(log_alpha), rate = exp(log_beta)) - p_cota,
+    1 - pgamma(limits[2], exp(log_alpha), rate = exp(log_beta)) - p_cota)
+}
+
+initial_guess <- c(1, 1)
+
+results <- nleqslv(initial_guess, gamma.limits)
+params.prior <- exp(results$x)
+
+g_guess <- tibble(tasa = rgamma(5000, exp(initial_guess[1]), exp(initial_guess[2]))) %>%
+    mutate(prob = exp(tasa)/(1 + exp(tasa))) %>% 
+  ggplot(aes(x = prob)) + 
+    geom_histogram() + 
+    ggtitle(paste("(Guess) a = ", round(exp(initial_guess[1]), 3), 
+                  ", b = ", round(exp(initial_guess[2]), 3), sep = "")) + 
+    sin_lineas
+
+g_elicited <- tibble(tasa = rgamma(5000, params.prior[1], rate = params.prior[2])) %>%
+    mutate(prob = exp(tasa)/(1 + exp(tasa))) %>% 
+  ggplot(aes(x = prob)) + 
+    geom_histogram() + 
+    ggtitle(paste("(Elicited) a = ", round(params.prior[1], 3), 
+                  ", b = ", round(params.prior[2], 3), sep = "")) + sin_lineas
+
+g_guess + g_elicited
+
+```
+
+```{r, echo = FALSE, include = FALSE}
+
+crear_log_p <- function(datos){
+  log_p <- function(pars){
+    alpha = pars[1]
+    beta  = pars[2]
+    n <- length(datos)
+    # ve la ecuación del ejercicio anterior
+    lp  <- alpha  + beta * datos$temperatura
+    p   <- exp(lp)/(1+exp(lp))
+    log_verosim <- datos$falla * log(p) +  (1 - datos$falla) * log(1 - p)
+    sum(log_verosim)
+  }  
+  log_p
+}
+log_p <- crear_log_p(datos)
+
+initial_guess_mle <- c(rnorm(1), rnorm(1))
+
+res <- optim(initial_guess_mle, log_p, control = list(fnscale = -1, maxit = 1000), 
+             method = "Nelder-Mead")
+res$par
+```
+
+Ahora, utiliza el método de Metropolis-Hastings para generar muestras del 
+modelo de probabilidad posterior para $\alpha, \beta.$ Para esto considera
+una densidad de propuesta
+$$q(\alpha, \beta) = \pi(\alpha|a_0, b_0) \, \phi(\beta)\, ,$$
+donde $\phi(\beta)$ es la densidad de una $\mathsf{N}(\hat \beta_{\mathsf{MLE}},
+\sigma^2).$ Nota que las propuestas incorporan la distribución previa de
+$\alpha.$ Por otro lado, la propuesta esta definida en términos del estimador de
+máxima verosimilitud de $\beta.$ Con esta elección escribe la probabilidad de
+aceptación de Metropolis-Hastings y corre el algoritmo de Metropolis-Hastings para 
+un número suficiente de simulaciones (prueba distintos valores de $\sigma^2$).
+
+
+
