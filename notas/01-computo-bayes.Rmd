@@ -395,7 +395,7 @@ bajos) para todos los sabores, es decir $p(\theta_i)$ es la funcion de densidad
 de una $\mathsf{Beta}(2, 1)$. La inicial conjunta la definimos entonces, usando
 idependiencia inicial, como
 
-$$p(\theta_1,\theta_2, \theta_3,\theta_4) = p(\theta_1)p(\theta_2)p(\theta_3)p(\theta_4).$$
+$$p(\theta_1,\theta_2, \theta_3,\theta_4) = p(\theta_1)p(\theta_2)p(\theta_3)p(\theta_4)\,.$$
 Pues inicialmente establecemos que ningún parámetro da información sobre otro:
 saber que mango es muy gustado no nos dice nada acerca del gusto por fresa. Bajo
 este supuesto, y el supuesto adicional de que las muestras de cada sabor son
@@ -429,7 +429,7 @@ simular_conjunta(1, datos)
 ```{r}
 # esta no es una manera muy rápida, podríamos calcular todas las
 # simulaciones de cada parámetro de manera vectorizada
-sims_posterior <- tibble(rep = 1:5000) %>% 
+sims_posterior <- tibble(rep = 1:1000) %>% 
   mutate(sims = map(rep, ~ simular_conjunta(.x, datos))) %>% 
   unnest(cols = sims)
 sims_posterior
@@ -446,6 +446,49 @@ sims_posterior %>%
   ungroup() %>% 
   mutate(prop = n / sum(n))
 ```
+
+```{r, include = FALSE}
+
+sims_posterior %>% 
+  pivot_wider(values_from = valor_sim, names_from = sabor) %>% 
+  mutate(preferencia = mango > limón) %>% 
+  summarise(mango_limon = mean(preferencia))
+  
+```
+
+```{block, type = 'mathblock', include = FALSE}
+
+$$\Theta \subseteq \mathbb{R}^4, \qquad \theta = [\theta_1, \theta_2, \theta_3, \theta_4]^\top\in\mathbb{R}^4 \,. $$
+
+$$\mathbb{P}(\text{mango sea preferido sobre limon}) = \int_\Theta f(\theta) \, p(\theta_1, \ldots, \theta_4 | X_1, \ldots, X_n) d\theta\, . $$
+
+$$f(\theta) = \mathbb{I}_{[\theta_3 > \theta_2]}(\theta)$$
+
+$$\mathbb{P}(\text{mango sea preferido sobre limon}) \approx \frac1N \sum_i \mathbb{I}_{[\theta_3 > \theta_2]}(\theta^{(i)}) \,.$$
+$$\theta^{(i)} \overset{\text{iid}}{\sim} p(\theta_1, \ldots, \theta_4 | X_1, \ldots, X_n) \,.$$
+
+$$p(\theta_1, \ldots, \theta_4 | X_1, \ldots, X_n)$$
+
+```
+
+
+```{block, type = 'mathblock', include = FALSE}
+
+$$\pi(\theta) \propto 1 \, . $$
+
+Por ejemplo, si $\theta \in [0,1]$, entonces $\theta \sim \mathsf{Beta}(1,1).$
+
+$\theta \in \mathbb{R}$
+
+$$\int_{-\infty}^\infty 1 \, d \theta \, = \infty . $$
+
+$$ \pi(\theta) = 1 / \infty . $$
+
+$$\int_{-\infty}^\infty \mathcal{L}_n(\theta) \cdot 1 \, d \theta < \infty \, .$$
+
+```
+
+
 
 Y vemos que los mejores sabores son mango y limón. La probabilidad posterior de
 que mango sea el sabor preferido por la población es de 66%. La integral
