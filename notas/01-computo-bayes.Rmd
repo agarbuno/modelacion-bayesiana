@@ -2,7 +2,7 @@
 
 # Cómputo probabilístico
 
-```{r setup, include=FALSE, message=FALSE}
+```{r, include=FALSE, message=FALSE}
 library(tidyverse)
 library(patchwork)
 library(scales)
