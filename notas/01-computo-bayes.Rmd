@@ -1615,16 +1615,18 @@ por medio del sistema de ecuaciones de movimiento
 
 $$ \frac{\text{d}\theta}{\text{d}t} = \frac{\partial H}{\partial \vartheta}, \qquad \frac{\text{d}\vartheta}{\text{d}t} = -\frac{\partial H}{\partial \theta}, $$
 
-lo cual pone en evidencia que es un sistema que conserva la energía y que
-interpretamos como un sistema de evolución de particulas que se "mantiene"
-dentro de las curvas de nivel. Lo cual es de suma importancia pues 
+lo cual pone en evidencia que es un sistema que conserva la energía dentro de la
+trayectoria. El sistema de evolución de particulas "mantiene" las curvas de
+nivel. Lo cual es de suma importancia pues
 quisiéramos que, para un nivel de inercia dado $\vartheta^\star$, la trayectoria
 del sistema $(\theta, \vartheta^\star)$ se mantenga unfirmomente dentro de la
 curva $H(\theta, \vartheta^\star),$ pues esto representa uniformidad dentro de
-la curva dictada por $\pi(\theta).$
+la curva dictada por $\pi(\theta).$ 
 
 El sistema de ecuaciones Hamiltonianas se resuelve en un tiempo discreto
-ficticio. Cualquier patología que se encuentre en este simulación determinista
+ficticio. Usualmente por un método mixto (Euler implícito e explicíto en medios
+pasos). Puedes consultar [@nealHMC] para mayores detalles en la implementación.
+Cualquier patología que se encuentre en este simulación determinista
 puede indicar problemas con el modelo $\pi(\theta),$ esto lo veremos más
 adelante. El componenente aleatorio viene de generar de manera independiente el 
 componente de inercia $\vartheta$ de la distribución $\pi(\vartheta|\theta).$
@@ -1639,6 +1641,15 @@ HMC es computacionalmente más costoso que Metrópolis o Gibbs, sin embargo, sus
 propuestas suelen ser más eficientes, y por consiguiente no necesita muestras
 tan grandes. En particular cuando se ajustan modelos grandes y complejos (por
 ejemplo, con variables con correlación alta) HMC supera a otros.
+
+```{block, type = 'ejercicio'}
+
+Escribe el cociente de Metropolis-Hastings para HMC. Considera que es un sistema 
+"bivariado". ¿Será realmente necesario incorporarlo cuando simulamos de un sistema 
+Hamiltoniano para inferencia Bayesiana?
+
+```
+
 
 HMC ha sido desarrollado y materializado en `Stan` el cual usa rutinas
 automáticas para determinar la función de energía quinética adecuada y ajusta el
