@@ -1578,6 +1578,8 @@ de segundo orden (Hessiana) para mejorar la generación de propuestas pero tanto
 la teoría necesaria (geometría diferencial) como el *software* necesario se
 encuentra en su infancia [@manifold].
 
+### Incorporando sistemas dinámicos y física {-}
+
 Una alternativa a estos problemas conceptuales, teóricos y computacionales se ha
 alcanzado con el método de simulación Hamiltoniano o Híbrido (HMC). La idea es la
 misma que ha funcionado en optimización numérica. Esto es, aumentar el espacio
@@ -1588,68 +1590,103 @@ hacia el mínimo de la densidad, $-\pi.$
 En general el método funciona al escribir la distribución conjunta 
 como 
 
-$$\pi(\theta, \vartheta) = \pi(\vartheta | \theta) \cdot \pi(\theta),$$
+$$\pi(\theta, \vartheta) = \pi(\vartheta | \theta) \cdot \pi(\theta)\,,$$
 
 donde $\pi(\theta)$ es la distribución de la que originalmente queremos muestrear
 para aproximar cantidades como 
 
-$$\int f(\theta) \,\,  \pi(\theta) \,\, \text{d}\theta,$$
+$$\int f(\theta) \,\,  \pi(\theta) \,\, \text{d}\theta\,,$$
 
 y $\vartheta$ son las coordenadas extendidas que incorpora la inercia del
 sistema. Identificamos un sistema Hamiltoniano (de mecánica clásica) como 
 
-$$H(\theta, \vartheta) = - \log \pi(\theta, \vartheta),$$
+$$H(\theta, \vartheta) = - \log \pi(\theta, \vartheta)\,,$$
 
 donde utilizamos la descomposición 
 
 \begin{align} 
 H(\theta, \vartheta) &= -\log \pi(\vartheta | \theta) -\log \pi(\theta) \\
-& = K(\vartheta, \theta ) + V(\theta),
+& = K(\vartheta, \theta ) + V(\theta)\,.
 \end{align}
 
-donde las funciones $K$ y $V$ pueden ser interpretadas como las funciones de
-energía quinética y potencial respectivamente del sistema Hamiltoniano. 
+Las funciones $K$ y $V$ pueden ser interpretadas como las funciones de
+energía quinética y potencial, respectivamente, del sistema Hamiltoniano. 
 
 En general el sistema descrito arriba se puede simular en tiempo ficticio 
-por medio del sistema de ecuaciones de movimiento 
+por medio del sistema de ecuaciones de movimiento, las cuales son:
 
-$$ \frac{\text{d}\theta}{\text{d}t} = \frac{\partial H}{\partial \vartheta}, \qquad \frac{\text{d}\vartheta}{\text{d}t} = -\frac{\partial H}{\partial \theta}, $$
+$$ \frac{\text{d}\theta}{\text{d}t} = \frac{\partial H}{\partial \vartheta}\,, \qquad \frac{\text{d}\vartheta}{\text{d}t} = -\frac{\partial H}{\partial \theta}\,, $$
 
 lo cual pone en evidencia que es un sistema que conserva la energía dentro de la
-trayectoria. El sistema de evolución de particulas "mantiene" las curvas de
-nivel. Lo cual es de suma importancia pues
-quisiéramos que, para un nivel de inercia dado $\vartheta^\star$, la trayectoria
-del sistema $(\theta, \vartheta^\star)$ se mantenga unfirmomente dentro de la
-curva $H(\theta, \vartheta^\star),$ pues esto representa uniformidad dentro de
-la curva dictada por $\pi(\theta).$ 
-
-El sistema de ecuaciones Hamiltonianas se resuelve en un tiempo discreto
-ficticio. Usualmente por un método mixto (Euler implícito e explicíto en medios
-pasos). Puedes consultar [@nealHMC] para mayores detalles en la implementación.
-Cualquier patología que se encuentre en este simulación determinista
-puede indicar problemas con el modelo $\pi(\theta),$ esto lo veremos más
-adelante. El componenente aleatorio viene de generar de manera independiente el 
-componente de inercia $\vartheta$ de la distribución $\pi(\vartheta|\theta).$
-Ésta última se considera por simplicidad como una variable aleatoria Gaussiana
-
-$$\vartheta \, | \, \theta \sim \mathsf{N}(0, M^{-1}).$$
- 
-Por otro lado, las derivadas parciales en el sistema Hamiltoniano se encargan de
-incorporar la complejidad adecuada de las trayectorias.
-
-HMC es computacionalmente más costoso que Metrópolis o Gibbs, sin embargo, sus
-propuestas suelen ser más eficientes, y por consiguiente no necesita muestras
-tan grandes. En particular cuando se ajustan modelos grandes y complejos (por
-ejemplo, con variables con correlación alta) HMC supera a otros.
+trayectoria. Esto implica que el sistema de evolución de partículas, al menos en
+teoría, "mantiene" las curvas de nivel estables. Esto último es de suma importancia
+pues quisiéramos que, para un nivel de inercia dado $\vartheta^\star$, la
+trayectoria del sistema $(\theta, \vartheta^\star)$ se mantenga unfirmomente
+dentro de la curva $H(\theta, \vartheta^\star).$ Esto representa
+uniformidad dentro de la curva dictada por $\pi(\theta).$
 
 ```{block, type = 'ejercicio'}
 
-Escribe el cociente de Metropolis-Hastings para HMC. Considera que es un sistema 
-"bivariado". ¿Será realmente necesario incorporarlo cuando simulamos de un sistema 
-Hamiltoniano para inferencia Bayesiana?
+Comprueba por tí mismo que el sistema Hamiltoniano es un sistema de energía
+conservada. *Hint:* escribe el cambio de energía con respecto al tiempo y
+utiliza la regla de la cadena.
 
 ```
 
+
+En la práctica sistema de ecuaciones Hamiltonianas se resuelve en un tiempo
+discreto ficticio. Usualmente por métodos eficientes para sistemas estables.
+Estos se llaman integradores simplécticos y tienen la particularidad de
+aproximar muy bien las trayectorias, incluso en sistemas de dimensiones altas.
+Puedes consultar [@nealHMC; @conceptual] para mayores detalles en la implementación.
+Mejor aún, cualquier patología que se encuentre en esta simulación determinista
+puede indicar problemas con el modelo $\pi(\theta)$ en sí (lo cual veremos más
+adelante).
+
+
+El punto clave de utilizar el sistema extendido para simulación de cadenas de
+Markov viene de la siguiente observación. El sistema Hamiltoniano nos permite 
+escribir la probabilidad conjunta como
+
+$$\pi(\theta, \vartheta) = \pi(\vartheta | \theta) \cdot \pi(\theta)\,,$$
+
+lo que ilustra que la variable de inercia es una extensión del modelo original. 
+De cualquier forma, si tuviéramos las dos componentes basta con descartar
+$\vartheta.$ Esto es equivalente a considerar la proyección al subespacio
+$\theta,$ y con esta acción recuperaríamos componentes de una cadena de Markov
+con densidad $\pi.$
+
+El proceso estocástico lo construimos como sigue. Primero, considerando el
+estado de la cadena $\theta_n,$ incorporamos el movimiento aleatorio en la
+cadena al simular el componente de inercia $\vartheta_n$ de la distribución
+$\pi(\vartheta|\theta).$ Usualmente se considera una variable aleatoria
+Gaussiana
+
+$$\vartheta_n \, | \, \theta_n \sim \mathsf{N}(0, M).$$
+ 
+Segundo, evolucionamos el sistema Hamiltoniano por un tiempo ficticio partiendo
+de las condiciones iniciales $(\theta(0), \vartheta(0)) = (\theta_n,
+\vartheta_n),$ y obtenemos el candidato $(\theta^*, \vartheta^*).$ Nota que
+realmente tenemos, por ejemplo, $\theta^* = \theta(T),$ donde $T$ denota el
+tiempo de evolución del sistema Hamiltoniano. Por último, cambiamos el signo de
+$\vartheta^*$ y evaluamos el cociente d Metropolis utilizando la distribución
+conjunta para determinar si aceptamos o rechazamos el candidato. Una vez dado
+este resultado, descartamos la inercia y nos quedamos con el componente de
+interés $\theta_{n+1}.$
+
+```{block, type = 'ejercicio'}
+
+Escribe el cociente de Metropolis para HMC. Considera que es un sistema
+"bivariado". ¿Será realmente necesario incorporarlo cuando simulamos de un
+sistema Hamiltoniano para inferencia Bayesiana?
+
+```
+
+
+HMC es computacionalmente más costoso que Metropolis o Gibbs, sin embargo, sus
+propuestas suelen ser más eficientes, y por consiguiente no necesita muestras
+tan grandes. En particular cuando se ajustan modelos grandes y complejos (por
+ejemplo, con variables con correlación alta) HMC supera a otros.
 
 HMC ha sido desarrollado y materializado en `Stan` el cual usa rutinas
 automáticas para determinar la función de energía quinética adecuada y ajusta el
