@@ -793,7 +793,7 @@ $$u^{(\star)} \sim q(u^{(n)}, \,\cdot\,),$$
 y aceptamos el salto con probabilidad $\alpha(u^{(n)}, u^{(\star)})$ donde la 
 probabilidad de aceptación de salto está dada por 
 
-$$\alpha(u^{(n)}, u^{(\star)}) = \min \bigg\{ \frac{\pi(u^{(n)})}{\pi(u^{(\star)}) } \cdot \frac{q(u^{(n)}, u^{(\star)})}{q(u^{(\star)}, u^{(n)})}, \, 1\bigg\}.$$
+$$\alpha(u^{(n)}, u^{(\star)}) = \min \bigg\{ \frac{\pi(u^{(\star)})}{\pi(u^{(n)}) } \cdot \frac{q(u^{(\star)}, u^{(n)})}{q(u^{(n)}, u^{(\star)})}, \, 1\bigg\}.$$
 
 ```{block, type = 'comentario'}
 
