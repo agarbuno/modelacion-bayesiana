@@ -1,7 +1,8 @@
 ---
 title: "Modelos para *putts* de golf"
 output:
-  html_document
+  pdf_document: default
+  html_document: default
 bibliography: ../../referencias/referencias.bib
 ---
 
