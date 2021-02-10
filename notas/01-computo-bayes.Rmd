@@ -1,0 +1,1746 @@
+\mainmatter
+
+# Cómputo probabilístico
+
+```{r, include=FALSE, message=FALSE}
+library(tidyverse)
+library(patchwork)
+library(scales)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning=FALSE, 
+                      fig.align = 'center', fig.width = 5, fig.height=3, cache = TRUE)
+comma <- function(x) format(x, digits = 2, big.mark = ",")
+theme_set(theme_linedraw())
+color.blues <- c(NA,"#BDD7E7", "#6BAED6", "#3182BD", "#08519C", "#074789", "#063e77", "#053464")
+color.itam  <- c("#00362b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f")
+
+
+sin_lineas <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+sin_leyenda <- theme(legend.position = "none")
+sin_ejes <- theme(axis.ticks = element_blank(), 
+        axis.text = element_blank())
+```
+
+Las notas para este curso difieren de las presentadas originalmente en
+[EST-46111](https://fundamentos-est.netlify.app/) en Otoño 2020. En particular,
+la discusión teórica está basada en las notas del curso en Problemas Inversos y
+Asimilación de Datos [@inverse-problems].
+
+Hasta ahora, hemos considerado modelos bayesianos *conjugados*, donde la
+posterior tiene una forma conocida. Esto nos permitió simular directamente
+de la posterior usando generadores estándar de números aleatorios (por ejemplo,
+variables aleatorias normales, Gamma, Poisson, Binomial Negativa, etc.) Por otro
+lado, en algunas situaciones pudimos utilizar cálculos teóricos o funciones
+estándar de `R` para calcular resúmenes de interés, como medias o medianas
+posteriores o intervalos de credibilidad. 
+
+```{block, type = 'ejercicio'}
+
+Escribe el modelo conjugado Poisson-Gamma. Determina los valores posteriores de
+los parámetros. Escribe los valores de media y varianza. Identifica las
+funciones estándar que utilizarías para calcular los parámetros dada una
+muestra.
+
+```
+
+
+Sin embargo, en aplicaciones rara vez es factible este tipo de análisis tan
+simple, pues:
+
+1. Los modelos que estamos considerando son más complejos y la distribución
+posterior conjunta de los parámetros no tiene una forma simple conocida.
+2. Queremos usar distribuciones iniciales que no son conjugadas para utilizar
+correctamente nuestra información inicial.
+
+## Integración por discretización {-}
+
+Recordamos que tenemos expresiones explícitas para la inicial $p(\theta)$ y la
+verosimilitud $p(x|\theta)$, así que conocemos parcialmente la posterior,
+módulo la constante de normalización,
+
+$$p(\theta|x) \propto p(x|\theta) \,\,  p(\theta).$$
+
+En general nos interesa reportar resúmenes de nuestras distribuciones (¿por
+qué?). Esto quiere decir, identificamos una función resumen y promediamos dicha
+función de acuerdo a los pesos que la distribución posterior asigna. Es decir,
+
+$$ \mathbb{E}[f] = \int_\Theta f(\theta) \,\, p(\theta|x) \,\, \text{d}\theta, $$
+
+donde $f$ es la función resumen, y $\Theta$ el soporte de la distribución
+$p(\cdot \, | x).$ Supongamos por ejemplo que quisiéramos calcular la media
+posterior de $\theta \in \mathbb{R}.$
+
+Lo que tenemos que hacer es calcular la integral
+
+$$\hat \theta = \mathbb{E}[{\theta}\, |\, x] = \int_\Theta \theta \, p(\theta|x) \, \text{d}\theta.$$
+Analiticamente necesitamos saber $p(\theta|x)$ para cualquier valor de $\theta$
+de forma cerrada. Esto implica conocer la constante de normalización $p(x)$, que
+resulta de la integral
+
+$$p(x) = \int p(x|\theta) \, p(\theta)\, \text{d}\theta.$$
+
+```{block, type = 'ejercicio'}
+
+Considera una variable aleatoria uniforme $v \sim \textsf{U}[a, b].$ Calcula la
+media y varianza de dicha variable aleatoria. Identifica la función de densidad
+$p(v),$ y las funciones resumen $f$ para cada caso. ¿Puedes identificar la
+constante de normalización?
+
+```
+
+En general, si no tenemos expresiones analíticas simples, tendremos que
+aproximar numéricamente estas integrales de alguna forma. El candidato _natural_
+para efectuar la aproximación es utilizar la definición de integral. Es decir,
+dividir el espacio en intervalos $\{u_1, \ldots, u_n\}$ por medio de una malla de
+$N+1$ puntos, $\{x_0, \ldots, x_N\},$ tal que
+
+$$ \mathbb{E}[f] \approx \sum_{n=1}^N f(u_n) \, p(u_n) \, \Delta u_n,$$
+
+donde $\Delta u_n$ denota la precisión de la malla y el valor del integrando
+$f(u_n) \, p(u_n)$ se asigna de acuerdo a la regla de intregación. A estos
+métodos se les conoce como reglas de *cuadratura*. Los valores $N, x_n, \Delta
+u_n$ se asignan de acuerdo a cierta tolerancia, la función de peso y la regla de
+interpolación.
+
+```{r}
+grid.n <- 11
+grid.size <- 6/(grid.n+1)
+norm.cuadrature <- tibble(x = seq(-3, 3, by = grid.size), y = dnorm(x) )
+
+```
+
+
+```{r, echo = FALSE, out.width = "95%"}
+
+norm.density <- tibble(x = seq(-5, 5, by = .01), 
+       y = dnorm(x) ) 
+  
+norm.cuadrature %>% 
+  ggplot(aes(x=x + grid.size/2, y=y)) + 
+    geom_area(data = norm.density, aes(x = x, y = y), fill = 'lightblue') + 
+    geom_bar(stat="identity", alpha = .3) + 
+    geom_bar(aes(x = x + grid.size/2, y = -0.01), fill = 'black', stat="identity") + 
+    sin_lineas + xlab('x') + 
+    annotate('text', label = expression(Delta~u[n]), x = .01 + 5 * grid.size/2, y = -.02) + 
+    annotate('text', label = expression(f(u[n]) * p(u[n]) ), x = .01 + 9 * grid.size/2, y = dnorm(.01 + 4 * grid.size/2)) + 
+    annotate('text', label = expression(f(u[n]) * p(u[n]) * Delta~u[n]), 
+             x = .01 + 5 * grid.size/2, y = dnorm(.01 + 4 * grid.size/2)/2, 
+             angle = -90, alpha = .7)
+  
+
+```
+
+La aproximación en este caso es
+
+```{r, echo = FALSE}
+norm.cuadrature %>% 
+  summarise(approx = sum(y * grid.size), N = n()) %>% 
+  round(5)
+```
+
+Las rutinas usuales de integración pueden sernos útiles cuando el número de
+parámetros es chico. En el caso anterior tenemos una buena aproximación con $N=
+17$ evaluaciones del integrando. 
+
+
+### Ejemplo: estimación de una proporción {-}
+
+Supongamos que $p(S_n = k|\theta) \propto \theta^k(1-\theta)^{n-k}$ cuando
+observamos $k$ éxitos en $n$ pruebas independientes. Supongamos que nuestra
+inicial es $p(\theta) = 2\theta$ (checa que es una densidad), es decir, creemos
+que es más probable a priori observar proporciones altas. Podemos integrar
+numéricamente
+
+```{r}
+crear_log_post <- function(n, k){
+  function(theta){
+    verosim <- k * log(theta) + (n - k) * log(1 - theta)
+    inicial <- log(theta)
+    log_p_factor <- verosim + inicial
+    log_p_factor
+  }
+}
+# observamos 3 éxitos en 4 pruebas:
+log_post <- crear_log_post(4, 3)
+prob_post <- function(x) { exp(log_post(x))}
+# integramos numéricamente
+p_x <- integrate(prob_post, lower = 0, upper = 1, subdivisions = 100L)
+p_x
+```
+
+Y ahora podemos calcular la media posterior:
+
+```{r}
+media_funcion <- function(theta){
+  theta * prob_post(theta) / p_x$value
+}
+integral_media <- integrate(media_funcion, lower = 0, upper = 1, subdivisions = 100L)
+media_post <- integral_media$value 
+media_post
+```
+
+Podemos verificar nuestro trabajo pues sabemos que la posterior es
+$\mathsf{Beta}(5, 2)$ cuya media es
+
+```{r}
+5/(2+5)
+```
+
+### Más de un parámetro {-}
+
+Ahora supongamos que tenemos $2$ parámetros. Es decir, $\theta \in
+\mathbb{R}^2.$ Los intervalos se vuelven regiones rectangulares. Si cada 
+dimensión es discretizada utilizando $N$ puntos, entonces en total tendremos 
+$N^2$ puntos donde deberíamos evaluar el integrando.
+
+```{r, echo = FALSE, out.width  = "99%"}
+# Codigo utilizado: 
+# https://stackoverflow.com/questions/17521438/geom-rect-and-alpha-does-this-work-with-hard-coded-values
+
+m <- ggplot(faithful, aes(x = eruptions, y = waiting)) +
+ xlim(0.5, 6) +
+ ylim(40, 110)
+
+grid.size <- 10 - 1
+
+mesh <- expand.grid(x = seq(0.5, 6, by = (6-.5)/grid.size), y = seq(40, 110, by = (110-40)/grid.size))
+
+m + geom_density_2d_filled(aes(alpha = ..level..), bins = 8) + 
+  scale_fill_manual(values = color.blues) + 
+  sin_lineas + theme(legend.position = "none")  + 
+  geom_point(data = mesh, aes(x = x, y = y)) + 
+  annotate("rect", xmin = .5 + 5 * (6-.5)/grid.size, 
+            xmax = .5 + 6 * (6-.5)/grid.size, 
+            ymin = 40 + 3 * (110-40)/grid.size, 
+            ymax = 40 + 4 * (110-40)/grid.size,
+            linestyle = 'dashed', 
+           fill = 'salmon', alpha = .4) + ylab("") + xlab("") + 
+  annotate('text', x = .5 + 5.5 * (6-.5)/grid.size, 
+                   y = 40 + 3.5 * (110-40)/grid.size, 
+           label = expression(u[n]), color = 'red') +
+  theme(axis.ticks = element_blank(), 
+        axis.text = element_blank())
+
+```
+
+
+Generalizando, si tenemos $p$ parámetros, entonces bajo un esquema
+discretización uniforme tendríamos que hacer $N^p$ evaluaciones del integrando.
+Por ejemplo, si $p=10$ **esta estrategia es infactible**, pues tendríamos que
+hacer más de millones de millones de millones de evaluaciones de la posterior.
+Si sólo tenemos esta técnica disponible, el análisis bayesiano está
+considerablemente restringido. Regresión bayesiana con unas 10 covariables por
+ejemplo, no podría hacerse.
+
+Los errores del método de cuadratura están ligadas a la estrategia de
+discretización, el número de elementos, y las reglas de interpolación. En
+general, no habrá poder computacional suficiente para realizar integrales en
+dimensiones elevadas. Por lo que tendremos que *asignar nuestros recursos
+computacionales limitados* de forma inteligente y *donde tengamos mayor
+impacto.*
+
+Los métodos que estudiaremos en esta sección se enfocarán en presentar
+alternativas para poder aproximar estas integrales.
+
+## Integración Monte Carlo {-}
+
+Anteriormente  hemos usado el método Monte Carlo para aproximar integrales: por
+ejemplo, para calcular medias posteriores. En general, calculamos el valor
+esperado de un resumen, y lo escribimos como
+
+$$\mathbb{E}_\pi[f] = \pi(f) = \int f(x) \pi(x) \text{d}x,$$
+
+donde $f(x)$ es la función de interés y $\pi(x)$ es la función de densidad de la
+variable aleatoria $x.$ Lo que hemos hecho anteriormente es generar muestras 
+independientes del modelo de probabilidad y promediar $f$ evaluada en cada uno 
+de los puntos generados. Esto es, generamos $x^{(n)} \sim \pi(x)$ de manera
+independiente para $n = 1, \ldots, N,$ y escribimos nuestro estimador como
+
+$$\pi_N^{\textsf{MC}}(f) = \frac1N \sum_{n = 1}^N f( x^{(n)}).$$
+
+**Nota:** Aunque $\pi(x)$ denota una densidad, $\pi(f)$ denota un objeto
+completamente distinto. Esto es, el promedio de $f$ bajo la densidad $\pi.$
+
+Podemos utilizar el método Monte Carlo para aproximar el valor de $\pi.$
+Consideremos el experimento de lanzar dardos uniformemente en un cuadrado de
+tamaño 2, el cual contiene un circulo de radio 1. Distintas realizaciones se
+muestran abajo con distintos valores de número de lanzamientos $10^k$ con $k =
+2, 3, 4, 5.$
+
+```{r, echo = FALSE, out.width = "99%", fig.height = 2}
+
+genera_dardos <- function(n = 100){
+  tibble(x1 = runif(n, min = -1, max = 1), 
+         x2 = runif(n, min = -1, max = 1)) %>% 
+    mutate(resultado = ifelse(x1**2 + x2**2 <= 1., 1., 0.))
+}
+
+dardos <- tibble(n = seq(2,5)) %>% 
+  mutate(datos = map(10**n, genera_dardos)) %>% 
+  unnest() 
+
+dardos %>% 
+  ggplot(aes(x = x1, y = x2)) + 
+    geom_point(aes(color = factor(resultado))) + 
+    facet_wrap(~n, nrow = 1) + 
+    sin_lineas + sin_ejes + sin_leyenda
+
+```
+
+Podemos graficar la aproximación del método Monte Carlo, y observarmos un 
+comportamiento que debería de ser familiar para nosotros. ¿Cómo le llamaríamos 
+a nuestro estimador $\pi_N^{\textsf{MC}}(f)?$
+
+```{r, cache = TRUE, out.width = "99%", fig.height = 3, echo = FALSE}
+set.seed(1087)
+
+genera_dardos(n = 2**16) %>% 
+  mutate(n = seq(1, 2**16), 
+         approx = cummean(resultado) * 4) %>% 
+  ggplot(aes(x = n, y = approx)) + 
+    geom_line() + 
+    geom_hline(yintercept = pi, linetype = 'dashed') + 
+    scale_x_continuous(trans='log10', 
+                       labels = trans_format("log10", math_format(10^.x))) + 
+    ylab('Aproximación') + xlab("Muestras") + sin_lineas
+  
+
+```
+
+Este comportamiento no es particular del caso anterior. Se extiende para una familia
+mas amplia de problemas bajo ciertas condiciones de regularidad. El resultado lo
+expresamos en el teorema siguiente.
+
+```{block, type = 'mathblock'}
+
+**Teorema (Error Monte Carlo).** Sea $f : \mathbb{R}^p \rightarrow \mathbb{R}$
+cualquier función *bien comportada*$^\dagger.$ Entonces, el estimador Monte Carlo es
+**insesgado**
+
+$$\mathbb{E}\left[ \pi_N^{\textsf{MC}}(f) - \pi(f)\right] = 0,$$
+
+y tiene **error cuadrático medio acotado**
+
+$$ \sup_{f \in \mathcal{F}} \, \,  \mathbb{E}\left[ \left(\pi_N^{\textsf{MC}}(f) - \pi(f) \right)^2 \right] \leq \frac1N.$$
+
+```
+
+En particular, la varianza del estimador (**error estándar**) satisface la igualdad
+
+$$ \textsf{ee}^2\left(\pi_N^{\textsf{MC}}(f)\right) = \frac{\mathbb{V_\pi(f)}}{N}.$$
+
+De tal forma que se satisface el siguiente teorema. 
+
+```{block, type = 'mathblock'}
+
+**Teorema (TLC para estimadores Monte Carlo).** Sea $f$ una función *bien
+comportada*$^{\dagger\dagger},$ entonces 
+
+$$ \frac{\pi_N^{\textsf{MC}}(f) - \pi(f)}{\mathbb{V}_\pi(f)} \sim \mathsf{N}\left(0, \,\, \frac{1}{\sqrt{N}}\right).$$
+
+```
+
+**Nota:** la cota en la varianza del estimador no depende en la dimensión del 
+problema. Sólo depende del número de simulaciones que hacemos del modelo. Esto, 
+en principio, hace del método Monte Carlo un método escalable aún para
+problemas de un número elevado de parámetros.
+
+### Ejemplo: proporciones {-}
+
+Consideramos la estimación de una proporción $\theta,$ tenemos como inicial
+$p(\theta) \propto \theta$, que es una $\mathsf{Beta}(2,1)$. Si observamos 3
+éxitos en 4 pruebas, entonces sabemos que la posterior es $p(\theta|x)\propto
+\theta^4(1-\theta)$, que es una $\mathsf{Beta}(5, 2)$. Si queremos calcular la
+media y el segundo momento posterior para $\theta$, en teoría necesitamos
+calcular
+
+$$\mu = \int_0^1 \theta \,\, p(\theta|X = 3)\, \text{d}\theta,\qquad  \mu_2=\int_0^1 \theta^2 \,\, p(\theta|X = 3)\, \text{d}\theta.$$
+
+Podemos integrar utilizando el método Monte Carlo
+
+```{r}
+theta <- rbeta(10000, 5, 2)
+media_post <- mean(theta)
+momento_2_post <- mean(theta^2)
+c(media_post, momento_2_post)
+```
+
+Y podemos aproximar de esta manera cualquier cantidad de interés que esté basada
+en integrales, como probabilidades asociadas a $\theta$ o cuantiles asociados.
+Por ejemplo, podemos aproximar fácilmente $P(e^{\theta}> 2|x)$ haciendo
+
+```{r}
+mean(exp(theta) > 2)
+```
+
+y así sucesivamente. 
+
+### Ejemplo: pruebas independientes {-}
+
+Supongamos que probamos el nivel de gusto para 4 sabores distintos de una
+paleta. Usamos 4 muestras de aproximadamente 50 personas diferentes para cada
+sabor, y cada uno evalúa si le gustó mucho o no. Obtenemos los siguientes
+resultados:
+
+```{r}
+datos <- tibble(
+  sabor = c("fresa", "limón", "mango", "guanábana"),
+  n = c(50, 45, 51, 50), gusto = c(36, 35, 42, 29)) %>% 
+  mutate(prop_gust = gusto / n)
+datos
+```
+
+Usaremos como inicial $\mathsf{Beta}(2, 1)$ (pues hemos obervado cierto sesgo de
+cortesía en la calificación de sabores, y no es tan probable tener valores muy
+bajos) para todos los sabores, es decir $p(\theta_i)$ es la funcion de densidad
+de una $\mathsf{Beta}(2, 1)$. La inicial conjunta la definimos entonces, usando
+idependiencia inicial, como
+
+$$p(\theta_1,\theta_2, \theta_3,\theta_4) = p(\theta_1)p(\theta_2)p(\theta_3)p(\theta_4)\,.$$
+Pues inicialmente establecemos que ningún parámetro da información sobre otro:
+saber que mango es muy gustado no nos dice nada acerca del gusto por fresa. Bajo
+este supuesto, y el supuesto adicional de que las muestras de cada sabor son
+independientes, podemos mostrar que las posteriores son independientes:
+
+$$p(\theta_1,\theta_2,\theta_3, \theta_4|k_1,k_2,k_3,k_4) = p(\theta_4|k_1)p(\theta_4|k_2)p(\theta_4|k_3)p(\theta_4|k_4)$$
+
+De forma que podemos trabajar individualmente con cada muestra. Calculamos los
+parámetros de las posteriores individuales:
+
+```{r}
+datos <- datos %>% 
+  mutate(a_post = gusto + 2, b_post = n - gusto + 1)
+datos
+```
+
+Ahora nos preguntamos, ¿cuál es la probabilidad posterior de que mango sea el sabor 
+más preferido de la población? Conocemos la posterior para cada parámetro, y sabemos
+que los parámetros son independientes para la posterior. Eso quiere decir
+que podemos simular de cada parámetro independientemente para obtener simulaciones
+de la conjunta posterior.
+
+```{r, cache = TRUE}
+simular_conjunta <- function(rep, datos){
+  datos %>% mutate(valor_sim = map2_dbl(a_post, b_post, ~ rbeta(1, .x, .y))) %>% 
+    select(sabor, valor_sim) 
+}
+simular_conjunta(1, datos) 
+```
+
+```{r}
+# esta no es una manera muy rápida, podríamos calcular todas las
+# simulaciones de cada parámetro de manera vectorizada
+sims_posterior <- tibble(rep = 1:1000) %>% 
+  mutate(sims = map(rep, ~ simular_conjunta(.x, datos))) %>% 
+  unnest(cols = sims)
+sims_posterior
+```
+
+Y ahora podemos aproximar fácilmente la probabilidad de interés:
+
+```{r}
+sims_posterior %>% 
+  group_by(rep) %>% 
+  mutate(sabor = sabor[which.max(valor_sim)]) %>% 
+  group_by(sabor) %>% 
+  count() %>% 
+  ungroup() %>% 
+  mutate(prop = n / sum(n))
+```
+
+```{r, include = FALSE}
+
+sims_posterior %>% 
+  pivot_wider(values_from = valor_sim, names_from = sabor) %>% 
+  mutate(preferencia = mango > limón) %>% 
+  summarise(mango_limon = mean(preferencia))
+  
+```
+
+```{block, type = 'mathblock', include = FALSE}
+
+$$\Theta \subseteq \mathbb{R}^4, \qquad \theta = [\theta_1, \theta_2, \theta_3, \theta_4]^\top\in\mathbb{R}^4 \,. $$
+
+$$\mathbb{P}(\text{mango sea preferido sobre limon}) = \int_\Theta f(\theta) \, p(\theta_1, \ldots, \theta_4 | X_1, \ldots, X_n) d\theta\, . $$
+
+$$f(\theta) = \mathbb{I}_{[\theta_3 > \theta_2]}(\theta)$$
+
+$$\mathbb{P}(\text{mango sea preferido sobre limon}) \approx \frac1N \sum_i \mathbb{I}_{[\theta_3 > \theta_2]}(\theta^{(i)}) \,.$$
+$$\theta^{(i)} \overset{\text{iid}}{\sim} p(\theta_1, \ldots, \theta_4 | X_1, \ldots, X_n) \,.$$
+
+$$p(\theta_1, \ldots, \theta_4 | X_1, \ldots, X_n)$$
+
+```
+
+
+```{block, type = 'mathblock', include = FALSE}
+
+$$\pi(\theta) \propto 1 \, . $$
+
+Por ejemplo, si $\theta \in [0,1]$, entonces $\theta \sim \mathsf{Beta}(1,1).$
+
+$\theta \in \mathbb{R}$
+
+$$\int_{-\infty}^\infty 1 \, d \theta \, = \infty . $$
+
+$$ \pi(\theta) = 1 / \infty . $$
+
+$$\int_{-\infty}^\infty \mathcal{L}_n(\theta) \cdot 1 \, d \theta < \infty \, .$$
+
+```
+
+
+
+Y vemos que los mejores sabores son mango y limón. La probabilidad posterior de
+que mango sea el sabor preferido por la población es de 66%. La integral
+correspondiente no es trivial.
+
+
+```{block2, type='ejercicio'}
+
+- ¿Cuáles son las probabilidades a priori de que cada sabor sea el preferido
+por la población?
+- ¿Cuál es la integral correspondiente a las probabilidades que acabamos de calcular?
+  ¿Qué tan fácil es hacer esta integral de manera analítica?
+- Calcula la probabilidad de que mango sea preferido a limón?
+- ¿Qué conclusión práctica sacas de estos resultados?
+  
+```
+
+
+## Integración Monte Carlo vía Cadenas de Markov {-}
+
+Hasta ahora hemos visto que el método Monte Carlo nos ayuda a aproximar
+integrales de manera numérica. Sin embargo, para que este método funcione
+necesitamos poder simular muestras independientes de la distribución de interés.
+
+Sin embargo, en aplicaciones como en inferencia bayesiana: 
+
+- la distribución la conocemos módulo una constante de normalización. 
+- la distribución no tiene una forma reconocible que corresponda a un
+simulador estándar.
+- ¿cómo podemos simular si sólo conocemos parcialmente la expresión analítica?
+
+Podemos aproximar integrales de interés utilizando muestras correlacionadas, lo 
+cual implica relajar el supuesto de independencia, y construir una secuencia de 
+simulaciones que tengan como distribución límite la distribución que nos
+interesa. Para ser completamente explícitos, lo que queremos es resolver problemas
+del estilo 
+
+$$\pi(f) = \int f(x) \,\, \pi(x) \,\, \text{d}x, $$
+
+donde $\pi(x)$ es la función de densida de la variable aleatoria $x.$ 
+Lo que necesitamos es generar una *secuencia* de puntos en el soporte de $x$ de 
+tal forma que podamos utilizar 
+
+$$\pi(f) \approx \frac1N \sum_{n= 1}^N f(u^{(n)}).$$
+
+Lo que pedimos es que la secuencia tenga una correlación débil que expresamos 
+a través de la propiedad Markoviana (cadena de Markov) para aproximar integrales
+como si fuera el método Monte Carlo. Es decir, utilizamos integración Monte
+Carlo vía Cadenas de Markov (MCMC por sus siglas en inglés).
+
+### Fundamentos e ideas {-}
+
+Implementar MCMC requiere de definir un mecanismo de muestreo (que llamamos
+*kernel* Markoviano) que permita tener como distribución límite la distribución
+objetivo $\pi$. De tal forma que podamos seguir aproximando $\pi(f)$ por medio de 
+
+$$\pi(f) \approx \frac1N \sum_{n= 1}^N f(u^{(n)}).$$
+
+Bajo ciertas condiciones de regularidad el estimador se vuelve *insesgado* y
+satisface una versión del teorema de límite central para ciertas funciones $f.$
+Estudiar el diseño y analisis de métodos de MCMC escapa a los objetivos del
+curso pero pueden ser estudiados desde teorica ergódica [@mcmcStability]. 
+
+#### Ejemplo: vendedor ambulante {-}
+
+Por simplicidad, estudiaremos una clase de algoritmos que se denominan
+Metropolis-Hastings dentro de toda la familia de MCMC. Primero veremos un
+ejemplo para establecer un poco de intuición.
+
+Supongamos que un nuevo vendedor de *Yakult* trabajará a lo largo de una cadena
+de 5 islas:
+
+* La idea que tiene es viajar constantemente entre las islas ofreciendo sus
+productos;
+
+* Al final de un día de trabajo decide si permanece en la misma isla o se 
+transporta a una de las $2$ islas vecinas;
+
+* El vendedor sólo tiene información local y no lleva un registro de cuántas
+islas hay en el archipielago; sin embargo, una vez que se encuentra en una isla
+puede investigar la población de la misma y también de la isla a la que se
+propone viajar después.
+
+* El objetivo del vendedor es visitar las islas de manera proporcional a la 
+población de cada una. Con esto en mente el vendedor utiliza el siguiente 
+proceso: 
+
+    1) Lanza un volado, si el resultado es águila se propone ir a la isla 
+del lado izquierdo de su ubicación actual y si es sol a la del lado derecho.
+    2) Si la isla propuesta tiene población mayor a la población de la isla actual,
+el vendedor decide viajar a ella. Si la isla vecina tiene población menor,
+entonces visita la isla propuesta con una probabilidad que depende de la
+proporción de la población de las islas. 
+
+Es decir, en el $t-$ésimo día la decisión del vendedor es como sigue. Sea
+$\pi^*$ la población de la isla propuesta y $\pi_{t}$ la población de la isla
+actual. Entonces el vendedor cambia de isla con probabilidad
+
+$$\alpha_{\textsf{mover}}= \frac{\pi^\star}{\pi_{t}}$$
+Nota que entre mas parecidas sean las poblaciones de las islas mas *indeciso*
+será de moverse y además $\alpha_{\textsf{mover}} \in (0,1)$ por definición. De
+hecho, podemos definir la probabilidad de viajar a otra isla por medio de
+
+$$\alpha(t, \star) = \min \Bigg\{ 1, \frac{\pi^\star}{\pi_{t}}\Bigg\},$$
+
+pues incluye los dos casos. 
+
+A la larga, si el vendedor sigue la heurística anterior la probabilidad de que
+el vendedor este en alguna de las islas coincide con la población relativa de
+la isla. 
+
+```{r, fig.height=3, fig,width = 3.5, out.width = "99%"}
+
+set.seed(1087)
+
+islas <- tibble(islas = 1:5, pob = 1:5)
+camina_isla <- function(i){ # i: isla actual
+    u <- runif(1) # volado
+    v <- ifelse(u < 0.5, i - 1, i + 1)  # isla vecina (índice)
+    if (v < 1 | v > 5) { # si estas en los extremos y el volado indica salir
+      return(i)
+    }
+    u2 <- runif(1)
+    p_move = min(islas$pob[v] / islas$pob[i], 1)
+    if (p_move  > u2) {
+        return(v) # isla destino
+    }
+    else {
+      return(i) # me quedo en la misma isla
+    }
+}
+pasos <- 100000
+iteraciones <- numeric(pasos)
+iteraciones[1] <- sample(1:5, 1) # isla inicial
+for (j in 2:pasos) {
+    iteraciones[j] <- camina_isla(iteraciones[j - 1])
+}
+caminata <- tibble(pasos = 1:pasos, isla = iteraciones)
+plot_caminata <- ggplot(caminata[1:500, ], aes(x = pasos, y = isla)) +
+    geom_point(size = 0.8) +
+    geom_path(alpha = 0.5) +
+    coord_flip() + 
+    labs(title = "Caminata aleatoria") +
+    scale_x_continuous(trans = "log10", "Tiempo", breaks = c(1, 2, 5, 20, 100, 500)) +
+    scale_y_continuous( expression(theta)) + sin_lineas
+plot_dist <- ggplot(caminata, aes(x = isla)) +
+    geom_bar(fill = "darkgray", aes(y = (..count..)/sum(..count..))) +
+    scale_x_continuous(expression(theta), breaks = 1:10) +
+    labs(title = "Distribución objetivo (Histograma)", 
+       y = expression(hat(pi)(theta))) + sin_lineas
+plot_caminata + plot_dist
+```
+
+Entonces:
+
+* Para aproximar la distribución objetivo debemos permitir que el vendedor 
+recorra las islas durante una sucesión larga de pasos y registramos sus visitas. 
+
+* Nuestra aproximación de la distribución es justamente el registro de sus 
+visitas. 
+
+* Más aún, debemos tener cuidado y excluir la porción de las visitas que se 
+encuentran bajo la influencia de la posición inicial. Esto es, debemos excluir 
+el **periodo de calentamiento**. 
+
+* Una vez que tenemos un registro _largo_ de los viajes del vendedor (excluyendo 
+el calentamiento) podemos aproximar la distribución objetivo 
+simplemente contando el número relativo de veces que el vendedor visitó
+dicha isla.
+
+```{r, warning=FALSE, message=FALSE, fig.width=8, fig.height=7.5}
+t <- 4**(0:8)
+plots_list <- map(t, function(i){
+    ggplot(caminata[1:i, ], aes(x = isla)) +
+        geom_bar(fill = "darkgray", aes(y = (..count..)/sum(..count..))) +
+        labs(y = "", x = "", title = paste("t = ", i, sep = "")) +
+        scale_x_continuous(expression(theta), breaks = 1:5, limits = c(0, 6)) + 
+    sin_lineas
+})
+wrap_plots(plots_list)
+```
+
+Escribamos el algoritmo, para esto indexamos las islas por el valor
+$\theta$, es así que la isla del extremo oeste corresponde a $\theta=1$ y la 
+población relativa de cada isla es $\pi(\theta)$:
+
+1. El vendedor se ubica en una isla al tiempo $t$, lo cual denotamos por
+$\theta^{(t)}$ y propone moverse a la izquierda o derecha $\theta^{(\star)}$ con
+probabilidad $0.5$. El rango de los posibles valores para moverse, y la
+probabilidad de proponer cada uno se conoce como **distribución propuesta**, en
+nuestro ejemplo sólo toma dos valores cada uno con probabilidad $0.5$.
+
+2. Una vez que se propone un movimiento, decidimos si aceptarlo. La decisión de
+aceptar se basa en el valor de la distribución **objetivo** en la posición
+propuesta, relativo al valor de la distribución objetivo en la posición actual:
+$$\alpha\left(\theta^{(t)}, \theta^{(\star)}\right)=\min\bigg\{\frac{\pi(\theta^{(\star)})}{\pi(\theta^{(t)})},1\bigg\},$$
+donde $\alpha$ denota la probabilidad de hacer el cambio de isla. 
+
+Notemos que la distribución objetivo $\pi(\theta)$ no necesita estar
+normalizada, esto es porque lo que nos interesa es el cociente
+$\pi(\theta^*)/\pi(\theta^{(t)})$.
+
+3. Una vez que propusimos un movimiento y calculamos la probabilidad de aceptar
+el movimiento, aceptamos o rechazamos el movimiento generando un valor de una
+distribución uniforme, si dicho valor es menor a la probabilidad de cambio,
+$\alpha,$ entonces hacemos el movimiento.
+
+Entonces, para utilizar el algoritmo necesitamos ser capaces de:
+
+* Generar un valor de la distribución propuesta en este caso es una decisión
+binaria con probabilidad $0.5$.
+
+* Evaluar la distribución objetivo en cualquier valor propuesto (para calcular
+$\pi(\theta^{(\star)})/\pi(\theta^{(t)})$).
+
+* Generar un valor uniforme (para movernos con probabilidad $\alpha$).
+
+Las $3$ puntos anteriores nos permiten generar muestras aleatorias de la
+distribución objetivo, sin importar si esta está normalizada. Esta técnica es
+particularmente útil cuando cuando la distribución objetivo la conocemos módulo
+la constante de normalización. Como por ejemplo, en inferencia bayesiana cuando
+tenemos $p(x|\theta)p(\theta)$ (en nuestra notación Bayesiana).
+
+Para entender porque funciona el algoritmo anterior hace falta entender $2$
+puntos, primero que la distribución objetivo es **estable** para el modelo de
+transición. Esto lo verificamos cuando la probabilidad _actual_ de ubicarse en
+una posición coincide con la probabilidad en la distribución objetivo, entonces
+el algoritmo para generar los saltos preserva las probabilidades en el límite.
+
+```{r, warning=FALSE, message=FALSE, fig.width=8, fig.height=6.5}
+library(expm)
+transMat <- function(P){ # recibe vector de probabilidades (o población)
+    T <- matrix(0, 5, 5)
+    n <- length(P - 1) # número de estados
+    for (j in 2:n - 1) { # llenamos por fila
+        T[j, j - 1] <- 0.5 * min(P[j - 1] / P[j], 1)
+        T[j, j] <- 0.5 * (1 - min(P[j - 1] / P[j], 1)) + 
+                   0.5 * (1 - min(P[j + 1] / P[j], 1))
+        T[j, j + 1] <- 0.5 * min(P[j + 1] / P[j], 1)
+    }
+    # faltan los casos j = 1 y j = n
+    T[1, 1] <- 0.5 + 0.5 * (1 - min(P[2] / P[1], 1))
+    T[1, 2] <- 0.5 * min(P[2] / P[1], 1)
+    T[n, n] <- 0.5 + 0.5 * (1 - min(P[n - 1] / P[n], 1))
+    T[n, n - 1] <- 0.5 * min(P[n - 1] / P[n], 1)
+    T
+}
+T <- transMat(islas$pob)
+w <- c(0, 1, rep(0, 3))
+t <- 4**(0:8)
+expT <- map_df(t, ~data.frame(t = ., w %*% (T %^% .)))
+expT_long <- expT %>%
+    gather(theta, P, -t) %>% 
+    mutate(theta = parse_number(theta))
+ggplot(expT_long, aes(x = theta, y = P)) +
+    geom_bar(stat = "identity", fill = "darkgray") + 
+    facet_wrap(~ t) +
+    scale_x_continuous(expression(theta), breaks = 1:5, limits = c(0, 6)) + 
+  sin_lineas
+```
+
+El segundo punto es que el proceso converge a la distribución objetivo. 
+Podemos ver, (en nuestro ejemplo sencillo) que sin importar el punto de inicio
+se alcanza la distribución objetivo.
+
+```{r, warning=FALSE, message=FALSE, fig.width=8, fig.height=6.5}
+inicio_p <- function(i){
+    w <- rep(0, 5)
+    w[i] <- 1
+    t <- c(1, 10, 50, 100)
+    exp_t <- map_df(t, ~ data.frame(t = .x, inicio = i, w %*% (T %^% .))) %>%
+        gather(theta, P, -t, -inicio) %>% 
+        mutate(theta = parse_number(theta))
+    exp_t
+}
+exp_t <- map_df(c(1, 3, 5), inicio_p)
+ggplot(exp_t, aes(x = as.numeric(theta), y = P)) +
+    geom_bar(stat = "identity", fill = "darkgray") + 
+    facet_grid(inicio ~ t) +
+    scale_x_continuous(expression(theta), breaks = 1:5, limits = c(0, 6)) + 
+  sin_lineas
+```
+
+## El método Metropolis-Hastings {-}
+
+Ahora formalicemos lo que hicimos con nuestro vendedor ambulante. 
+El algoritmo necesita dos ingredientes: *una generador de saltos* $q(u, v),$ que 
+es el *kernel* de transición; y una probabilidad de aceptación $\alpha(u,v),$
+que convierte el *kernel* de transición en un *kernel* que preserva la
+distribución objetivo $\pi.$ 
+
+En el ejemplo del vendedor de *Yakults* no sólo bastaba con seleccionar de las
+islas vecinas al azar. También es importante que la transición se haga de manera
+relativa a las poblaciones. La conjunción de ambas es lo que permite la
+construccion de una cadena ergódica.
+
+Usando estos dos elementos hacemos lo siguiente. Partiendo de la $n-$ésima
+iteración localizada en $u^{(n)}$, generamos un candidato $u^{(\star)}$ por medio de
+
+$$u^{(\star)} \sim q(u^{(n)}, \,\cdot\,),$$
+
+y aceptamos el salto con probabilidad $\alpha(u^{(n)}, u^{(\star)})$ donde la 
+probabilidad de aceptación de salto está dada por 
+
+$$\alpha(u^{(n)}, u^{(\star)}) = \min \bigg\{ \frac{\pi(u^{(\star)})}{\pi(u^{(n)}) } \cdot \frac{q(u^{(\star)}, u^{(n)})}{q(u^{(n)}, u^{(\star)})}, \, 1\bigg\}.$$
+
+```{block, type = 'comentario'}
+
+- Lo que necesitamos para poder implementar el Metropolis-Hastings es poder
+simular de manera independiente del *kernel* propuesta $q(u, \cdot)$ para
+cualquier valor de $u.$
+
+- Del cálculo de la probabilidad de aceptación podemos ver que si sólo conocemos la 
+densidad módulo una constante de normalización, ¡no importa! Pues el cociente 
+$\pi(u)/\pi(v)$ cancela la constante. 
+
+- El método se puede simplificar bastante si consideramos propuestas simétricas.
+Es decir, $q(u,v) = q(v, u).$ En este caso podemos notar que el método aceptará
+transiciones de manera *automática* a zonas de alta densidad, y con un
+movimiento aleatorio a zonas de menor densidad.
+
+- El algoritmo es bastante flexible para escoger $q(u, v),$ sin embargo, el 
+comportamiento ergódico dependerá en gran medida de esta elección.
+
+- Aceptar con probabilidad $\alpha$ se puede simular por medio de una variable
+aleatoria $\phi \sim \mathsf{U}[0,1].$ Si $\phi \in [0, \alpha)$ entonces la 
+propuesta se acepta ($u^{(n+1)} = u^*$); se rechaza en caso contrario
+($u^{(n+1)} = u^{(n)}$).
+
+```
+
+Una elección común es escoger $q(u, v)$ como una $\mathsf{N}(u, \sigma^2)$.
+Donde el parámetro $\sigma^2$ se ajusta para tener un comportamiento deseado.
+Mas adelante veremos formas de establecer diágnosticos de interés.
+
+Ilustraremos con un caso artificial
+
+```{r}
+crear_metropolis <- function(fun_log, sigma_salto = 0.1){
+  # fun_log es la funcion objetivo en escaa logaritmica
+  # sigma_salto es la varianza de los saltos en la propuesta
+  iterar_metropolis <- function(theta_inicial, n){
+    p <- length(theta_inicial)
+    nombres <- names(theta_inicial)
+    iteraciones <- matrix(0, nrow = n, ncol = p)
+    colnames(iteraciones) <- nombres
+    iteraciones[1,] <- theta_inicial
+    for(i in 2:n){
+      theta <- iteraciones[i - 1, ]
+      theta_prop <- theta + rnorm(p, 0, sigma_salto)
+      # exp(log(p) - log(q)) = p/q
+      cociente <- exp(fun_log(theta_prop) - fun_log(theta))
+      if(cociente >= 1 || runif(1,0,1) < cociente){
+        iteraciones[i, ] <- theta_prop
+      } else {
+        iteraciones[i, ] <- theta  
+      }
+    }
+    iteraciones_tbl <- iteraciones %>% 
+      as_tibble() %>%  
+      mutate(iter_num = row_number()) %>% 
+      select(iter_num, everything())
+    iteraciones_tbl
+  }
+  iterar_metropolis
+}
+```
+
+e intentamos simular de una exponencial no normalizada:
+
+```{r, fig.height = 2.8}
+exp_no_norm <- function(x) {
+  z <- ifelse(x > 0, exp(-0.5 * x), 0)
+  log(z)
+}
+
+iterador_metro <- crear_metropolis(exp_no_norm, sigma_salto = 0.5)
+sims_tbl <- iterador_metro(c(theta = 0.5), 10000)
+g_exp_mh <- ggplot(sims_tbl, aes(x = theta)) + 
+  geom_histogram(aes(y = ..density..)) + 
+  xlim(0, 20) + ggtitle("Metropolis-Hastings")+ sin_lineas + 
+  xlab(expression(theta))
+
+g_exp_rexp <- tibble(theta = rexp(10000, rate = .5)) %>% 
+  ggplot(aes(x = theta)) + 
+  geom_histogram(aes(y = ..density..)) + 
+  xlim(0, 20) + ggtitle("rexp")+ sin_lineas + 
+  xlab(expression(theta))
+
+g_exp_mh + g_exp_rexp
+```
+
+Ahora probemos con una $\mathsf{Beta}(3, 2):$
+
+```{r, fig.height = 2.8}
+beta_no_norm <- function(x) {
+  z <- ifelse(x > 0 && x < 1, (x^2)*(1-x), 0)
+  log(z)
+}
+
+iterador_metro <- crear_metropolis(beta_no_norm, sigma_salto = 0.04)
+sims_metro_tbl <- iterador_metro(c(theta = 0.5), 50000)
+sims_indep_tbl <- tibble(iter_num = 1:30000, theta = rbeta(30000, 3, 2))
+g_1 <- ggplot(sims_metro_tbl, aes(x = theta)) + 
+  geom_histogram(aes(y = ..density..)) +
+  labs(subtitle = "Metropolis-Hastings")+ sin_lineas + xlab(expression(theta))
+g_2 <- ggplot(sims_indep_tbl, aes(x = theta)) + 
+  geom_histogram(aes(y = ..density..)) +
+  labs(subtitle = "rbeta")+ sin_lineas + xlab(expression(theta))
+g_1 + g_2
+```
+y vemos que esto funciona.
+
+Nótese un aspecto de estas simulaciones que no habíamos encontrado en el curso.
+Aunque la distribución final de las simulaciones es muy cercana a la de la
+distribución que queremos simular, lo cual era nuestro propósito, las
+**simulaciones no son extracciones independientes** de esa distribución.
+
+La construcción del algoritmo muestra eso, pero podemos también graficar las
+simulaciones:
+
+```{r, fig.width = 8}
+g_metropolis <- sims_metro_tbl %>% 
+  filter(iter_num < 500) %>% 
+  ggplot(aes(x = iter_num, y = theta)) +
+  geom_line() + labs(subtitle = "Metropolis-Hastings")+ sin_lineas + 
+  ylab(expression(theta))
+g_indep <- sims_indep_tbl %>% 
+  filter(iter_num < 500) %>% 
+  ggplot(aes(x = iter_num, y = theta)) +
+  geom_line() + labs(subtitle = "Independientes")+ sin_lineas + 
+  ylab(expression(theta))
+g_metropolis + g_indep
+```
+
+Donde vemos claramente que las simulaciones de Metropolis-Hastings están
+autocorrelacionadas: la siguiente simulación depende de la anterior. Esto define
+una cadena de Markov.
+
+En cualquiera de los dos casos, como vimos en los histogramas de arriba, las
+simulaciones "visitan" cada parte [0,1] de manera proporcional a la densidad, de
+manera que podemos usar ambos tipos de simulaciones para aproximar la integral o
+cantidad que nos interesa. Por ejemplo, la media posterior es:
+
+```{r}
+media_1 <- sims_metro_tbl %>% summarise(media_post = mean(theta)) %>% pull(media_post)
+media_2 <- sims_indep_tbl %>% summarise(media_post = mean(theta)) %>% pull(media_post)
+media_exacta <- 3/(3 + 2)
+tibble(metodo = c("sim Metropolis-Hastings", "sim Independiente", "exacto"),
+       media_post = c(media_1, media_2, media_exacta))
+```
+
+**Observaciones**: 
+
+1. Aunque hay distintas *condiciones de regularidad* que pueden funcionar,
+generalmente el supuesto es que la cadena de Markov construída es
+[ergódica](https://en.wikipedia.org/wiki/Ergodic_theory), y hay varias
+condiciones que garantizan esta propiedad. Una condición simple, por ejemplo, es
+que el soporte de la distribución $\pi(\theta)$ es un conjunto conexo del espacio
+de parámetros.
+
+2. Más crucialmente, este resultado no dice qué tan grande debe ser $N$ para que
+la aproximación sea buena. Esto depende de cómo es $\pi(\theta)$, y de la
+distribución que se utiliza para obtener los saltos propuestos. Dependiendo de
+estos dos factores, la convergencia puede ser rápida (exponencial) o tan lenta
+que es infactible usarla. Más adelante veremos diagnósticos para descartar los
+peores casos de falta de convergencia.
+
+3. El método Metropolis-Hastings con propuestas simétricas se conoce como el
+método de Metropolis. Aunque en nuestra exposición parece que Metropolis se
+deriva de Metropolis-Hastings. Lo contrario pasó en la literatura. Pimero fue
+formalizado el método de Metropolis en [@metropolis] y luego extendido a lo que
+conocemos como Metropolis-Hastings en [@hastings].
+
+## Ajustando la distribución de propuesta {-}
+
+En el algoritmo Metrópolis, generalmente es importante escoger la 
+dispersión de la distribución que genera propuestas con cuidado. 
+
+- Si la dispersión de la propuesta es demasiado grande, tenderemos a rechazar mucho,
+y la convergencia será lenta.
+- Si la dispersión de la propuesta es demasiado chica, tardaremos mucho tiempo
+en explorar las distintas partes de la distribución objetivo.
+
+### Ejemplo {-}
+
+Supongamos que queremos simular usando metróplis de una distribución 
+$\textsf{Gamma}(20, 100)$. Abajo vemos la forma de esta distribución:
+
+```{r, fig.height = 2.5}
+sim_indep <- tibble(theta = rgamma(10000, 20, 100))
+ggplot(sim_indep, aes(x = theta)) + geom_histogram()+ sin_lineas + 
+  xlab(expression(theta))
+```
+
+```{r, fig.height = 2.8}
+# logaritmo de densidad no normalizada
+log_f_dist <- function(x) 210 + dgamma(x, 20, 100, log = TRUE)
+# iterar
+iterador_metro_chico <- crear_metropolis(log_f_dist, sigma_salto = 0.001)
+sims_chico_tbl <- iterador_metro_chico(c(theta = 0.02), 50000)
+g_sim <- ggplot(sims_chico_tbl %>% filter(iter_num < 3000), 
+                aes(x = iter_num, y = theta)) + 
+  geom_line() + sin_lineas + ylab(expression(theta)) + 
+  ylim(c(0, 0.5))
+
+dist_bplot <- ggplot(tibble(x = rgamma(10000, 20, 100)), 
+                     aes(y = x, x = "a")) + 
+  geom_violin() + 
+  ylab("") + sin_lineas +
+  ylim(0, 0.5)
+
+g_sim + dist_bplot + plot_layout(widths = c(5, 1))
+```
+
+Nótese que después de 5 mil iteraciones estamos muy lejos de tener una muestra
+que se aproxime a la distribución objetivo. Empezamos en un lugar bajo, y la
+cadena sólo ha ido lentamente hacia las zonas de alta densidad. *Cualquier
+resumen con esta cadena estaría fuertemente sesgado* al valor donde iniciamos la
+iteración. Decimos que la cadena todavía no *mezcla* en las primeras 5 mil
+iteraciones.
+
+Ahora vemos qué pasa si ponemos el tamaño de salto demasiado grande:
+
+```{r, fig.height = 2.8}
+set.seed(831)
+iterador_metro_grande <- crear_metropolis(log_f_dist, sigma_salto = 20)
+sims_grande_tbl <- iterador_metro_grande(c(theta = 0.02), 50000)
+
+g_sim <- ggplot(sims_grande_tbl %>% filter(iter_num < 3000), 
+                aes(x = iter_num, y = theta)) + 
+  geom_line() + sin_lineas + ylab(expression(theta)) + 
+  ylim(c(0, 0.5))
+
+g_sim + dist_bplot + plot_layout(widths = c(5, 1))
+```
+
+En este caso, la cadena se *atora* muchas veces, pues las propuestas tienen
+probabilidad muy baja, y tendemos a tener una tasa de rechazos muy alta. Esto
+quiere decir que la información que tenemos acerca de la posterior es
+relativamente poca, pues muchos datos son repeticiones del mismo valor.
+*Cualquier resumen con esta cadena podría estar muy lejos del verdadero valor,*
+pues su varianza es alta - otra corrida se "atoraría" en otros valores
+distintos.
+
+Nótese que cualquiera de estas cadenas, si la corremos suficientemente tiempo,
+nos daría resultados buenos. Sin embargo, el número de simulaciones puede ser
+infactible.
+
+Un valor intermedio nos dará mucho mejores resultados:
+
+```{r, fig.height = 2.8}
+set.seed(831)
+iterador_metro_apropiada <- crear_metropolis(log_f_dist, sigma_salto = 0.1)
+sims_tbl <-iterador_metro_apropiada(c(theta = 0.02), 50000)
+g_sim <- ggplot(sims_tbl %>% filter(iter_num < 3000), 
+  aes(x = iter_num, y = theta)) + geom_line() + ylim(c(0, 0.5)) + sin_lineas + 
+  ylab(expression(theta))
+g_sim + dist_bplot + plot_layout(widths = c(5, 1))
+```
+Donde vemos que esta cadena parece mezclar bien (está explorando la totalidad
+de la distribución objetivo), y también parece estar en un estado estable.
+
+Comparemos cómo saldría por ejemplo la media posterior aproximada según 
+los tres métodos:
+
+```{r}
+estimaciones_media <- map_dfr(
+  list(sims_chico_tbl, sims_grande_tbl, sims_tbl), 
+  ~ filter(.x, iter_num < 3000) %>% 
+    summarise(media = mean(theta))) %>% 
+    mutate(tipo = c("salto chico", "salto grande", "salto apropiado"))
+estimaciones_media %>% bind_rows(tibble(tipo = "exacta", media = 20/100)) %>% 
+  select(tipo, media)
+```
+
+Veamos otra corrida:
+
+```{r}
+set.seed(6222131)
+sims_chica_tbl <- iterador_metro_chico(c(theta = 0.02), 5000)
+sims_grande_tbl <- iterador_metro_grande(c(theta = 0.02), 5000)
+estimaciones_media <- map_dfr(
+    list(sims_chica_tbl, sims_grande_tbl, sims_tbl), 
+    ~ filter(.x, iter_num < 3000) %>% 
+  summarise(media = mean(theta))) %>% 
+  mutate(tipo = c("salto chico", "salto grande", "salto apropiado"))
+estimaciones_media %>% bind_rows(tibble(tipo = "exacta", media = 20/100)) %>% 
+  select(tipo, media)
+```
+
+```{block, type='ejercicio'}
+Repite este proceso varias veces. Verifica que:
+
+  - Si el tamaño de paso es muy chico, las estimaciones de la media tienen sesgo alto.
+  - Si el tamaño de paso es muy grande, las estimaciones tienen varianza alta.
+  - Si el tamaño de paso es adecuado, obtenemos buena precisión en la estimación de la media posterior.
+  - Explica estos tres casos en términos de la convergencia de las realizaciones
+    de la cadena de Markov. Explica cómo afecta a cada caso el valor inicial de las
+    simulaciones de Metrópolis.
+  - Repite para otra estadística, como la desviación estándar o el rangon intercuartil.
+```
+
+
+## Metropolis con varios parámetros {-}
+
+Ahora aplicaremos el algoritmo Metrópolis cuando tenemos varios parámetros
+$\theta \in \mathbb{R}^p.$ La idea es la misma, pero nuestra distribución de
+salto $q(u, \cdot)$ debe ser multivariada. Una selección usual es usando saltos
+normales independientes para cada parámetro, es decir, la normal multivariada
+con matriz de varianza y covarianza diagonal
+
+$$
+v \, | \, u \sim  \mathsf{N}(u, \Sigma), \qquad \Sigma = \text{diag}(\sigma_1^2, \ldots, \sigma_p^2).
+$$
+
+A ésta elección se le llama también *caminata aleatoria*. El caso más sencillo 
+es utilizar 
+
+$$\Sigma = \sigma^2 \cdot I_p,$$
+
+donde $I_p$ es la matriz identidad de tamaño $p \times p.$
+
+Primero veremos el modelo para un caso bivariado. En este caso consideraremos
+que queremos muestrear de una variable aleatoria Gaussiana en $\mathbb{R}^2.$
+Ambas componentes estan correlacionadas, por lo que consideramos que la densidad 
+que nos interesa es 
+
+$$
+\theta \sim \mathsf{N}(\textsf{m}, \textsf{S}), \qquad \textsf{m} = (1,2)^\top, \qquad \mathsf{S} = \begin{pmatrix}1. & .75\\.75 &1 \end{pmatrix}.
+$$
+
+La siguiente figura muestra distintas trayectorias partiendo del mismo punto
+utilizando diferentes valores para la escala de las propuestas. 
+
+
+```{r, echo = FALSE, include = FALSE}
+library(mvtnorm)
+
+mu <- c(1, 2)
+Sigma <- matrix(c(1, .75, .75, 1), nrow = 2)
+
+crear_log_norm <- function(mu, Sigma){
+  # calcula log_posterior
+  log_norm <- function(x){
+      log_verosim <- dmvnorm(x, mu, Sigma, log = TRUE)
+  }
+  log_norm
+}
+
+log_norm <- crear_log_norm(mu, Sigma)
+
+calibra_metropolis <- function(sigma){
+  
+  metro_normal <- crear_metropolis(log_norm, sigma_salto = sigma)
+  metro_normal(c(x1 = 0, x2 = 0), 100) %>% 
+    select(-iter_num) %>% 
+    unique() %>% 
+    summarise(accep = n()/100) %>% 
+    pull(accep)
+  
+}
+
+tibble(sigma = c(.1, .5, .75, 1., 2.33/sqrt(2), 2.5)) %>% 
+  mutate(accep = map_dbl(sigma, calibra_metropolis))
+
+```
+
+```{r, echo = FALSE, out.width = "99%", fig.height = 10, fig.asp = 1.}
+
+set.seed(1087)
+
+# plot.grid <- %>% 
+  
+plot.grid <- expand_grid(x = seq(-2,5, by = 7/99), y = seq(-1,5, by = 6/99))
+
+plot.grid <- plot.grid %>% 
+  mutate(density = dmvnorm(plot.grid, mean = mu, sigma = Sigma))
+
+plot.breaks <- plot.grid %>% 
+  summarise(breaks = quantile(density, probs = c(.67, .90, .99))) %>% 
+  pull(breaks)
+
+
+cadena_normal <- function(sigma){
+  
+  metro_normal <- crear_metropolis(log_norm, sigma_salto = sigma)
+  metro_normal(c(x1 = -2, x2 = 4), 50)
+  
+}
+
+tibble(sigma = c(.1, .5, .75, 2.33/sqrt(2), 2.5, 5)) %>% 
+  mutate(cadenas = map(sigma, cadena_normal)) %>% 
+  unnest(cadenas) %>% 
+  ggplot(aes(x = x1, y = x2)) + 
+    geom_contour(data = plot.grid, aes(x,y,z = density), breaks = plot.breaks) + 
+    geom_path() + geom_point() + 
+    geom_point(data = tibble(x = -2, y = 4), aes(x, y), color = 'red') + 
+    facet_wrap(~round(sigma,2)) + 
+    xlab(expression(x[1])) + ylab(expression(x[2])) + 
+    sin_lineas
+
+
+```
+
+
+```{block , type = 'comentario'}
+
+**Observación:** El ajuste y la escala de la distribución propuesta depende
+mucho del problema. Esto es en términos de correlaciones, escala, y número de
+dimensiones. La maldición de la dimensionalidad también se materializa en el 
+campo de probabilidad bajo el nombre de **concentración de medida.**
+
+```
+
+
+### Ejemplo: el modelo normal gamma--inverso {-}
+
+Veremos cómo simular con Metropolis para el problema de los cantantes. 
+Sabemos como calcular la posterior:
+
+```{r}
+crear_log_posterior_norm <- function(x = datos, m_0, n_0, a, b){
+  # calcula log_posterior
+  log_posterior <- function(mu, sigma){
+      log_verosim <- sum(dnorm(x, mu, sigma, log = TRUE))
+      tau <- 1 / sigma^2
+      log_inicial <- 
+        dgamma(tau, a, b, log = TRUE) + 
+        dnorm(mu, mu_0, sigma/sqrt(n_0), log = TRUE)
+      log_p <- log_verosim + log_inicial
+      log_p
+  }
+  log_posterior
+}
+```
+
+
+```{r}
+# parametros de inicial y datos
+a <- 3
+b <- 140
+mu_0 <- 175
+n_0 <- 5
+set.seed(3413)
+cantantes <- lattice::singer %>% 
+  mutate(estatura_cm = round(2.54 * height)) %>% 
+  filter(str_detect(voice.part, "Tenor")) %>% 
+  sample_n(20)
+```
+
+Vemos cómo se ven las primeras iteraciones de nuestra cadena de Markov:
+
+```{r}
+log_p <- crear_log_posterior_norm(cantantes$estatura_cm, mu_0, n_0, a, b) 
+log_post <- function(pars) { log_p(pars[1], pars[2]) }
+set.seed(823)
+metro_normal <- crear_metropolis(log_post, sigma_salto = 0.5)
+sim_tbl <- metro_normal(c(mu = 172, sigma = 3), 50000) 
+ggplot(sim_tbl %>% filter(iter_num < 100), 
+       aes(x = mu, y = sigma)) + 
+  geom_path() +
+  geom_point() + sin_lineas + 
+  xlab(expression(mu)) + ylab(expression(sigma))
+```
+
+Y ahora vemos todas las simulaciones:
+
+```{r}
+g_normal <- ggplot(sim_tbl, aes(x = mu, y = sigma)) + 
+  geom_point(alpha = 0.05)+ coord_equal() + ylim(c(0, 14)) + 
+  sin_lineas + xlab(expression(mu)) + ylab(expression(sigma))
+g_normal
+```
+
+Y las medias posteriores son:
+
+```{r}
+sim_tbl %>% summarise(across(is_double, mean))
+```
+
+### Ejemplo: observaciones normales, no conjugado {-}
+
+Arriba repetimos el análisis conjugado usando Metrópolis. Aunque 
+ya no es necesario usar el modelo conjugado, y podemos poner
+iniciales que sean más intuitivas y acorde con nuestro conocimiento
+existente.
+
+Por ejemplo, podemos poner $p(\mu, \sigma) = p(\mu)p(\sigma)$, donde la densidad
+de $\mu \sim \mathsf{N}(175, 2)$ y $\sigma \sim \mathsf{U}[2, 20].$ Igual que
+antes, la verosimilitud $p(x|\mu, \sigma)$ es normal con media $\mu$ y
+desviación estándar $\sigma.$
+
+Escribimos la posterior:
+
+```{r}
+crear_log_posterior <- function(x, m_0, sigma_0, inf, sup){
+  # calcula log_posterior
+  log_posterior <- function(mu, sigma){
+      log_verosim <- sum(dnorm(x, mu, sigma, log = TRUE))
+      log_inicial <- 
+        dunif(sigma, inf, sup, log = TRUE) + 
+        dnorm(mu, mu_0, sigma_0, log = TRUE)
+      log_p <- log_verosim + log_inicial
+      log_p
+  }
+  log_posterior
+}
+```
+
+```{r}
+log_p <- crear_log_posterior(cantantes$estatura_cm, 175, 3, 2, 20) 
+log_post <- function(pars) { log_p(pars[1], pars[2]) }
+```
+
+
+```{r, fig.width = 7}
+set.seed(8231)
+metro_normal <- crear_metropolis(log_post, sigma_salto = 0.5)
+sim_tbl <- metro_normal(c(mu = 172, sigma = 5), 50000) 
+g_normal_2 <- ggplot(sim_tbl, aes(x = mu, y = sigma))  +
+  geom_point(alpha = 0.05) + coord_equal() + ylim(c(0, 14)) + sin_lineas + 
+  xlab(expression(mu)) + ylab(expression(sigma))
+g_normal + g_normal_2
+```
+
+Los resultados son similares, pero en nuestras estimaciones bajo el segundo
+modelo, la $\sigma$ está concentrada en valores un poco más bajos que el modelo
+normal-gamma inversa. Las medias posteriores son:
+
+```{r}
+
+sim_tbl %>% summarise(across(is.numeric, mean))
+
+```
+
+Nótese que la inicial para el modelo normal-gamma inversa pone muy poca
+probabilidad para valores bajos de $\sigma$, mientras que el segundo modelo hay
+un 10% de probabilidad de que la $\sigma$ sea menor que 4.
+
+```{r}
+tau <- rgamma(5000, 3, 150)
+sigma <- 1/sqrt(tau)
+quantile(sigma, c(0.01,0.1, 0.9, 0.99))
+quantile(runif(5000, 2, 25), c(0.01,0.1, 0.9, 0.99))
+```
+
+
+### Ejemplo: exámenes {-}
+
+Recordamos un ejemplo que vimos en la sección de máxima verosimilitud.
+Supongamos que en una población de estudiantes tenemos dos tipos: unos llenaron
+un examen de opción múltiple al azar (1 de 5), y otros contestaron las
+preguntas intentando sacar una buena calificación. Suponemos que una vez que
+conocemos el tipo de estudiante, todas las preguntas tienen la misma
+probabilidad de ser contestadas correctamente, de manera independiente. El
+modelo teórico está representado por la siguiente simulación:
+
+```{r}
+sim_formas <- function(p_azar, p_corr){
+  tipo <- rbinom(1, 1, 1 - p_azar)
+  if(tipo==0){
+    # al azar
+    x <- rbinom(1, 10, 1/5)
+  } else {
+    # no al azar
+    x <- rbinom(1, 10, p_corr)
+  }
+  x
+}
+```
+
+Y una muestra se ve como sigue:
+
+```{r}
+set.seed(12)
+muestra <- map_dbl(1:200, ~ sim_formas(0.35, 0.5))
+qplot(muestra, geom = 'bar') + sin_lineas
+```
+
+Supongamos que no conocemos la probabildad de contestar correctamente  ni la
+proporción de estudiantes que contestó al azar. ¿Como estimamos estas dos cantidades?
+
+La verosimilitud la escribimos en el ejercicio anterior en la sección de máxima verosimilitud, está dada, para las repuestas de un estudiante, por:
+
+$$p(X = k|\theta_{azar}, \theta_{corr}) \propto \theta_{azar}(1/5)^k(4/5)^{10-k} +
+(1-\theta_{azar})\theta_{corr}^k(1-\theta_{corr})^{10-k}$$
+
+Suponiendo que todas las preguntas tienen la misma dificultad, y que
+los estudiantes que estudiaron son homogéneos (podemos discutir qué haríamos
+para introducir heterogeneidad que típicamente observaríamos).
+
+Creemos que la mayoría de los estudiantes no contesta al azar, así que pondremos
+como inicial
+
+$$\theta_{azar} \sim \mathsf{Beta}(1, 5)$$
+
+```{r}
+qbeta(c(0.1, 0.9), 1, 5) %>% round(2)
+```
+Ahora tenemos que pensar en la probabilidad $\theta_{corr}$ para los estudiantes
+que sí estudiaron. Imaginemos que lo probamos con un estudiante que
+sabemos que sí estudió, y obtuvo un porcentaje de correctos de 7/10, Podríamos
+poner entonces (vimos 10 intentos, con 3 fracasos y 7 éxitos):
+
+$$\theta_{corr} \sim \mathsf{Beta}(7, 3)$$
+Finalmente, necesitamos la conjunta inicial. Pondremos
+$$p(\theta_{azar},\theta_{corr}) = p(\theta_{azar})p(\theta_{corr})$$
+con lo que expresamos que inicialmente no creemos que estos dos parámetros estén
+relacionados. Si pensáramos, por ejemplo, que cuando hacemos exámenes difíciles
+menos estudiantes estudian, entonces deberíamos intentar otra conjunta.
+
+Escribimos el producto de la verosimilitud con la inicial:
+
+```{r}
+crear_log_posterior <- function(x){
+ 
+  log_posterior <- function(theta_azar, theta_corr){
+    log_verosim <- sum(log(theta_azar * dbinom(x, 10, 1/5) + 
+                          (1 - theta_azar) * dbinom(x, 10, theta_corr)))
+    log_inicial <- dbeta(theta_azar, 1, 5, log = TRUE) +
+      dbeta(theta_corr, 7, 3, log = TRUE)
+    log_post <- log_verosim + log_inicial
+    log_post
+  }  
+  log_posterior
+
+}
+```
+
+Creamos la función de verosimilitud con los datos
+
+```{r}
+log_p <- crear_log_posterior(muestra)
+log_post <- function(pars) { log_p(pars[1], pars[2]) }
+set.seed(8231)
+metro_examenes <- crear_metropolis(log_post, sigma_salto = 0.02)
+sim_tbl <- metro_examenes(c(theta_azar = 0.5, theta_corr = 0.5), 20000)
+g_1 <- ggplot(sim_tbl, aes(x = theta_azar, y = theta_corr))  +
+  geom_point(alpha = 0.05) + coord_equal() + sin_lineas + 
+  xlab(expression(theta['azar'])) + ylab(expression(theta['corr']))
+g_1
+```
+
+Nótese que hay cierta correlación entre las dos proporciones, y esto produce
+intervalos posteriores relativamente amplios. Esto es de esperarse, pues
+los datos son consistentes con una proporción relativamente chica de
+estudiantes que contestan al azar, y tasas de correctos más altas entre los
+que sí estudian, y una proporción más grande de respuestas al azar con
+tasas de correctos más altas.
+
+```{r}
+f <- c(0.05, 0.5, 0.95)
+sim_tbl %>% 
+  pivot_longer(-iter_num, names_to = "parametro", values_to = "valor") %>% 
+  group_by(parametro) %>% 
+  summarise(cuantil = quantile(valor, f), f = f) %>% 
+  mutate(cuantil = round(cuantil, 2)) %>% 
+  pivot_wider(names_from = f, values_from = cuantil)
+```
+
+## ¿Por qué funciona Metropolis-Hastings? {-}
+
+En esta sección esbozaremos el por qué el método de Metropolis-Hastings funciona. 
+Hemos visto que para su implementación necesitamos una distribución propuesta
+$q(u,v)$ y una probabilidad de aceptación $\alpha(u, v).$ En conjunto podemos
+escribir la propuesta Metropolis-Hastings como
+
+$$p_{\textsf{MH}}(u,v) = \alpha(u, v) \,\,q(u,v) ,$$
+
+que no es más que el evento bietapico de generación y aceptación de una muestra. 
+A ésta última ecuación le llamamos el *kernel* de Metropolis-Hastings.
+
+Ahora veremos que la propuesta Metropolis-Hastings satisface una propiedad
+crucial para generar muestras de $\pi.$
+
+
+```{block, type = 'mathblock'}
+
+**Definición.** Un *kernel* Markoviano $p(u,v)$ satisface las *ecuaciones de balance* con 
+respecto a $\pi$ si para todas $u, v \in \mathbb{R}^p,$ tenemos 
+
+$$\pi(u) \,\, p(u, v) = \pi(v) \,\, p(v, u).$$
+
+Por otro lado, decimos que $\pi$ es *invariante* al *kernel* Markoviano $p(u,v)$
+si para todo $v\in \mathbb{R}^p,$
+
+$$\int_{\mathbb{R}^p} \pi(u) \,\, p(u,v) \,\, \text{d} u = \pi(v). $$
+
+```
+
+De ésta definición podemos observar que si un *kernel* satisface las ecuaciones 
+de balance con respecto a $\pi$ entonces éste preservará la distribución $\pi.$ 
+Es decir, $\pi$ será un invariante respecto a éste.
+
+Lo importante de ésta propiedad es que si al tiempo $t$ la cadena ya se
+distribuye de acuerdo a la distribución $\pi$ entonces al tiempo $t + 1$ también 
+se distribuirá de acuerdo a $\pi.$
+
+Esto lo ilustraremos con nuestro ejemplo normal bivariado empezando en dos puntos
+iniciales distintos. Podemos observar que para la cadena que empieza *en* la
+distribución objetivo ésta se mantiene en la región adecuada. Por otro lado,
+para la cadena que empieza *lejos* no podriamos garantizar (al menos al
+principio) que los estados pertenecen a la distribución objetivo. ¡Justo cómo
+argumentamos con el ejemplo del vendedor ambulante!
+
+
+```{r, echo = FALSE, out.width = "99%"}
+
+set.seed(1087)
+
+mu <- c(1, 2)
+Sigma <- matrix(c(1, .75, .75, 1), nrow = 2)
+
+crear_log_norm <- function(mu, Sigma){
+  # calcula log_posterior
+  log_norm <- function(x){
+      log_verosim <- dmvnorm(x, mu, Sigma, log = TRUE)
+  }
+  log_norm
+}
+
+log_norm <- crear_log_norm(mu, Sigma)
+
+corre_metropolis <- function(x1, x2){
+  
+  n_muestras <- 1000
+  metro_normal <- crear_metropolis(log_norm, sigma_salto = 1.645)
+  metro_normal(c(x1 = x1, x2 = x2), n_muestras) 
+  
+}
+
+tibble(x0 = c(-2, 0), y0 = c(4, 0), id = seq(1,2)) %>% 
+  mutate(cadena = map2(x0, y0, corre_metropolis)) %>%
+  unnest(cadena) %>% 
+  ggplot(aes(x = x1, y = x2)) + 
+      geom_contour(data = plot.grid, aes(x,y,z = density), breaks = plot.breaks) + 
+      geom_path() + geom_point() + 
+      geom_point(aes(x0, y0), color = 'red') + 
+      facet_wrap(~id) + 
+      xlab(expression(x[1])) + ylab(expression(x[2])) + 
+      sin_lineas
+
+```
+
+La figura anterior también nos muestra un efecto que tiene el método de
+Metropolis-Hastings. En particular nos recuerda una observación que habiamos
+hecho del método de Metropolis: la cadena se mueve hacia la zona de alta
+probabilidad de la distribución $\pi.$ Y es por esto que en el *mediano plazo*
+esperaríamos que nuestra cadena se distribuya de acuerdo a la distribución que
+nos interesa.
+
+Qué tanto tarda en entrar en esta zona depende del problema, las condiciones
+iniciales y las escalas de la distribución propuesta en relación a la distribución
+objetivo.
+
+## Generando cadenas más eficientes {-}
+
+Como vimos anteriormente el método Metropolis-Hastings asigna preferencia a 
+regiones de alta probabilidad. Una idea natural es incorporar información de 
+primer orden (gradientes) con el objetivo de generar propuestas hacia zonas de
+alta probabilidad. Un ejemplo de esta alternativa es el método de difusiones de
+Langevin metropolizadas (MALA [@mala]), donde la propuesta deriva de un sistema 
+de difusión Langevin [@LangevinMonte]. Esto se traduce en modificar la 
+dirección de la propuesta siguiendo el gradiente de la densidad. Lo cual queda
+escrito como
+
+$$q(u,\cdot) = \mathsf{N}\left( u + \tau \nabla \log \pi(u), \,\,2\tau  \right)$$
+
+donde $\tau$ es una constante de escala producto de la discretización en tiempo
+ficticio del sistema de difusión.
+
+```{block, type = 'ejercicio'}
+
+Escribe la regla de actualizaciôn del método MALA en términos del *kernel* de
+Metropolis-Hastings, $p_{\textsf{MH}}(u,v)$. Es decir escribe cómo
+calcularíamos la probabilidad de aceptación $\alpha(u,v)$. Describe si MALA 
+podría verse como un algoritmo sólo de tipo Metropolis.
+
+```
+
+El problema de este método es que tiende a ser muy costoso pues se necesitan
+pasos muy cortos ($\tau$ pequeña) para poder generar puntos de la distribución
+$\pi.$ Otro detalle es que no es un método que escala tán fácil a distribuciones
+complicadas o sistemas de grandes dimensiones. Se puede incorporar información
+de segundo orden (Hessiana) para mejorar la generación de propuestas pero tanto
+la teoría necesaria (geometría diferencial) como el *software* necesario se
+encuentra en su infancia [@manifold].
+
+### Incorporando sistemas dinámicos y física {-}
+
+Una alternativa a estos problemas conceptuales, teóricos y computacionales se ha
+alcanzado con el método de simulación Hamiltoniano o Híbrido (HMC). La idea es la
+misma que ha funcionado en optimización numérica. Esto es, aumentar el espacio
+de variables e incorporar información de inercia junto con el gradiente. El
+efecto es que de alguna manera "recordamos" la velocidad con la "descendemos"
+hacia el mínimo de la densidad, $-\pi.$
+
+En general el método funciona al escribir la distribución conjunta 
+como 
+
+$$\pi(\theta, \vartheta) = \pi(\vartheta | \theta) \cdot \pi(\theta)\,,$$
+
+donde $\pi(\theta)$ es la distribución de la que originalmente queremos muestrear
+para aproximar cantidades como 
+
+$$\int f(\theta) \,\,  \pi(\theta) \,\, \text{d}\theta\,,$$
+
+y $\vartheta$ son las coordenadas extendidas que incorpora la inercia del
+sistema. Identificamos un sistema Hamiltoniano (de mecánica clásica) como 
+
+$$H(\theta, \vartheta) = - \log \pi(\theta, \vartheta)\,,$$
+
+donde utilizamos la descomposición 
+
+\begin{align} 
+H(\theta, \vartheta) &= -\log \pi(\vartheta | \theta) -\log \pi(\theta) \\
+& = K(\vartheta, \theta ) + V(\theta)\,.
+\end{align}
+
+Las funciones $K$ y $V$ pueden ser interpretadas como las funciones de
+energía quinética y potencial, respectivamente, del sistema Hamiltoniano. 
+
+En general el sistema descrito arriba se puede simular en tiempo ficticio 
+por medio del sistema de ecuaciones de movimiento, las cuales son:
+
+$$ \frac{\text{d}\theta}{\text{d}t} = \frac{\partial H}{\partial \vartheta}\,, \qquad \frac{\text{d}\vartheta}{\text{d}t} = -\frac{\partial H}{\partial \theta}\,, $$
+
+lo cual pone en evidencia que es un sistema que conserva la energía dentro de la
+trayectoria. Esto implica que el sistema de evolución de partículas, al menos en
+teoría, "mantiene" las curvas de nivel estables. Esto último es de suma importancia
+pues quisiéramos que, para un nivel de inercia dado $\vartheta^\star$, la
+trayectoria del sistema $(\theta, \vartheta^\star)$ se mantenga unfirmomente
+dentro de la curva $H(\theta, \vartheta^\star).$ Esto representa
+uniformidad dentro de la curva dictada por $\pi(\theta).$
+
+```{block, type = 'ejercicio'}
+
+Comprueba por tí mismo que el sistema Hamiltoniano es un sistema de energía
+conservada. *Hint:* escribe el cambio de energía con respecto al tiempo y
+utiliza la regla de la cadena.
+
+```
+
+
+En la práctica sistema de ecuaciones Hamiltonianas se resuelve en un tiempo
+discreto ficticio. Usualmente por métodos eficientes para sistemas estables.
+Estos se llaman integradores simplécticos y tienen la particularidad de
+aproximar muy bien las trayectorias, incluso en sistemas de dimensiones altas.
+Puedes consultar [@nealHMC; @conceptual] para mayores detalles en la implementación.
+Mejor aún, cualquier patología que se encuentre en esta simulación determinista
+puede indicar problemas con el modelo $\pi(\theta)$ en sí (lo cual veremos más
+adelante).
+
+
+El punto clave de utilizar el sistema extendido para simulación de cadenas de
+Markov viene de la siguiente observación. El sistema Hamiltoniano nos permite 
+escribir la probabilidad conjunta como
+
+$$\pi(\theta, \vartheta) = \pi(\vartheta | \theta) \cdot \pi(\theta)\,,$$
+
+lo que ilustra que la variable de inercia es una extensión del modelo original. 
+De cualquier forma, si tuviéramos las dos componentes basta con descartar
+$\vartheta.$ Esto es equivalente a considerar la proyección al subespacio
+$\theta,$ y con esta acción recuperaríamos componentes de una cadena de Markov
+con densidad $\pi.$
+
+El proceso estocástico lo construimos como sigue. Primero, considerando el
+estado de la cadena $\theta_n,$ incorporamos el movimiento aleatorio en la
+cadena al simular el componente de inercia $\vartheta_n$ de la distribución
+$\pi(\vartheta|\theta).$ Usualmente se considera una variable aleatoria
+Gaussiana
+
+$$\vartheta_n \, | \, \theta_n \sim \mathsf{N}(0, M).$$
+ 
+Segundo, evolucionamos el sistema Hamiltoniano por un tiempo ficticio partiendo
+de las condiciones iniciales $(\theta(0), \vartheta(0)) = (\theta_n,
+\vartheta_n),$ y obtenemos el candidato $(\theta^*, \vartheta^*).$ Nota que
+realmente tenemos, por ejemplo, $\theta^* = \theta(T),$ donde $T$ denota el
+tiempo de evolución del sistema Hamiltoniano. Por último, cambiamos el signo de
+$\vartheta^*$ y evaluamos el cociente d Metropolis utilizando la distribución
+conjunta para determinar si aceptamos o rechazamos el candidato. Una vez dado
+este resultado, descartamos la inercia y nos quedamos con el componente de
+interés $\theta_{n+1}.$
+
+```{block, type = 'ejercicio'}
+
+Escribe el cociente de Metropolis para HMC. Considera que es un sistema
+"bivariado". ¿Será realmente necesario incorporarlo cuando simulamos de un
+sistema Hamiltoniano para inferencia Bayesiana?
+
+```
+
+
+HMC es computacionalmente más costoso que Metropolis o Gibbs, sin embargo, sus
+propuestas suelen ser más eficientes, y por consiguiente no necesita muestras
+tan grandes. En particular cuando se ajustan modelos grandes y complejos (por
+ejemplo, con variables con correlación alta) HMC supera a otros.
+
+HMC ha sido desarrollado y materializado en `Stan` el cual usa rutinas
+automáticas para determinar la función de energía quinética adecuada y ajusta el
+tiempo de simulación determinista en cada paso del algoritmo. El método derivado
+de HMC que utiliza `Stan` se conoce como *No U-Turn Sampler* [@nuts; @stan].
+
+## Conclusiones y observaciones {-}
+
+* El método de Metropolis-Hastings es muy flexible y existe una colección
+numerable de versiones que pueden ser empleadas en contextos muy particulares.
+Una buena referencia que incluye métodos de simulación por medio de cadenas de
+Markov se encuentra en [@liuMonte], donde incluso se pueden encontrar
+generalizaciones con *kernels* asimétricos y extensiones a problemas de
+dimensiones variables. El libro [@monteHandbook] presenta el estado del arte al 2010.
+
+* Inferencia Bayesiana se popularizó con el desarrollo de computadoras personales
+y con avances en el desarrollo de *software* y teoría que explota la
+factorización de una distribución conjunta de probabilidad. En particular, el
+avance en teoría de grafos para representar una distribución conjunta como un
+Grafo Acíclico Dirigido (DAG) que se materalizó en software como `BUGS` o
+[`WinBUGS`](https://www.mrc-bsu.cam.ac.uk/software/bugs/the-bugs-project-winbugs/).
+Para estas aplicaciones el muestreador utilizado es un muestreador de Gibbs (el
+cual pueden consultar en el libro de [@kruschke] o la sección correspondiente en
+las notas de [Fundamentos de Estadística](https://fundamentos-est.netlify.app/)). 
+
+* La desventaja del muestreador de Gibbs es que tiende a ser muy lento en
+problemas de tamaño grande. Ha habido estrategias que aceleran la simulación
+aunque al costo de utilizar aproximaciones. Estas estrategias han sido
+materializadas en lenguajes de programación mas generales como
+[`Infer.NET`](https://dotnet.github.io/infer/). 
+
+* [`JAGS`](http://mcmc-jags.sourceforge.net) (Just Another Gibbs Sampler), es 
+una generalización implementan métodos MCMC para generar simulaciones
+de distribuciones posteriores. Los paquetes `rjags` y `R2jags` permiten ajustar
+modelos en JAGS desde `R` [@rjags; @r2jags]. Es muy fácil utilizar estos
+programas pues uno simplemente debe especificar las distribuciones iniciales, la
+verosimilitud y los datos observados. Para aprender a usar JAGS se puede revisar
+la sección correspondiente en las [notas de
+2018](https://tereom.github.io/est-computacional-2018/jags.html). 
+
+* [`pymc3`](https://docs.pymc.io/) [@pymc3] es un muestreador *híbrido* que
+permite utilizar Metropolis-Hastings para la simulación de la posterior. Aunque 
+también es mucho más flexible y brinda muestreadores más modernos basados en
+particulas e información de primer orden (gradientes). 
+
+* Existen otras alternativas para construir cadenas de Markov. Por ejemplo, 
+hay algoritmos que buscan evolucionar un sistema de partículas que se 
+comunican entre si para generar una caminata aleatoria en el espacio del soporte
+de la distribución. Ejemplos de éstos son el *t-walk* [@twalk] o un ensamble de 
+cadenas linealmente relacionadas como en [@emcee].
+ 
+* [`Stan`](https://mc-stan.org/) es un programa para generar muestras de una
+distribución posterior de los parámetros de un modelo, el nombre del programa
+hace referencia a [Stanislaw Ulam
+(1904-1984)](https://en.wikipedia.org/wiki/Stanislaw_Ulam) que fue pionero en
+los métodos de Monte Carlo [@metropolis]. A diferencia de JAGS y BUGS, los pasos
+de la cadena de Markov se generan con HMC.
