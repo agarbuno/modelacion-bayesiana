@@ -8,6 +8,8 @@ rsconnect
 .DS_Store
 *.log
 *_cache
+*.pdf
+*.html
 
 # History files
 .Rhistory

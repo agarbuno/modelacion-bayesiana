@@ -1,0 +1,504 @@
+---
+title: "Introducción a Stan: Diagnósticos y Jerarquías."
+author: Alfredo Garbuno Iñigo
+output:
+  pdf_document: default
+  html_document: default
+bibliography: ../../notas/bibs/book.bib
+---
+
+
+```{r, include=FALSE, message=FALSE}
+library(cmdstanr)
+library(posterior)
+library(bayesplot)
+
+library(tidyverse)
+library(patchwork)
+library(scales)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning=FALSE, 
+                      fig.align = 'center', fig.width = 5, fig.height=3, cache = TRUE)
+theme_set(theme_linedraw())
+source("../../funciones-auxiliares/setup-utility.R")
+
+```
+
+Este caso nos servirá para introducir el ambiente de `Stan` [@stan] con el cual
+simularemos realizaciones de parámetros para su uso en inferencia bayesiana.
+Para este propósito utilizaremos los datos de un estudio de desempeño de 8
+escuelas [@rubin; @bda]. Los datos consisten en el puntaje promedio de cada
+escuela `y` y los errores estándar reportados `sigma`.
+
+```{r, echo = FALSE}
+data <- tibble( id = factor(seq(1, 8)), 
+                y = c(28, 8, -3, 7, -1, 1, 18, 12), 
+                sigma = c(15, 10, 16, 11, 9, 11, 10, 18))
+
+data %>% knitr::kable()
+```
+
+En este caso se utiliza un modelo normal para los resultados de cada escuela
+
+$$y_j \sim \mathsf{N}(\theta_j, \sigma_j) \qquad j = 1, \ldots, J\,,$$
+donde $J = 8,$ y $\theta_j$ representa el promedio de los alumnos de escuela que
+no observamos pero del cual tenemos un estimador $y_j.$
+
+Nota que tenemos $J$ valores distintos para $\theta_j$ y $\sigma_j.$ Dado que 
+esperamos que las escuelas provengan de la misma población de escuelas asumimos
+que
+
+$$ \theta_j \sim \mathsf{N}(\mu, \tau) \qquad j = 1, \ldots, J\,,$$
+
+donde $\mu$ representa la media poblacional (el promedio en el sistema escolar)
+y $\tau$ la desviación estándar alrededor de este valor. Representamos nuestra
+incertidumbre en estos dos valores por medio de 
+
+$$ \mu \sim \mathsf{N}(0, 5) \qquad \tau \sim \textsf{Half-Cauchy}(0,5)\,, $$
+
+lo cual representa información poco precisa de estos valores poblacionales. 
+
+## Primer modelo en `Stan`
+
+La forma en que escribimos el modelo en `Stan` es de manera generativa (_bottom
+up_): 
+\begin{align*}
+\mu &\sim \mathsf{N}(0, 5) \,,\\ 
+\tau &\sim \textsf{Half-Cauchy}(0,5) \,,\\
+\theta_j &\sim \mathsf{N}(\mu, \tau) \qquad j = 1, \ldots, J \,,\\
+y_j &\sim \mathsf{N}(\theta_j, \sigma_j) \qquad j = 1, \ldots, J\,.
+\end{align*}
+
+Un modelo de `Stan` se escribe en un archivo de texto y es una secuencia de
+bloques con nombre. En general el esqueleto es como sigue: 
+
+```{r, echo = FALSE}
+print_file("modelos/esqueleto.stan")
+```
+
+En general todos los bloques son opcionales, y no es necesario tener todos para
+compilar un modelo. Para mas información puedes consultar [la
+guía](https://mc-stan.org/docs/2_26/reference-manual/overview-of-stans-program-blocks.html).
+
+Por ejemplo, el codigo de nuestro modelo para las escuelas es:
+```{r, echo = FALSE}
+print_file("modelos/modelo-escuelas.stan")
+```
+
+Nota que `sigma` está definida como parte del conjunto de datos que el usuario
+debe de proveer. Aunque es un parámetro en nuestro modelo (verosimilitud) no está
+sujeto al proceso de inferencia. Por otro lado, nota que la declaración no se
+hace de manera puntual componente por componente, sino de forma vectorizada. 
+
+Una vez escrito nuestro modelo, lo podemos compilar utilizando la librería de
+`cmdstanr`, que es la interface con `Stan` desde `R`.
+
+```{r, message = TRUE}
+modelos_files <- "caso-escuelas_files/"
+
+ruta <- file.path("modelos/modelo-escuelas.stan")
+modelo <- cmdstan_model(ruta, dir = modelos_files)
+```
+
+Los datos que necesita el bloque `data` se pasan como una lista con nombres. 
+
+```{r}
+data_list <- c(data, J = 8)
+data_list
+```
+
+## Primera cadena de Markov
+
+Contra todas las recomendaciones usuales, corramos sólo una cadena corta. 
+
+```{r, message = TRUE}
+
+muestras <- modelo$sample(data = data_list, 
+                          chains = 1, 
+                          iter=700, 
+                          iter_warmup=500, 
+                          seed=483892929, 
+                          refresh=1200)
+
+```
+
+El muestreador en automático nos regresa ciertas alertas las cuales podemos
+inspeccionar más a fondo con el siguiente comando:
+
+```{r}
+muestras$cmdstan_diagnose()
+```
+
+Notamos que parece ser que tenemos varias transiciones divergentes, algunos
+parámetros tienen una $\hat R$ tienen un valor que excede la referencia de 1.1,
+y parece ser que los estadisticos de energía también presentan problemas.
+
+Podemos inspeccionar el resultado de las simulaciones utilizando
+
+```{r}
+muestras$cmdstan_summary()
+```
+
+Donde además de los resúmenes usuales para nuestros parámetros de interes
+encontramos resúmenes internos del simulador. 
+
+Podemos utilizar las funciones que `RStan` (otra interfase con `Stan` desde `R`)
+para visualizar los resúmenes de manera alternativa.
+
+```{r}
+
+stanfit <- rstan::read_stan_csv(muestras$output_files())
+stanfit
+
+```
+
+De manera gráfica podemos explorar el factor de reducción utilizando la librería 
+[`bayesplot`](https://mc-stan.org/bayesplot/).
+
+```{r}
+
+rhats <- rhat(stanfit)
+mcmc_rhat(rhats) + yaxis_text(hjust = 1) + sin_lineas
+
+```
+
+También podríamos explorar el estimador de tamaño efectivo de muestra de manera
+gráfica.
+
+```{r}
+neff <- neff_ratio(stanfit, pars = c("theta", "mu", "tau"))
+mcmc_neff(neff) +  yaxis_text(hjust = 1) + sin_lineas
+```
+
+En caso de necesitarlo podemos extraer las muestras en una tabla para poder 
+procesarlas y generar visualizaciones. Por ejemplo, un gráfico de dispersión 
+con $\tau$ que es el parámetro donde más problemas parecemos tener.
+
+```{r}
+
+muestras_dt <- tibble(posterior::as_draws_df(muestras$draws(c("tau", "theta"))))
+
+g_tau <- muestras_dt %>% 
+   ggplot(aes(x = .iteration, y = log(tau))) + 
+    geom_point() + sin_lineas + 
+    xlab("Iteraciones") + 
+    ylim(-4, 4) + 
+    geom_hline(yintercept = 0.7657852, lty = 2)
+
+g_theta <- muestras_dt %>% 
+   ggplot(aes(x = .iteration, y =`theta[1]`)) + 
+    geom_point() + sin_lineas + 
+    xlab("Iteraciones") + 
+    geom_hline(yintercept = 0.7657852, lty = 2)
+
+
+g_tau /g_theta
+
+```
+
+Claramente no podemos afirmar que el muestreador está explorando bien la
+posterior. Hay correlaciones muy altas. Si usáramos la media acumulada no
+seríamos capaces de diagnosticar estos problemas.
+
+```{r}
+muestras_dt %>% 
+   mutate(media = cummean(log(tau))) %>% 
+   ggplot(aes(x = .iteration, y = media)) + 
+    geom_point() + sin_lineas + 
+    xlab("Iteraciones") + 
+    ylim(-4, 4) + 
+    geom_hline(yintercept = 0.7657852, lty = 2)
+
+```
+
+Utilizar gráficos de dispersión bivariados nos ayuda a identificar mejor el
+problema En color salmón apuntamos las muestras con transiciones divergentes.
+
+
+```{r}
+
+g1_dispersion <- muestras_dt %>% 
+  mutate(log_tau = log(tau)) %>% 
+  mcmc_scatter(
+  pars = c("theta[1]", "log_tau"),
+  np = nuts_params(stanfit),
+  np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)
+) + sin_lineas+ ylim(-1, 4)
+
+g1_dispersion
+
+```
+
+Otra visualización muy conocida es la de coordenadas paralelas. En este tipo de
+gråficos podemos observar de manera simultánea ciertos patrones en todos los
+componentes.
+
+```{r}
+
+posterior_cp <- as.array(stanfit)
+
+mcmc_parcoord(posterior_cp, 
+              transform = list(tau = "log"),
+              np = nuts_params(stanfit), 
+              np_style = scatter_style_np(div_color = "salmon", 
+                                          div_alpha = 0.5, 
+                                          div_size = .5)) + 
+  sin_lineas
+
+```
+
+```{r}
+acf_theta <- mcmc_acf(posterior_cp, pars = "theta[1]", lags = 10) + sin_lineas
+acf_tau   <- mcmc_acf(posterior_cp, pars = "tau", lags = 10) + sin_lineas
+
+acf_tau / acf_theta
+
+```
+
+## Generando mas simulaciones
+
+Hasta ahora los resultados parecen no ser buenos. Tenemos muestras con
+transiciones divergentes y una correlacion muy alta entre las muestras. Podríamos 
+aumentar el número de simulaciones con la esperanza que esto permita una mejor
+exploracion de la posterior.
+
+```{r}
+
+muestras <- modelo$sample(data        = data_list, 
+                          chains      = 1, 
+                          iter        = 5000, 
+                          iter_warmup = 5000, 
+                          seed        = 483892929, 
+                          refresh     = 10000)
+
+```
+
+
+```{r}
+
+stanfit <- rstan::read_stan_csv(muestras$output_files())
+stanfit
+
+```
+
+```{r}
+
+rhats <- rhat(stanfit)
+mcmc_rhat(rhats) + yaxis_text(hjust = 1) + sin_lineas
+
+```
+
+```{r}
+
+muestras_dt <- tibble(posterior::as_draws_df(muestras$draws(c("tau", "theta[1]"))))
+
+muestras_dt %>% 
+   ggplot(aes(x = .iteration, y = log(tau))) + 
+    geom_point() + sin_lineas + 
+    xlab("Iteraciones") + 
+    ylim(-4, 4) + 
+    geom_hline(yintercept = 0.7657852, lty = 2)
+
+```
+
+Como vemos, seguimos teniendo problemas con la exploración del espacio y tenemos 
+dificultades en explorar esa zona con $\tau$ pequeña Lo confirmamos en la
+siguiente gráfica.
+
+```{r}
+
+g2_dispersion <- muestras_dt %>% 
+  mutate(log_tau = log(tau)) %>% 
+  mcmc_scatter(
+  pars = c("theta[1]", "log_tau"),
+  np = nuts_params(stanfit),
+  np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)) + 
+  sin_lineas+ ylim(-6, 3)
+
+g2_dispersion
+
+```
+
+Confirmamos que seguimos con dificultades en el embudo de la distribución.
+Visualizaciones gráficas como la siguiente no nos permiten identificar dichos
+problemas.
+
+```{r}
+muestras_dt %>% 
+   mutate(media = cummean(log(tau))) %>% 
+   ggplot(aes(x = .iteration, y = media)) + 
+    geom_point() + sin_lineas + 
+    xlab("Iteraciones") + 
+    ylim(0, 4) + 
+    geom_hline(yintercept = 0.7657852, lty = 2)
+```
+
+```{r, echo = FALSE}
+
+muestras_cp <- muestras
+stanfit_cp <- stanfit
+
+```
+
+Podriamos correr una cadena con algunas opciones que permitan la exploracion mas
+segura de la distribución.
+
+```{r, message = TRUE}
+
+muestras <- modelo$sample(data        = data_list, 
+                          chains      = 1, 
+                          iter        = 5000, 
+                          iter_warmup = 5000, 
+                          seed        = 483892929, 
+                          refresh     = 10000, 
+                          adapt_delta = .90)
+
+```
+
+```{r}
+
+muestras_dt <- tibble(posterior::as_draws_df(muestras$draws(c("tau", "theta[1]"))))
+stanfit <- rstan::read_stan_csv(muestras$output_files())
+
+muestras_dt %>% 
+   ggplot(aes(x = .iteration, y = log(tau))) + 
+    geom_point() + sin_lineas + 
+    xlab("Iteraciones") + 
+    ylim(-4, 4) + 
+    geom_hline(yintercept = 0.7657852, lty = 2)
+
+```
+
+```{r}
+
+g2_dispersion_90 <- muestras_dt %>% 
+  mutate(log_tau = log(tau)) %>% 
+  mcmc_scatter(
+  pars = c("theta[1]", "log_tau"),
+  np = nuts_params(stanfit),
+  np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)) + 
+  sin_lineas + ylim(-6, 3)
+
+g2_dispersion + g2_dispersion_90
+```
+
+## Reparametrizando el modelo
+
+Tener cuidado en la simulación del sistema Hamiltoniano nos ayuda hasta cierto
+punto. Seguimos teniendo problemas y no hay garantías que nuestra simulación 
+y nuestrso estimadores Monte Carlo no estén sesgados.
+
+Esta situación es muy común en modelos jerárquicos. El problema es la geometría
+de la distribución posterior. La ventaja es que existe una solución sencilla
+para hacer el problema de muestreo mas sencillo. Esto es al escribir el modelo
+en términos de una variable auxiliar: 
+\begin{align*}
+\mu &\sim \mathsf{N}(0, 5) \,,\\ 
+\tau &\sim \textsf{Half-Cauchy}(0,5) \,,\\
+\tilde{\theta}_j  &\sim \mathsf{N}(0, 1), \qquad \quad j = 1, \ldots, J \,,\\
+\theta_j &= \mu + \tau \cdot \tilde{\theta}_j\qquad j = 1, \ldots, J \,,\\
+y_j &\sim \mathsf{N}(\theta_j, \sigma_j) \qquad j = 1, \ldots, J\,.
+\end{align*}
+
+El modelo en `Stan` es muy parecido. La nomenclatura que se utiliza es: **modelo
+centrado** para el primero, y para la reparametrización presentada en la
+ecuacion de arriba nos refereimos a un **modelo no centrado**. Nota que la
+definición de nuevos parametros se hace desde el bloque `transformed parameters`
+en donde la asignación se ejecuta componente por componente mientras que la
+definición del modelo de probabilidad conjunto se puede hacer de manera
+vectorizada.
+
+
+```{r, echo = FALSE}
+
+print_file("modelos/modelo-escuelas-ncp.stan")
+
+```
+
+Igual que antes lo necesitamos compilar para hacerlo un objeto ejecutable 
+desde `R`.
+
+```{r}
+
+ruta_ncp <- file.path("modelos/modelo-escuelas-ncp.stan")
+modelo_ncp <- cmdstan_model(ruta_ncp, dir = modelos_files)
+
+```
+
+Muestreamos de la posterior 
+
+```{r}
+
+muestras_ncp <- modelo_ncp$sample(data = data_list, 
+                          chains = 1, 
+                          iter=5000, 
+                          iter_warmup=5000, 
+                          seed=483892929, 
+                          refresh=10000)
+
+```
+
+```{r}
+
+stanfit_ncp <- rstan::read_stan_csv(muestras_ncp$output_files())
+stanfit_ncp
+
+```
+
+
+Si graficamos la dispersión de $\tau$ ($\log \tau$), vemos un mejor
+comportamiento (del cual ya teniamos indicios por los diagnósticos del modelo).
+
+```{r}
+muestras_dt <- tibble(posterior::as_draws_df(muestras_ncp$draws(c("tau", "theta[1]"))))
+
+muestras_dt %>% 
+   ggplot(aes(x = .iteration, y = log(tau))) + 
+    geom_point() + sin_lineas + 
+    xlab("Iteraciones") + 
+    ylim(-4, 4) + 
+    geom_hline(yintercept = 0.7657852, lty = 2)
+```
+
+Si regresamos a los gráficos de dispersión para verificar que se hayan resuelto los
+problemas observamos lo siguiente: 
+
+```{r}
+
+g3_dispersion <- muestras_dt %>% 
+  mutate(log_tau = log(tau)) %>% 
+  mcmc_scatter(
+  pars = c("theta[1]", "log_tau"),
+  np = nuts_params(stanfit_ncp),
+  np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)) + 
+  sin_lineas + ylim(-6, 3)
+
+g3_dispersion
+```
+
+Que podemos comparar con lo que teniamos antes:
+
+```{r, fig.width = 7, out.width = "99%"}
+
+g2_dispersion <- g2_dispersion + ylim(-6, 3)
+g2_dispersion + g2_dispersion_90 + g3_dispersion
+
+```
+
+Y muestra la limitante que tenía el modelo inicial para muestrear de la
+posterior por cuestiones de la geometría del problema original. 
+
+Por último, podemos observar las diferencias en el número efectivo de
+simulaciones las cuales mejorar considerablemente al cambiar la forma de
+escribir el modelo.
+
+```{r}
+
+neff_cp <- neff_ratio(stanfit_cp, pars = c("theta", "mu", "tau"))
+neff_ncp <- neff_ratio(stanfit_ncp, pars = c("theta", "mu", "tau"))
+g_cp <- mcmc_neff(neff_cp) + ggtitle("Modelo Centrado") + sin_lineas
+g_ncp <- mcmc_neff(neff_ncp) + ggtitle("Modelo No Centrado") + sin_lineas
+
+g_cp / g_ncp
+
+```
+
