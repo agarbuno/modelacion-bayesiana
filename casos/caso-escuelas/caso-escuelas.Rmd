@@ -479,7 +479,6 @@ Que podemos comparar con lo que teniamos antes:
 
 ```{r, fig.width = 7, out.width = "99%"}
 
-g2_dispersion <- g2_dispersion + ylim(-6, 3)
 g2_dispersion + g2_dispersion_90 + g3_dispersion
 
 ```
@@ -491,14 +490,17 @@ Por último, podemos observar las diferencias en el número efectivo de
 simulaciones las cuales mejorar considerablemente al cambiar la forma de
 escribir el modelo.
 
-```{r}
+```{r, fig.height = 6, fig.asp = .8, out.width = "99%"}
 
 neff_cp <- neff_ratio(stanfit_cp, pars = c("theta", "mu", "tau"))
 neff_ncp <- neff_ratio(stanfit_ncp, pars = c("theta", "mu", "tau"))
-g_cp <- mcmc_neff(neff_cp) + ggtitle("Modelo Centrado") + sin_lineas
-g_ncp <- mcmc_neff(neff_ncp) + ggtitle("Modelo No Centrado") + sin_lineas
+g_cp <- mcmc_neff(neff_cp) + ggtitle("Modelo Centrado") + 
+  sin_lineas + yaxis_text(hjust = 1) 
+g_ncp <- mcmc_neff(neff_ncp) + ggtitle("Modelo No Centrado") + 
+  sin_lineas + yaxis_text(hjust = 1) 
 
 g_cp / g_ncp
 
 ```
 
+## Referencias
