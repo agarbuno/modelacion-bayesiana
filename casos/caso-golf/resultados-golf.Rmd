@@ -30,7 +30,8 @@ print_file <- function(file) {
 }
 
 knitr::opts_chunk$set(echo = TRUE, cache = TRUE, comment = "",
-                      fig.align = "center", out.width = "75%")
+                      fig.align = "center", out.width = "75%", 
+                      message = FALSE, warning = FALSE)
 
 comma <- function(x) format(x, digits = 2, big.mark = ",")
 remove.warnings <- function(){assign("last.warning", NULL, envir = baseenv())}
@@ -226,7 +227,7 @@ dos parámetros para el tiro con distintas condiciones de éxito:
 
 Los radios de una pelota de golf y el hoyo (en centímetros) es de
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 radios <- tibble(pelota = (1.68/2 * 2.54) %>% round(1), 
                   hoyo  = (4.25/2 * 2.54) %>% round(1))
 
@@ -254,7 +255,7 @@ realizado. El tiro es exitoso cuando el angulo de tiro satisface
 $$|\theta| < \tan^{-1}\left(\frac{R - r}{x}\right).$$
 Incorporamos un esquema de esta situación a continuación. 
 
-```{r, echo = FALSE, fig.cap="Esquema de ángulo de tiro"}
+```{r, echo = FALSE, fig.cap="Esquema de ángulo de tiro", warning = FALSE}
 knitr::include_graphics("imagenes/esquema-tiro.png")
 ```
 
@@ -271,7 +272,7 @@ $$|\theta| < \tan^{-1}\left( \frac{3.3}{x} \right)$$
 Mejores golfistas tendrán mejor control sobre $\theta$, y conforme
 $x$ es más grande, la probabilidad de tener éxito baja:
 
-```{r}
+```{r, warning = FALSE, message = FALSE}
 tibble(x = seq(10, 1500, 1)) %>% 
   mutate(theta = (180 / pi) * atan(3.3 / x)) %>% 
 ggplot(aes(x, theta)) + geom_line() +
