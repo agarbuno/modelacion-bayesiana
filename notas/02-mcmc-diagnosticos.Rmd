@@ -640,13 +640,12 @@ efectivo de simulaciones es
 
 $$\hat N_{\mathsf{eff}} = \frac{m \, n}{1 + 2 \sum_{t = 1}^T \hat  \rho_t}\,.$$
 
-##### Observaciones {-}
 
-El **tamaño efectivo de simulaciones** no ayuda a monitorear lo siguiente. Si
-las simulaciones fueran independientes $N_{\textsf{eff}}$ sería el número total
-de simulaciones; sin embargo, las simulaciones de MCMC suelen estar
-correlacionadas, de modo que cada iteración de MCMC es menos informativa que si
-fueran independientes.
+**Observaciones:** El **tamaño efectivo de simulaciones** nos ayuda a monitorear
+lo siguiente. Si las simulaciones fueran independientes $N_{\textsf{eff}}$ sería
+el número total de simulaciones; sin embargo, las simulaciones de MCMC suelen
+estar correlacionadas, de modo que cada iteración de MCMC es menos informativa
+que si fueran independientes.
 
 Por ejemplo Si graficaramos simulaciones independientes, esperaríamos valores de 
 autocorrelación chicos:
