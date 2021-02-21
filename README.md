@@ -90,7 +90,7 @@ La imagen `agarbuno/env-bayesiana` ya tiene una versión precompilada de `cmdsta
 cmdstanr::set_cmdstan_path(path = "~/.cmdstan/")
 ```
 
-#### Notas
+#### Observaciones:
 
 <a id="note1" href="#note1ref"><sup>1</sup></a>El formato de las notas que se puede reproducir con esto es `bookdown::gitbook`. La compatibilidad con `bookdown::pdf_book` aun no es reproducible.
 
