@@ -7,8 +7,7 @@ output:
 bibliography: ../../notas/bibs/book.bib
 ---
 
-
-```{r, include=FALSE, message=FALSE}
+```{r, include=FALSE}
 library(cmdstanr)
 library(posterior)
 library(bayesplot)
@@ -16,7 +15,7 @@ library(bayesplot)
 library(tidyverse)
 library(patchwork)
 library(scales)
-knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning=FALSE, 
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning=FALSE,
                       fig.align = 'center', fig.width = 5, fig.height=3, cache = TRUE)
 theme_set(theme_linedraw())
 source("../../funciones-auxiliares/setup-utility.R")

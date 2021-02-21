@@ -36,6 +36,7 @@ knitr::opts_chunk$set(echo = TRUE, cache = TRUE, comment = "",
 comma <- function(x) format(x, digits = 2, big.mark = ",")
 remove.warnings <- function(){assign("last.warning", NULL, envir = baseenv())}
 theme_set(theme_linedraw())
+sin_lineas <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 ```
 
 ## Definición del problema
@@ -67,7 +68,7 @@ g_datos <- datos %>%
     geom_linerange(aes(ymin = y/n - 2 * se, ymax = y/n + 2*se)) + 
     geom_point(colour = "steelblue", alpha = 1.) + 
     ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito") + 
-    ggtitle("Datos sobre putts en golf profesional")
+    ggtitle("Datos sobre putts en golf profesional") + sin_lineas
 
 g_datos
 ```
@@ -135,7 +136,7 @@ muestras %>%
   ggplot(aes(x = .iteration, y = value)) + 
     geom_line(aes(group = .chain, color = Chain)) + 
     facet_wrap(~parameter, ncol = 1, scales = 'free', strip.position="right") + 
-    scale_color_viridis_d(option = 'plasma')
+    scale_color_viridis_d(option = 'plasma')+ sin_lineas
 ```
 
 De igual forma podríamos calcular el máximo de la posterior (que en este caso
@@ -157,7 +158,7 @@ muestras %>%
   geom_point() + 
   geom_point(data = params_map, aes(x = a, y = b),
              color = 'salmon', shape = 4, stroke = 2) + 
-  ggtitle('Muestras de la posterior')
+  ggtitle('Muestras de la posterior')+ sin_lineas
 ```
 
 ```{r, cache = TRUE}
@@ -187,7 +188,7 @@ g_logistico <- datos %>%
     geom_ribbon(data = curvas_regresion, aes(x = x, ymin = q_low, ymax = q_hi), 
                 alpha = .2, inherit.aes = FALSE) +
     ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito") + 
-    ggtitle("Regresion logística ajustada")
+    ggtitle("Regresion logística ajustada")+ sin_lineas
 
 g_logistico
 
@@ -279,7 +280,7 @@ ggplot(aes(x, theta)) + geom_line() +
   xlab("Distancia (cm)") +
   ylab(expression(paste("Desviación máxima |", theta,"|"))) +
   labs(subtitle = "Desviación máxima permitida para tener éxito a distintas distancias") +
-  scale_y_log10()
+  scale_y_log10()+ sin_lineas
 ```
 
 **Observación.** Esta curva puede variar dependiendo del jugador, pero vamos a
@@ -314,7 +315,7 @@ tibble(sigma = 2**seq(0,5)) %>%
   ggplot(aes(x = x, y = y)) + 
     geom_line(aes(group = sigma, color = Sigma)) + 
     scale_color_viridis_d() + ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Probabilidad de éxito") + 
-    ggtitle(expression(paste("Probabilidad de éxito para diferentes valores de ", sigma," (en grados ", ~degree, ").")))
+    ggtitle(expression(paste("Probabilidad de éxito para diferentes valores de ", sigma," (en grados ", ~degree, ").")))+ sin_lineas
 ```
 
 La curva mas alta de la gráfica corresponde a una desviación estándar de
@@ -342,7 +343,7 @@ tibble(sigma_grados = c(1, 8, 32, 64)) %>%
     geom_segment(aes(x = 0, y = 0, xend = x, yend = y), alpha = .1) + 
     geom_point(aes(x = 0, y = 0), color = 'red') + 
     facet_wrap(~sigma_grados, ncol = 4) + 
-    ylab("") + xlab("") + ggtitle("Posiciones finales de tiro")
+    ylab("") + xlab("") + ggtitle("Posiciones finales de tiro")+ sin_lineas
   
 ```
 
@@ -390,7 +391,7 @@ muestras %>%
   ggplot(aes(x = .iteration, y = value)) + 
     geom_line(aes(group = .chain, color = Chain)) + 
     facet_wrap(~parameter, ncol = 1, scales = 'free', strip.position="right") + 
-    scale_color_viridis_d(option = 'plasma')
+    scale_color_viridis_d(option = 'plasma')+ sin_lineas
 ```
 
 ```{r, out.width = "99%", fig.height = 3}
@@ -418,7 +419,7 @@ g_angulo <- datos %>%
     geom_ribbon(data = curvas_regresion, aes(x = x, ymin = q_low, ymax = q_hi), 
                 alpha = .2, inherit.aes = FALSE) +
     ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito") + 
-    ggtitle("Modelo con ángulo de tiro")
+    ggtitle("Modelo con ángulo de tiro")+ sin_lineas
 
 g_logistico + g_angulo
 ```
@@ -464,7 +465,7 @@ datos %>%
     geom_ribbon(data = curvas_regresion, aes(x = x, ymin = q_low, ymax = q_hi),
                 alpha = .2, inherit.aes = FALSE) +
     ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito") +
-    ggtitle("Modelo con ángulo de tiro")
+    ggtitle("Modelo con ángulo de tiro")+ sin_lineas
 
 ```
 
@@ -588,7 +589,7 @@ datos %>%
     geom_ribbon(data = curvas_regresion, aes(x = x, ymin = q_low, ymax = q_hi),
                 alpha = .2, inherit.aes = FALSE) +
     ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito") +
-    ggtitle("Modelo con ángulo de tiro y fuerza")
+    ggtitle("Modelo con ángulo de tiro y fuerza")+ sin_lineas
 ```
 
 Al explorar los residuales encontramos que parece haber cierto patrón. Mas aún,
@@ -619,7 +620,7 @@ datos %>%
     geom_hline(yintercept = 0, linetype = 'dashed') + 
     ylab('Residuales del modelo ajustado') + 
     xlab('Distancia (cm)') + 
-    ggtitle("Modelo con angulo y fuerza de tiro.")
+    ggtitle("Modelo con angulo y fuerza de tiro.")+ sin_lineas
 ```
 En este punto la incertidumbre tan baja se puede deber a efectos latentes en los
 datos, como error de medición, o a una mala especificación del modelo. En
@@ -701,7 +702,7 @@ atribuibles a medición del 3 puntos porcentuales.
 ```{r, echo = FALSE}
 color_scheme_set("darkgray")
 muestras_sigma <- ajuste$draws(c("sigma_angle", "sigma_force", "sigma_obs"))
-mcmc_pairs(muestras_sigma)
+mcmc_pairs(muestras_sigma)+ sin_lineas
 
 ```
 La aparente bimodalidad de los gráficos de dispersión se podría explicar a
@@ -731,7 +732,7 @@ datos %>%
     geom_hline(yintercept = 0, linetype = 'dashed') + 
     ylab('Residuales del modelo ajustado') + 
     xlab('Distancia (cm)') + 
-    ggtitle("Modelo con angulo y fuerza de tiro.")
+    ggtitle("Modelo con angulo y fuerza de tiro.")+ sin_lineas
 ```
 
 ## Siguientes pasos
