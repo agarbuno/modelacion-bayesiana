@@ -46,7 +46,11 @@ docker run -p 8787:8787 \
     agarbuno/env-bayesiana
 ```
 
-Si la aplicación fue exitosa la podrás ver corriendo en el _Dashboard_ de Docker o en terminal verás el siguiente mensaje 
+Si la aplicación fue exitosa la podrás ver corriendo en el _Dashboard_ de Docker 
+
+![](images/dashboard.png)
+
+o en terminal verás el siguiente mensaje 
 
 ```{bash}
     [s6-init] making user provided files available at /var/run/s6/etc...exited 0.
@@ -61,7 +65,9 @@ Si la aplicación fue exitosa la podrás ver corriendo en el _Dashboard_ de Dock
     [services.d] done.
 ```
 
-Mejor aún, podrás accesar al servidor de Rstudio en tu navegador en la ruta: `localhost:8787/`.
+Mejor aún, podrás accesar al servidor de Rstudio en tu navegador en la ruta: `localhost:8787/`. Para esto las credenciales que necesitarás serán el usuario `rstudio` y la contraseña que estableciste arriba. 
+
+![](images/rstudio-session.png)
 
 ### `cmdstan` en Docker 
 
