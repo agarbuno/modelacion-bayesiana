@@ -38,7 +38,6 @@ Referencias: [@kruschke; @bda]
 
 0. Inferencia, análisis y principios 
 
-
 #### Cómputo probabilistico {-}
 
 
