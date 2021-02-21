@@ -14,6 +14,8 @@ Para garantizar que tengas todos los paquetes necesarios utiliza el comando sigu
 renv:restore()
 ```
 
+*NOTA:* esta última instrucción puede tarda alrededor de una hora pues tiene que instalar y compilar la mayoría de los paquetes que se utilizan para las notas. 
+
 ## Ambiente _dockerizado_
 
 Además de las notas, parte del curso utiliza casos de estudio individuales que se encuentran en la carpeta de `casos/` de este mismo repositorio. La idea de esto es poder aislar el _cache_ de `knitr` y de los modelos en `Stan` y garantizar que tanto casos y notas puedan ser compilados de manera independiente. 
@@ -73,6 +75,12 @@ Si has seguido las instrucciones como vienen en este documento. El repositorio d
 
 1. El sistema operativo y el ambiente de trabajo se encuentra en una máquina virtual base (la imagen de Docker).
 2. Los archivos y tu registro de trabajo (cambios, nuevos scripts, etc.) los tienes guardados en fisico en tu máquina (HOST). 
+
+*NOTA:* si decides utilizar el ambiente _dockerizado_ se sugiere cambiar a otra rama dentro del repositorio pues la dupla `Docker` y `renv` marcarán el origen de los paquetes como `RSPM` en lugar de `CRAN`. Puedes usar la siguiente instrucción, por ejemplo, en la línea de comandos: 
+
+```{bash}
+git checkout -b docker-run
+```
 
 ### `cmdstan` en Docker 
 
