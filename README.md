@@ -69,6 +69,11 @@ Mejor aún, podrás accesar al servidor de Rstudio en tu navegador en la ruta: `
 
 ![](images/rstudio-session.png)
 
+Si has seguido las instrucciones como vienen en este documento. El repositorio de estas notas lo veras en la sesión del `Rstudio` en la ruta `/home/rstudio/cursos/`. Todos los cambios que hagas en esta ruta se verán reflejados en la ruta de tu máquina (HOST) que habíamos definido en la variable de sistema `PATH_GIT_CURSOS`. De esta forma tendrás un ambiente de trabajo homologado cuyo principio es: 
+
+1. El sistema operativo y el ambiente de trabajo se encuentra en una máquina virtual base (la imagen de Docker).
+2. Los archivos y tu registro de trabajo (cambios, nuevos scripts, etc.) los tienes guardados en fisico en tu máquina (HOST). 
+
 ### `cmdstan` en Docker 
 
 La imagen `agarbuno/env-bayesiana` ya tiene una versión precompilada de `cmdstan` por lo tanto **después de ejecutar** el comando `renv::restore()`, como se sugiere arriba, tendrás que asegurarte que `Rstudio` "sepa" en dónde viven las herramientas de `Stan`. Esto lo lograrás ejecutando lo siguiente en la consola de `R` o al incorporarla en tus _scripts_ de trabajo:
