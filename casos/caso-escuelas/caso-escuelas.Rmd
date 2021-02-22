@@ -60,14 +60,12 @@ lo cual representa información poco precisa de estos valores poblacionales.
 
 La forma en que escribimos el modelo en `Stan` es de manera generativa (_bottom
 up_):
-$$
 \begin{align*}
 \mu &\sim \mathsf{N}(0, 5) \,,\\ 
 \tau &\sim \textsf{Half-Cauchy}(0,5) \,,\\
 \theta_j &\sim \mathsf{N}(\mu, \tau) \qquad j = 1, \ldots, J \,,\\
 y_j &\sim \mathsf{N}(\theta_j, \sigma_j) \qquad j = 1, \ldots, J\,.
 \end{align*}
-$$
 
 Un modelo de `Stan` se escribe en un archivo de texto y es una secuencia de
 bloques con nombre. En general el esqueleto es como sigue: 
@@ -393,7 +391,6 @@ Esta situación es muy común en modelos jerárquicos. El problema es la geometr
 de la distribución posterior. La ventaja es que existe una solución sencilla
 para hacer el problema de muestreo mas sencillo. Esto es al escribir el modelo
 en términos de una variable auxiliar: 
-$$
 \begin{align*}
 \mu &\sim \mathsf{N}(0, 5) \,,\\ 
 \tau &\sim \textsf{Half-Cauchy}(0,5) \,,\\
@@ -401,7 +398,6 @@ $$
 \theta_j &= \mu + \tau \cdot \tilde{\theta}_j\qquad j = 1, \ldots, J \,,\\
 y_j &\sim \mathsf{N}(\theta_j, \sigma_j) \qquad j = 1, \ldots, J\,.
 \end{align*}
-$$
 
 El modelo en `Stan` es muy parecido. La nomenclatura que se utiliza es: **modelo
 centrado** para el primero, y para la reparametrización presentada en la
