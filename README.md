@@ -14,6 +14,8 @@ Para garantizar que tengas todos los paquetes necesarios utiliza el comando sigu
 renv:restore()
 ```
 
+*NOTA:* esta última instrucción puede tarda alrededor de una hora pues tiene que instalar y compilar la mayoría de los paquetes que se utilizan para las notas. 
+
 ## Ambiente _dockerizado_
 
 Además de las notas, parte del curso utiliza casos de estudio individuales que se encuentran en la carpeta de `casos/` de este mismo repositorio. La idea de esto es poder aislar el _cache_ de `knitr` y de los modelos en `Stan` y garantizar que tanto casos y notas puedan ser compilados de manera independiente. 
@@ -69,6 +71,17 @@ Mejor aún, podrás accesar al servidor de Rstudio en tu navegador en la ruta: `
 
 ![](images/rstudio-session.png)
 
+Si has seguido las instrucciones como vienen en este documento. El repositorio de estas notas lo veras en la sesión del `Rstudio` en la ruta `/home/rstudio/cursos/`. Todos los cambios que hagas en esta ruta se verán reflejados en la ruta de tu máquina (HOST) que habíamos definido en la variable de sistema `PATH_GIT_CURSOS`. De esta forma tendrás un ambiente de trabajo homologado cuyo principio es: 
+
+1. El sistema operativo y el ambiente de trabajo se encuentra en una máquina virtual base (la imagen de Docker).
+2. Los archivos y tu registro de trabajo (cambios, nuevos scripts, etc.) los tienes guardados en fisico en tu máquina (HOST). 
+
+*NOTA:* si decides utilizar el ambiente _dockerizado_ se sugiere cambiar a otra rama dentro del repositorio pues la dupla `Docker` y `renv` marcarán el origen de los paquetes como `RSPM` en lugar de `CRAN`. Puedes usar la siguiente instrucción, por ejemplo, en la línea de comandos: 
+
+```{bash}
+git checkout -b docker-run
+```
+
 ### `cmdstan` en Docker 
 
 La imagen `agarbuno/env-bayesiana` ya tiene una versión precompilada de `cmdstan` por lo tanto **después de ejecutar** el comando `renv::restore()`, como se sugiere arriba, tendrás que asegurarte que `Rstudio` "sepa" en dónde viven las herramientas de `Stan`. Esto lo lograrás ejecutando lo siguiente en la consola de `R` o al incorporarla en tus _scripts_ de trabajo:
@@ -77,7 +90,7 @@ La imagen `agarbuno/env-bayesiana` ya tiene una versión precompilada de `cmdsta
 cmdstanr::set_cmdstan_path(path = "~/.cmdstan/")
 ```
 
-#### Notas
+#### Observaciones:
 
 <a id="note1" href="#note1ref"><sup>1</sup></a>El formato de las notas que se puede reproducir con esto es `bookdown::gitbook`. La compatibilidad con `bookdown::pdf_book` aun no es reproducible.
 
