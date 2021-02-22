@@ -170,5 +170,12 @@ máxima verosimilitud de $\beta.$ Con esta elección escribe la probabilidad de
 aceptación de Metropolis-Hastings y corre el algoritmo de Metropolis-Hastings para 
 un número suficiente de simulaciones (prueba distintos valores de $\sigma^2$).
 
+## Modelos y Simulación en `Stan`
 
+1. Implementa el modelo que vimos en clase sobre las estaturas de cantantes de
+ópera. Usa un modelo diferente para que uno de los supuestos en la distribución
+previa.
+
+1. Implementa el modelo para los datos del Challenger que se presentaron en los
+ejercicios anteriores.
 
