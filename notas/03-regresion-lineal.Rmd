@@ -108,6 +108,8 @@ boot_models %>%
 
 
 ```{r}
+t_intervals <- int_t(boot_models, coefs)
+t_intervals
 
 percentile_intervals <- int_pctl(boot_models, coefs)
 percentile_intervals
@@ -120,8 +122,8 @@ percentile_intervals
 ggplot(boot_coefs, aes(estimate)) +
   geom_histogram(bins = 30) +
   facet_wrap( ~ term, scales = "free") +
-  geom_vline(aes(xintercept = .lower), data = percentile_intervals, col = "blue") +
-  geom_vline(aes(xintercept = .upper), data = percentile_intervals, col = "blue") + 
+  geom_vline(aes(xintercept = .lower), data = percentile_intervals, col = "salmon") +
+  geom_vline(aes(xintercept = .upper), data = percentile_intervals, col = "salmon") + 
     sin_lineas
 
 ```
@@ -135,7 +137,7 @@ boot_aug <-
   unnest(augmented)
 
 ggplot(boot_aug, aes(TV, Sales)) +
-  geom_line(aes(y = .fitted, group = id), alpha = .2, col = "blue") +
+  geom_line(aes(y = .fitted, group = id), alpha = .2, col = "salmon") +
   geom_point()
 
 ```
