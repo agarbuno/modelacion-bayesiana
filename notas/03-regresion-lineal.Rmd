@@ -67,7 +67,10 @@ datos %>%
 
 ### Precisión en estimaciones {-}
 
-Codigo obtenido de [tidymodels](https://www.tidymodels.org/learn/statistics/bootstrap/). 
+Codigo obtenido de
+[tidymodels](https://www.tidymodels.org/learn/statistics/bootstrap/). También
+pueden consultar la sección correspondiente en libro [R for Data
+Science](https://r4ds.had.co.nz/many-models.html).
 
 ```{r}
 
@@ -166,4 +169,10 @@ RSE / mean(datos$Sales)
 
 ```
 
+
+```{r}
+
+summary(modelo)$r.squared
+
+```
 
