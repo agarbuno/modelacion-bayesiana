@@ -1,0 +1,131 @@
+
+# Modelos de regresión lineal
+
+
+```{r, include=FALSE, message=FALSE}
+library(tidymodels)
+library(tidyverse)
+library(patchwork)
+library(scales)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning=FALSE, 
+                      fig.align = 'center', fig.width = 5, fig.height=3, cache = TRUE)
+comma <- function(x) format(x, digits = 2, big.mark = ",")
+theme_set(theme_linedraw())
+color.blues <- c(NA,"#BDD7E7", "#6BAED6", "#3182BD", "#08519C", "#074789", "#063e77", "#053464")
+color.itam  <- c("#00362b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f")
+
+
+sin_lineas <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+sin_leyenda <- theme(legend.position = "none")
+sin_ejes <- theme(axis.ticks = element_blank(), 
+                  axis.text = element_blank())
+```
+
+```{r}
+
+datos <- read.csv("../datos/Advertising.csv")
+
+datos %>% 
+    pivot_longer(cols = TV:Newspaper, values_to = "Presupuesto") %>% 
+    ggplot(aes( x = Presupuesto, y = Sales)) + 
+        geom_point() + 
+        facet_wrap(~name, scales = "free_x")  + 
+        sin_lineas
+
+```
+
+```{r}
+
+modelo <- lm(Sales ~ TV, data = datos)
+modelo
+
+```
+
+
+```{r}
+
+datos %>% 
+    ggplot(aes(TV, Sales)) + 
+        geom_point() + 
+        stat_smooth(method = 'lm', col = 'red') + sin_lineas + 
+        geom_hline(yintercept = mean(datos$Sales), linetype = 'dashed') + 
+        geom_vline(xintercept = mean(datos$TV), linetype = 'dashed')
+
+```
+
+
+```{r}
+
+datos %>% 
+    summarise(Xbar = mean(TV), Ybar = mean(Sales))
+
+
+```
+
+
+Codigo obtenido de [tidymodels](https://www.tidymodels.org/learn/statistics/bootstrap/). 
+
+```{r}
+
+library(rsample)
+set.seed(108727)
+
+boots <- bootstraps(datos %>% dplyr::select(Sales, TV), times = 2000, apparent = TRUE)
+
+```
+
+```{r}
+
+ajusta_modelo <- function(split) {
+    lm(Sales ~ TV, analysis(split))
+}
+
+```
+
+```{r, cache = TRUE}
+
+boot_models <- boots %>%
+    mutate(modelo = map(splits, ajusta_modelo), 
+           coefs  = map(modelo, tidy)) 
+    
+boot_coefs <- boot_models %>% 
+    unnest(coefs)
+
+```
+
+```{r}
+
+percentile_intervals <- int_pctl(boot_models, coefs)
+percentile_intervals
+
+```
+
+
+```{r}
+
+ggplot(boot_coefs, aes(estimate)) +
+  geom_histogram(bins = 30) +
+  facet_wrap( ~ term, scales = "free") +
+  geom_vline(aes(xintercept = .lower), data = percentile_intervals, col = "blue") +
+  geom_vline(aes(xintercept = .upper), data = percentile_intervals, col = "blue") + 
+    sin_lineas
+
+```
+
+```{r}
+
+boot_aug <- 
+  boot_models %>% 
+  sample_n(200) %>% 
+  mutate(augmented = map(modelo, augment)) %>% 
+  unnest(augmented)
+
+ggplot(boot_aug, aes(TV, Sales)) +
+  geom_line(aes(y = .fitted, group = id), alpha = .2, col = "blue") +
+  geom_point()
+
+```
+
+
+
+
