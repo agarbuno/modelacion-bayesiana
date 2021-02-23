@@ -34,6 +34,8 @@ datos %>%
 
 ```
 
+### Estimación de coeficientes {-}
+
 ```{r}
 
 modelo <- lm(Sales ~ TV, data = datos)
@@ -63,6 +65,8 @@ datos %>%
 ```
 
 
+### Precisión en estimaciones {-}
+
 Codigo obtenido de [tidymodels](https://www.tidymodels.org/learn/statistics/bootstrap/). 
 
 ```{r}
@@ -70,7 +74,7 @@ Codigo obtenido de [tidymodels](https://www.tidymodels.org/learn/statistics/boot
 library(rsample)
 set.seed(108727)
 
-boots <- bootstraps(datos %>% dplyr::select(Sales, TV), times = 2000, apparent = TRUE)
+boots <- bootstraps(datos %>% dplyr::select(Sales, TV), times = 5000, apparent = TRUE)
 
 ```
 
@@ -92,6 +96,16 @@ boot_coefs <- boot_models %>%
     unnest(coefs)
 
 ```
+
+```{r}
+
+boot_models %>% 
+    unnest(coefs) %>% 
+    group_by(term) %>% 
+    summarise(mean = mean(estimate), se = sd(estimate))
+
+```
+
 
 ```{r}
 
@@ -126,6 +140,28 @@ ggplot(boot_aug, aes(TV, Sales)) +
 
 ```
 
+```{r}
 
+summary(modelo)
+
+```
+
+
+### Precisión de las predicciones {-}
+
+```{r}
+
+RSE <- sqrt(sum(residuals(modelo)**2)/198)
+RSE 
+```
+
+
+Error porcentual: 
+
+```{r}
+
+RSE / mean(datos$Sales)
+
+```
 
 
