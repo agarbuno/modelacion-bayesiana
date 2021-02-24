@@ -1,0 +1,215 @@
+<!-- RENAME CURRENT FILE TO MATCH LECTURE NUMBER AND A GOOD DESCRIPTOR OF THE CONTENT -->
+<!-- E.g., "01_introduccion.Rmd" -->
+
+<!-- >>>>>>> DO NOT EDIT MACRO LINES -->
+
+
+<!-- >>>>>>> IF NEEDED, ADD A NEW FILE WITH YOUR OWN MACROS -->
+<!-- \input{lecture_01_macro.tex} % Name of supplemental macros should match lecture number -->
+
+<!-- >>>>>>> LECTURE NUMBER AND TITLE -->
+# Template de Notas {-}
+
+## Introducción {-}
+
+La idea de este documento es proporcionar una guía para escribir las notas de la
+clase. Recuerda todos en la clase usarán las notas así que que cuida que sean
+claras y concisas. A continuación, se encuentran algunas reglas diseñadas para
+garantizar la coherencia en las notas del curso, así como algunos consejos para
+aprovechar al máximo este archivo.
+
+### Básicos {-}
+
+Para componer este archivo, necesitas tener una copia razonablemente actualizada
+de \LaTeX\ instalada en tu computadora. Este software es gratuito y está
+disponible en \url{http://tug.org}. Consulte la Sección~\ref{sec:need-help}
+para obtener información sobre dónde obtener más ayuda para configurar \LaTeX,
+componer matemáticas y otros problemas técnicos.
+
+Para comenzar, crea un *fork* del repositorio en tu usuario de `Github`. 
+La estructura del proyecto debería de ser auto-explanatoria. En la carpeta
+`notas/` encontrarás el archivo que podrás utilizar para escribir las notas. En 
+algunas ocasiones, dado que estamos generando las notas desde `Rstudio`, habrá un 
+archivo pre-existente. En esta última situación porfavor considera esta sección 
+como la guía para escribir las notas en lugar de un *template*.
+
+<!-- Para empezar tendrás que asegurarte que tienes el ambiente necesario de trabajo.  -->
+<!-- Para esto utiliza los comandos del paquete `renv` para instalar lo que te haga -->
+<!-- falta. -->
+
+<!-- ```{r, eval=FALSE} -->
+
+<!-- renv::restore() -->
+
+<!-- ``` -->
+
+
+```{block, type = 'comentario'}
+
+- \texttt{99-template-lectures.Rmd} \emph{Contiene el código fuente de este documento.} Los comentarios indican los cambios que se deben realizar para iniciar. Por ejemplo, debes agregar el número y el título de la clase, incluir tu nombre y la fecha de la clase que estás transcribiendo.
+- \texttt{bell\_curve\_hand.jpg}, \texttt{bell\_curve\_matlab.pdf}  \emph{Las imágenes \ref{fig:bell-curve}.}
+
+
+```
+
+Para compilar desde una terminal utiliza los comandos
+
+```{bash, eval = FALSE}
+
+rmarkdown::render_site(output_format = 'bookdown::pdf_book', encoding = 'UTF-8')
+
+```
+
+## Configurando tus notas de clase {-}
+<!-- \label{sec:setting-up-your} -->
+
+Una vez que hayas forkeado el repositorio crea una nueva rama con los comandos 
+a partir de la rama que incluye el *template* de las notas. Esto lo logras con
+
+```{bash, eval = FALSE}
+
+git checkout -b YY/notas-clase-XX ag/template-notas
+
+```
+
+donde `YY` deberían de ser tus iniciales, y `XX` el número de la clase. 
+
+Una vez hecho esto, cambia el nombre del archivo \texttt{99-template-lectures.Rmd} a
+\texttt{XX-clase.Rmd}, donde \texttt{XX} es el número de la clase. Por ejemplo,
+el archivo fuente de la primera se llamará \texttt{01-clase.Rmd}. Si se
+necesitan incluir referencias, incluye las entradas BibTeX con el formato
+apropiado en el archivo \texttt{notas/bibs/book.bib}.
+
+## Reglas {-}
+<!-- \label{sec:rules} -->
+Para que las notas sean lo más coherentes posible, vamos a hacer cumplir algunas
+reglas básicas. Estas reglas están pensadas como guías, sin embargo cuando el
+sentido común y las reglas entren en conflicto, le daremos preferencia al
+primero.
+
+### Estilo {-}
+<!-- \label{sec:style} -->
+
+El contenido es la parte mas importante de las notas. Sin embargo, es importante
+mantener consitstencia en la notación.
+
+- *Idioma* Utiliza oraciones en español completas y gramaticalmente correctas.
+Consulta diccionarios y guías de estilo para conocer la ortografía y uso
+adecuados. Para obtener pautas específicas sobre escritura matemática, consulta
+[@Hal;@Hig] y esta guía escrita por
+[Cheney](ftp://ftp.ma.utexas.edu/pub/papers/cheney/advice.pdf).
+ 
+- *Secciones* Usa los comandos adecuadoas para definir secciones, subsecciones,
+subsubsecciones, etc. 
+
+- *Ecuaciones* Las ecuaciones sólo se enumerarán cuando son referenciadas en
+el texto. Consulta la guía de Michael Downes, 
+[Short Math Guide for \LaTeX,](https://math.mit.edu/~dav/short-math-guide.pdf)
+para tener una idea de los ambientes de ecuaciones.
+
+- *Teoremas, definiciones, etc.* Usaremos el bloque de texto en `bookdown` de estilo 
+`mathblock` para escribirlos. Por ejemplo, ve el código fuente para escribir el 
+siguiente teorema. 
+
+
+```{block, type = 'mathblock'}
+
+**Teorema [Fermat, Wiles].** Para cualquier $n \ge 3$, y cualquier $a,b,c \in
+\mathbb{N},$ se tiene que 
+
+\begin{equation}
+a^n + b^n \ne c^n\, (\#eq:fermat-wiles).
+\end{equation}
+
+*Demostración.* Bastante larga para estas notas.
+
+```
+
+- *Figuras* Por favor incluye figuras cuando sea apropiado. Imágenes
+escaneadas son aceptables siempre y cuando sean legibles, pero también no duddes
+en incorporar figuras hechas con software. Todas las figuras deben de tener
+leyendas adecuadas. Para compilar las notas sólo se aceptan figuras en formato
+\texttt{.pdf} (para imágenes por vectores), \texttt{.png} (diagramas simples y
+figuras rasterizadas), o \texttt{.jpg} (para fotos). Ve la Figura \@ref(fig:figura-ejemplo)
+como ejemplo.
+
+
+```{r figura-ejemplo, echo = FALSE, fig.cap="Figuras hechas a mano [izquierda] son aceptables para las notas, pero asegurate de quitar cualquier espacio muerto alrededor. Si prefieres usar algún software para generar las imágenes [derecha] cuida que los ejes y las anotaciones sean suficientemente grandes"}
+
+knitr::include_graphics("notas/images/bell_curve_both.png")
+
+```
+
+
+- *Márgenes* No dejes que los ecuaciones o el texto invada el margen a la
+derecha.  \LaTeX\ muchas veces es suficiente para manejar este detalle, pero
+habrá situaciones en las que tendrás que parafrasear para evitar esta invasión.
+Las ecuaciones requirirán de mayor trabajo. Si una ecuación es muy larga usa los
+ambientes \texttt{multline} o \texttt{align} para ajustar al tamaño de línea.
+
+- *Puntuación* Un documento matemático también reglas de puntuación usuales.
+Esto incluye commas y puntos despues de escribir una ecuación o expresiones
+matemáticas. Un buen principio es colocar la puntuación donde lo esperarías si
+las matemáticas que escribes se leyeran como palabras. Si una coma/punto está al
+final de una ecuación (por ejemplo, en entornos \texttt{equation},
+\texttt{align} o \texttt{multiline}), está precedido por \verb|\,| para crear un
+espacio pequeño. Por ejemplo, la ecuación $a ^ n + b ^ n \ne c ^ n$ del
+Teorema \@ref(eq:fermat-wiles) en una línea separada debe mostrarse como
+
+  \begin{equation}
+      a^n + b^n \ne c^n \,.
+  \end{equation}
+  
+  
+- *Notación* Mantén la notación que usemos en clase.Adicionalmente, utiliza el
+símbolo $\text{d}$ para las integrales, precedido por \verb|\,| para incorporar
+un pequeño espacio. Aqui un ejemplo $\int f(x)\, \text{d} x.$
+
+<!--   \item[Referencias cruzadas ] Usa la funcionalidad de \LaTeX para hacer referencia a secciones, teoremas, tablas, figurass y ecuaciones. Por ejemplo, este texto se encuentra en la Seccion~\ref{sec:style}, que empieza en la página~\pageref{sec:style}. Escribir los números hace tu documento frágil y susceptible a mucho trabajo adicional. De igual forma, no puedes incluir ligas útiles como las que provee el paquete \texttt{hyperref}. -->
+
+- *Bibliografía* Si necesitas citar un trabajo, utiliza \texttt{bibtex}. Las
+entradas se necesitan llenar de acuerdo al formato AMS, incluyendo [las
+abreviaciones y número de serie](http://www.ams.org/msnhtml/serials.pdf)
+correctos. Para muchos textos publicados puedes descargar el formato
+\texttt{bibtex} aceptado de la página de la AMS [@mathscinet]. Por favor,
+incluye las referencias BibTeX en el archivo `book.bib` de estas notas.
+
+### Edición {-}
+<!-- \label{sec:editing} -->
+
+Ningún documento escrito está completo sin una edición completa, y hay varias
+herramientas disponibles para ayudarte a editar tus archivos \LaTeX. Una
+búsqueda rápida en la web muestra varios correctores ortográficos.
+Desafortunadamente, los correctores gramaticales automáticos resultan inútiles
+para los documentos matemáticos debido a la gran cantidad de ecuaciones. Por lo
+tanto, debes revisar la gramática tú mismo.
+
+Hay varias herramientas útiles disponibles para la edición colaborativa de
+documentos, por ejemplo en \LaTeX. Algunas utilidades incluidas en la distribución
+\TeX\ incluyen \texttt{latexdiff}, que muestra las diferencias entre los
+archivos \TeX, y \textit{Excalibur}, un corrector ortográfico compatible con
+\LaTeX.
+
+Las revisiones en general serán en `Github`.
+
+## Ayuda {-}
+<!-- \label{sec:need-help} -->
+
+Para obtener información sobre composición usando \LaTeX, se recomienda [Short
+Math Guide for \LaTeX](https://math.mit.edu/~dav/short-math-guide.pdf) de
+Michael Downes y las referencias que contiene. Numerosos recursos adicionales
+para \LaTeX\ están disponibles en internet, incluido el sitio [\TeX\
+StackExchange](http://tex.stackexchange.com/). Además, se encuentra el la ayuda
+de `rbookdown` que es la herramienta principal con la que estamos generando
+estas notas. Antes de contactar al profesor trata de resolver tu duda buscando
+en dichos foros.
+
+
+Si encuentras un error en la plantilla o en el archivo de macro, envíame un
+mensaje por canvas con la descripción del problema y la solución que tengas en
+mente.
+
+*Agradecimientos* Este *template* se ha adaptado y traducido del
+provisto en la clase ACM 204 (Otoño 2017) por el profesor Joel Tropp.
+
+
