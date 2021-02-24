@@ -176,3 +176,6 @@ summary(modelo)$r.squared
 
 ```
 
+
+## Regresión lineal múltiple {-}
+
