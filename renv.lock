@@ -37,6 +37,13 @@
       "Repository": "CRAN",
       "Hash": "29a7dccade1fd037c8262c2a239775eb"
     },
+    "ISLR": {
+      "Package": "ISLR",
+      "Version": "1.2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "88e6031768891b1ce13e041a7aa4e46b"
+    },
     "KernSmooth": {
       "Package": "KernSmooth",
       "Version": "2.23-17",
