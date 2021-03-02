@@ -179,3 +179,53 @@ previa.
 1. Implementa el modelo para los datos del Challenger que se presentaron en los
 ejercicios anteriores.
 
+## Regresion lineal {-}
+
+**Q1:** Usando los datos de `kidiq` realiza una estimación de la precisión de los
+coeficientes utilizando _bootstrap_ y compara con los resultados que arroja las
+funciones analíticas en la función `lm`. ¿Cómo podrías explicar esta diferencia?
+
+```{r}
+
+library(rsample)
+kidiq <- read_csv("../datos/kidiq.csv")
+summary(lm(kid_score ~ mom_iq + mom_hs + mom_iq * mom_hs, kidiq))
+
+```
+
+**Q2:** La variable `mom_work` es una variable categórica que codifica lo
+siguiente:
+
+- 1, si la madre no trabajó en los primeros tres años de vida. 
+- 2, si la madre en el segundo o tercer año de vida. 
+- 3, trabajó de medio tiempo durante el primer año de vida. 
+- 4, trabajó de tiempo completo durante el primer año de vida.
+
+La pregunta que quisiéramos responder con estos datos es: ¿cómo mejora el
+desempeño en las pruebas cuando la madre trabaja? Segurencia: utiliza alguna de
+las funciones para recodificar variables categóricas como `fct_collapse` o
+`fct_lump`.
+
+```{r}
+summary(lm(kid_score ~ factor(mom_work), kidiq))
+```
+
+**Q3:** Usando los datos de `Credit` de la librería `ISRL`, ¿cómo explicarías 
+la diferencia entre los siguientes modelos?
+
+```{r}
+
+m1 <- lm(Balance ~ Student, Credit)
+m2 <- lm(Balance ~ Student - 1, Credit)
+
+```
+
+```{r}
+summary(m1)
+```
+
+```{r}
+summary(m2)
+```
+
+

@@ -50,7 +50,7 @@ modelo
 datos %>% 
     ggplot(aes(TV, Sales)) + 
         geom_point() + 
-        stat_smooth(method = 'lm', col = 'red') + sin_lineas + 
+        stat_smooth(method = 'lm', col = 'salmon') + sin_lineas + 
         geom_hline(yintercept = mean(datos$Sales), linetype = 'dashed') + 
         geom_vline(xintercept = mean(datos$TV), linetype = 'dashed')
 
@@ -244,7 +244,7 @@ reshape2::melt(cor(datos %>% select(-X))) %>%
 
 ```{r, cache = TRUE}
 
-n <- 1000
+n <- 500
 p <- 100
 
 
@@ -255,7 +255,7 @@ simula_modelo <- function(id){
   lm(y ~ ., data = dt)
 }
 
-dt <- tibble(id = seq(1000)) %>% 
+dt <- tibble(id = seq(200)) %>% 
   mutate(modelo = map(id, simula_modelo), 
          coefs  = map(modelo, tidy)) %>% 
   unnest(coefs) %>% 
@@ -301,7 +301,20 @@ summary(lm(Balance ~ Student, Credit))
 
 ```{r}
 
+summary(lm(Balance ~ Student, Credit %>% mutate(Student = fct_relevel(Student, "Yes"))))
+
+```
+
+
+```{r}
+
 summary(lm(Balance ~ Ethnicity, Credit))
+
+```
+
+```{r}
+
+summary(lm(Balance ~ Ethnicity, Credit %>% mutate(Ethnicity = fct_relevel(Ethnicity, "Asian"))))
 
 ```
 
@@ -359,7 +372,7 @@ summary(lm(kid_score ~ mom_iq + mom_hs + mom_iq * mom_hs, kidiq))
 ```{r, message = FALSE}
 g1 <- ggplot(kidiq, aes(mom_iq, kid_score)) + 
   geom_point(alpha = .3) + 
-  stat_smooth(method = lm, color ='red') + sin_lineas
+  stat_smooth(method = lm, color ='salmon') + sin_lineas
 
 g2 <- ggplot(kidiq, aes(mom_iq, kid_score, group = mom_hs, color = factor(mom_hs))) + 
   geom_point(alpha = .3) + 
@@ -367,6 +380,16 @@ g2 <- ggplot(kidiq, aes(mom_iq, kid_score, group = mom_hs, color = factor(mom_hs
 
 g1 + g2
 ```
+
+```{r}
+
+kidiq.centered <- kidiq %>% 
+  mutate(mom_iq = mom_iq - mean(mom_iq))
+
+summary(lm(kid_score ~ mom_iq + mom_hs + mom_iq * mom_hs, kidiq.centered))
+
+```
+
 
 ### Relaciones no lineales {-}
 
@@ -382,15 +405,112 @@ summary(lm(mpg ~ poly(horsepower, 2, raw = TRUE), Auto))
 g1 <- Auto %>% 
   ggplot(aes(horsepower, mpg)) + 
   geom_point(alpha = .3) + 
-  stat_smooth(method = lm, formula = y ~ x, color = 'red') + sin_lineas
+  stat_smooth(method = lm, formula = y ~ x, color = 'salmon') + sin_lineas
 
 g2 <- Auto %>% 
   ggplot(aes(horsepower, mpg)) + 
   geom_point(alpha = .3) + 
-  stat_smooth(method = lm, formula = y ~ poly(x, 2, raw = TRUE), color = 'red') + 
+  stat_smooth(method = lm, formula = y ~ poly(x, 2, raw = TRUE), color = 'salmon') + 
   sin_lineas
 
 g1 + g2
 
 ```
 
+## Extensiones del modelo lineal {-}
+
+```{r}
+x <- 7*runif(50)
+y <- cos(x) + 0.15 * rnorm(length(x))
+
+newx <- tibble(x = matrix(seq(0,12,.1)))
+dt <- tibble(x = x, y = y)
+
+g1 <- ggplot(dt, aes(x,y)) + geom_point(size=2)
+g1
+```
+
+
+```{r}
+m1 <- lm(y ~ x, data = dt)
+
+newx <- data.frame(x = matrix(seq(0,7,.01)))
+dnew <- tibble(x = newx$x, y = predict(m1, newx))
+pred <- geom_line(data = dnew, aes(x = x, y = y), colour = 'salmon')
+
+g1 + geom_smooth(method = lm, colour = 'salmon') 
+```
+
+```{r, echo = F}
+eps1 <- 2
+eps2 <- 4
+dt$reg <- cut(dt$x, breaks = c(min(dt$x),eps1,eps2,max(dt$x)), include.lowest = T)
+m4 <- lm(y~reg, data = dt)
+
+newx$reg <- cut(newx$x, breaks = c(min(dt$x),eps1,eps2,max(dt$x)), include.lowest = T)
+dnew$reg <- newx$reg
+dnew$y1 <- predict(m4, newx)
+dnew$s2 <- predict(m4, newx, se.fit = T)$se.fit
+
+pred2 <- geom_line(data = dnew, aes(x = x, y = y1, group = reg), colour = 'salmon')
+
+e1 <-  geom_vline(data = dnew, xintercept = eps1, lty = 2) 
+e2 <-  geom_vline(data = dnew, xintercept = eps2, lty = 2)
+rib2 <- geom_ribbon(data = dnew, aes(x = x, ymin= y1-2*s2, ymax = y1+2*s2, group = reg),
+alpha = 0.3) 
+
+print(g1 + pred2 + e1 + e2 + rib2 + ggtitle("Predicción lineal por regiones"))
+```
+
+```{r}
+eps1 <- 2
+eps2 <- 4
+dt$reg <- cut(dt$x, breaks = c(min(dt$x),eps1,eps2,max(dt$x)), include.lowest = T)
+m4 <- lm(y~reg * x, data = dt)
+
+newx$reg <- cut(newx$x, breaks = c(min(dt$x),eps1,eps2,max(dt$x)), include.lowest = T)
+dnew$reg <- newx$reg
+dnew$y1 <- predict(m4, newx)
+dnew$s2 <- predict(m4, newx, se.fit = T)$se.fit
+
+pred2 <- geom_line(data = dnew, aes(x = x, y = y1, group = reg), colour = 'salmon')
+
+e1 <-  geom_vline(data = dnew, xintercept = eps1, lty = 2) 
+e2 <-  geom_vline(data = dnew, xintercept = eps2, lty = 2)
+rib2 <- geom_ribbon(data = dnew, aes(x = x, ymin= y1-2*s2, ymax = y1+2*s2, group = reg),
+alpha = 0.3) 
+
+print(g1 + pred2 + e1 + e2 + rib2 + ggtitle("Predicción lineal por regiones"))
+```
+
+
+```{r, echo = F}
+library(splines)
+m4 <- lm( y~bs(x, degree = 1, 2), data = dt)
+
+dnew$y1 <- predict(m4, newx)
+dnew$lower <- as_tibble(predict(m4, newx, interval = 'confidence'))$lwr
+dnew$upper <- as_tibble(predict(m4, newx, interval = 'confidence'))$upr
+
+pred2 <- geom_line(data = dnew, aes(x = x, y = y1), colour = 'salmon')
+rib2 <- geom_ribbon(data = dnew, aes(x = x, ymin= lower, ymax = upper),
+alpha = 0.3) 
+
+print(g1 + pred2 + rib2 + ggtitle("Regresión con splines"))
+```
+
+
+```{r, echo = F}
+m4 <- lm( y~bs(x, degree = 1, 3), data = dt)
+
+dnew$y1 <- predict(m4, newx)
+dnew$lower <- as_tibble(predict(m4, newx, interval = 'confidence'))$lwr
+dnew$upper <- as_tibble(predict(m4, newx, interval = 'confidence'))$upr
+
+pred2 <- geom_line(data = dnew, aes(x = x, y = y1), colour = 'salmon')
+rib2 <- geom_ribbon(data = dnew, aes(x = x, ymin= lower, ymax = upper),
+alpha = 0.3) 
+
+
+print(g1 + pred2 + rib2 + ggtitle("Regresión con splines"))
+```
