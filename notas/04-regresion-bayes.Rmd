@@ -1,6 +1,114 @@
 
 # Regresión lineal Bayesiana
 
+Tenemos un conjunto de atributos o predictores $x \in \mathbb{R}^p$ y esperamos poder utilizarlos para inferir una respuesta $y \in \mathbb{R}$. Intrínsecamente, suponemos que existe une relación entre $y$ y $x$:
+
+
+$$ y = h(x) + \varepsilon $$
+
+
+En donde $\varepsilon$ representa todos aquellos elementos qeu no son representados en la función $h$.
+
+Trabajaremos bajo un enfoque $100\%$ bayesiano:
++ Tenemos datos: $(x,y)$
++ Tenemos parámetros: $(h,\varepsilon)$
+
+Supondremos lo siguiente:
+$$ h \in \{ h_{\theta}:\theta \in \mathbb{R}^q \} $$
+Ejemplo:
++ Modelo lineal:
+
+$$ h(x) = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + ... + \beta_p x_p$$
+
+
+Luego,
+
+
+$$ y = h(x) + \varepsilon; \quad \varepsilon \sim N(0, \sigma^2) $$
+
+
+Definamos las siguientes variables de apoyo:
++ $\beta = (\beta_0, \beta_1, ... ,\beta_p) \in \mathbb{R}^q;q = p+1$
++ $X = (1, x_1, x_2, ..., x_p) \in \mathbb{R}^{n \text{x} q}$
+
+Por lo que la reformulación del problema es:
+1) Verosimilitud: $y|x, \beta, \sigma^2 \sim N(X\beta, \sigma^2)$
+2) Distribución previa: $\beta, \sigma^2 \sim \pi(\beta, \sigma^2)$
+
+Así pues, si tenemos $n \in \mathbb{N}$ observaciones $(x^{(i)}, y^{(i)})_{i=1}^n$, entonces la función de verosimilitud toma la siguiente forma:
+
+$$ \Pi( \underline{y}_n | \underline{x}_n, \beta, \sigma^2 ) = \Pi_{i=1}^n \pi(y^{(i)}|x^{(i)}, \beta, \sigma^2) $$
+
+Finalmente reformulando el problema obtenemos lo siguiente:
+$$ Y = X\beta + \varepsilon, \quad \varepsilon \sim N(0, \Sigma) : \Sigma = \sigma^2\mathbb{I} $$
+
+Por lo tanto:
+1) Verosimilitud: $Y|X,\beta,\Sigma \sim N(XB, \Sigma)$
+2) Previa: $\beta, \Sigma \sim \pi(\beta, \Sigma)$
+
+Por lo que tenemos los ingredientes necesarios para constriuir una distribución posterior pra $\beta, \Sigma$.
+
+* Caso 1 $\beta \sim N(\beta_0, \Simga_0)$
+
+Suponemos que 
+$$ \Sigma = \sigma^2\mathbb{I}  $$
+Esto quiere decir que las covariables no tienen covarianza, en este caso particular (distribución normal) que las covariables son independientes. Luego,
+
+$$
+\Pi(\beta |Y,X) \propto \Pi(Y|X\beta) \Pi(\beta) \propto \text{exp} \Big (-\frac{1}{2} (X\beta-Y)^T(X\beta-Y) \Big)\text{exp} \Big(-\frac{1}{2}(\beta-\beta_0)^T \Sigma_n^{-1} (\beta-\beta_0) \Big)
+
+\\
+
+\therefore \beta|X,Y \sim N(\beta_n, \Sigma_m)
+$$
+
+En donde:
+$$
+\Sigma_n^{-1} = \Big( \frac{X^TX}{\sigma^2} + \Sigma_0^{-1} \Big)
+$$
+
+Recordemos que del problema de regresión lineal analizado en el curso de Fundamentos de Estadística obtenemos lo siguiente:
+
+$$
+\mathbb{V}(\hat{\beta}) = \sigma^2(X^TX)^{-1} \Leftrightarrow \mathbb{V}(\hat{\beta})^{-1} = \sigma^{-2}(X^TX) = \frac{(X^TX)}{\sigma^2} 
+$$
+
+Definimos:
+
+$$
+\mathbb{V}(\hat{\beta}) = \Sigma_{\hat{\beta}}
+$$
+
+Entonces:
+
+$$
+\Sigma_n^{-1} = \Big( \Sigma_{\hat{\beta}} + \Sigma_0^{-1} \Big)
+$$
+
+Además:
+
+$$
+\beta_n = \Sigma_n(\Sigma_{\hat{\beta}} \hat{\beta} + \Sigma_0 \beta_0 )
+
+\\
+
+\hat{\beta} = (XX^T)^{-1}X^TY
+$$
+
+De donde analizamos los siguientes casos:
+
+
++ Si $\Sigma_0$ tiene valores propios grandes, entonces eso quiere decir que tenemos información muy vaga. Luego:
+
+$$
+\Sigma_0 \approx 0 \quad \therefore \quad \Sigma_n = \Sigma_{\hat{\beta}}, \quad \beta_n = \hat{\beta}
+$$
++ Si $\Sigma_0$ tiene valores propios pequeños, esto quiere decir que tenemos información muy precisa. Luego:
+
+$$
+\Sigma^{-1}_0 >> \Sigma_{\hat{\beta}}^{-1}, \quad \Sigma_n^{-1} \approx \Sigma_0^{-1}, \quad \beta_n \approx \beta_0
+$$
+
 
 ```{r, include=FALSE, message=FALSE}
 library(tidymodels)
@@ -28,6 +136,8 @@ sin_ejes <- theme(axis.ticks = element_blank(),
 source("../funciones-auxiliares/setup-utility.R")
 ```
 
+Se tienen datos de candidatos que se reeligieron, gobernante y tasa de crecimiento económico.  
+
 ```{r }
 hibbs <- read.table("../datos/hibbs.dat", header=TRUE)
 hibbs <- hibbs %>% 
@@ -38,6 +148,8 @@ hibbs <- hibbs %>%
                                    "Arriba de 4%")),
            Crecimiento = fct_rev(Crecimiento))
 ```
+
+Se quiere predecir el porcentaje de votos en relación al crecimiento económico obtenido en el periodo de gobierno. La recta punteada indica si el candidato en cuestión continuará en el gobierno.
 
 ```{r }
 
@@ -53,14 +165,24 @@ gdatos
 
 ```
 
+Modelo en STAN con 2 parámetros $(a,b)$. El modelo es lineal de la forma:
+
+$$
+y = b + ax
+$$
+
 ```{r}
 ruta <- "modelos-stan/regesion-previa.stan"
 print_file(ruta)
 ```
 
+Se compila el modelo
+
 ```{r}
 modelo.previa <- cmdstan_model(ruta)
 ```
+
+Se muestrea del modelo
 
 ```{r}
 muestras <- modelo.previa$sample(data = list(sigma = 2), 
@@ -71,6 +193,8 @@ muestras <- modelo.previa$sample(data = list(sigma = 2),
                           refresh=1200)
 ```
 
+Impresión del resumen del modelo, el cual son simulaciones de un modelo a priori.
+
 ```{r}
 muestras$cmdstan_summary()
 ```
@@ -80,6 +204,8 @@ muestras$cmdstan_summary()
 muestras.previa <- tibble(posterior::as_draws_df(muestras$draws(c("a","b"))))
 head(muestras.previa)
 ```
+
+Del lado derecho se grafica todas un conjunto de los modelo posibles obtenidos con las simulaciones realizadas. Nótese que existen pendientes negativas, lo cual no debe alarmarnos, pues son meras simulaciones y aún no se incorporan los datos.
 
 ```{r}
 
@@ -101,14 +227,20 @@ gdatos + gprevia
 
 ```
 
+Ahora se estimará el modelo posterior, para ello se necesitarán de los datos.
+
 ```{r}
 ruta <- "modelos-stan/regesion-posterior.stan"
 print_file(ruta)
 ```
 
+Se compila el modelo
+
 ```{r}
 modelo.posterior <- cmdstan_model(ruta)
 ```
+
+Se obtienen simulaciones del modelo.
 
 ```{r}
 data_list <- list(sigma_0 = 2, N = nrow(hibbs), y = hibbs$vote, x = hibbs$growth)
@@ -124,6 +256,9 @@ muestras <- modelo.posterior$sample(data = data_list,
 ```{r}
 muestras$cmdstan_summary()
 ```
+
+
+Ahora se muestran las rectas en base al modelo posterior. Se logra observar que se ha aprendido en base a los datos.
 
 ```{r, fig.asp = .3}
 muestras.posterior <- tibble(posterior::as_draws_df(muestras$draws(c("a","b", "sigma"))))
@@ -144,12 +279,17 @@ gdatos + gprevia + gposterior
 
 ```
 
+
+Resumen del modelo, se estima los errores del componente del error (desviación respecto a la recta)
+
 ```{r}
 muestras.posterior %>% 
     pivot_longer(cols = a:sigma, names_to = "parameter") %>% 
     group_by(parameter) %>% 
     summarise(mean = mean(value), var = var(value), std = sd(value), .groups = "drop")
 ```
+
+Se comparará con el modelo obtenido en base a la metodología de máxima verosimilitud.
 
 ```{r }
 
@@ -159,6 +299,8 @@ summary(model)
 ```
 
 ### Predicciones con `Stan` {-}
+
+Si se supone una tasa de crecimiento dada, ¿cuál es la probabilidad de que dicho presidente gane las siguientes elecciones?
 
 ```{r}
 ruta <- "modelos-stan/regresion-prediccion.stan"
@@ -202,6 +344,7 @@ muestras.prediccion %>%
 
 ```
 
+
 ```{r}
 
 model <- lm(vote ~ growth, data = hibbs)
@@ -210,7 +353,12 @@ predict(model, newdata = tibble(growth = 2), interval = "confidence")
 
 ```
 
+En base al modelo obtenido con los datos que se cuenta, si se tiene un crecimiento económico del $2\%$ entonces la probabilidad media de que el presidente gane las siguientes elecciones es del $52\%$. Además, se cuenta con el intervalo de densidad para dicha probabilidad $[50\%, 54\%]$ del $95\%$. El intervalo del modelo bayesiano posee valores mayores, debido a que, incorpora mayor incertidumbre en los parámetros $(\sigma^2)$.
+
+
 ### Usando `rstanarm::stan_glm` {-}
+
+Para no volver a correr el mismo modelo en STAN cada vez que se quiera utilizar se utiliza la siguiente paquetería `rstanarm` desarrollada por varios estadísticos, que nos ayuda a ajustar modelos de regresión de manera similar a modelos no bayesianos (se asume que el lector está familiarizado con dicha notación usual).
 
 ```{r }
 M1 <- stan_glm(vote ~ growth, data = hibbs, refresh = 0)
@@ -222,17 +370,35 @@ Print default summary of the fitted model
 print(M1)
 ```
 
+
+Información sobre la distribución previa utilizada para el ajuste del modelo bayesiano obtenido anteriormente. Cabe mencionar que en la función `stan_glm` los valores por default para el modelo de regresión lineal:
+
+$$
+y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + ... + \beta_p x_p + \varepsilon
+$$
+
+Son:
++ $\beta_k \sim N \Big (0, (2.5)^2 \frac{\hat{\sigma}_y^2}{\hat{\sigma}_{x_k}^2} \Big) \quad \forall k=1,2,...,p$
++ $\beta_0 \sim N \Big( \bar{y}_n, (2.5)^2 \hat{\sigma}_y^2 \Big)$
++ $\sigma_{\varepsilon} \sim \text{Exponential} \Big ( 1/\hat{\sigma_y}^2 \Big)$
+
+En donde,
+$$\hat{\sigma_y}^2 = \frac{1}{n-1}\sum_{i=1}^n (y^{(i)}-\bar{y}_n)^2 $$
+
 ```{r }
 prior_summary(M1)
 ```
+
 
 ```{r }
 summary(M1)
 ```
 
+
 ```{r }
 round(posterior_interval(M1),1)
 ```
+
 
 ```{r }
 
@@ -242,6 +408,8 @@ ggplot(data = hibbs, aes(x = growth, y = vote))  +
     sin_lineas
 
 ```
+
+
 ```{r}
 
 ggplot(data = hibbs, aes(x = growth, y = vote))  + 
@@ -255,6 +423,8 @@ ggplot(data = hibbs, aes(x = growth, y = vote))  +
 ```
 
 ### Predicciones usando `stan_glm`
+
+Predicciones puntuales en el porcentaje de votos a favor dado un crecimiento económico del $2\%$
 
 ```{r }
 new <- data.frame(growth=2.0)
@@ -276,6 +446,8 @@ summary(y_pred)
 
 ## Incorporando estudios previos {-}
 
+Ahora, analicemos el caso en donde se analizó a $3,000$ familias distintas y se registró si el padre era visualmente atractivo o no en una escala discreta $(-2,-1,0,1,2)$ y además si el bebé es niño o niña. Los datos ya se encuentran agrupados, de tal manera que se muestra la proporción de niñas en base al nivel de atracción (visual-física) del padre.
+
 ```{r}
 
 x <- seq(-2,2,1)
@@ -289,6 +461,11 @@ summary(lm(y ~ groups, ratios))
 
 ```
 
+Los papás más atractivos, tienen el $56\%$ de las niñas.
+Suponiendo que el modelo es correcto, se tiene evidencia estadística para indicar que la relación se mantiene y se podría concluir que los papás atractivos tienen tendencia a tener niñas.
+
+Ahora, utilicemos modelos bayesianos para reproducir el ejercicio anterior.
+
 ```{r}
 
 theta_hat_prior <- 0
@@ -299,6 +476,7 @@ theta_hat_bayes <- (theta_hat_prior/se_prior^2 + theta_hat_data/se_data^2)/(1/se
 se_bayes <- sqrt(1/(1/se_prior^2 + 1/se_data^2))
 
 ```
+
 
 ```{r}
 
@@ -312,6 +490,8 @@ gols <- sexratio %>%
 gols
 ```
 
+Nótese que el nivel de incertidumbre es muy alta.
+
 ```{r}
 
 model.ls <- lm(y ~ x, sexratio)
@@ -319,6 +499,7 @@ summary(model.ls)
 
 ```
 
+Utilizando `stan_glm`
 
 ```{r}
 fit_ols <- stan_glm(y ~ x, data = sexratio, refresh = 0, 
@@ -330,6 +511,7 @@ print(fit_default)
 
 ```
 
+Incorporemos la información con la que se contaba anteriormente, se calcula el modelo y se muestran las diferencias entre todos los modelos.
 
 ```{r}
 
@@ -365,3 +547,6 @@ gols + gdefault + gposterior
 
 ```
 
++ El modelo del lado izquierdo: frecuentista obtenido con mínimos cuadrados, nótese que presenta una gran dispersión.
++ En medio: modelo por default.
++ El modelo del lado derecho: se ajusta por la información y se llega a una conclusión contradictoria. Se muestra el potencial de incorporar información útil dentro del contexto del modelo para obtener resultados coherentes.
