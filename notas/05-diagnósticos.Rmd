@@ -1,0 +1,466 @@
+
+# Diagnósticos 
+
+
+```{r, include=FALSE, message=FALSE}
+library(tidymodels)
+library(tidyverse)
+library(cmdstanr)
+library(rstanarm)
+library(bayesplot)
+library(loo)
+
+library(patchwork)
+library(scales)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning=FALSE, 
+                      fig.align = 'center', fig.width = 5, fig.height=3, cache = TRUE)
+comma <- function(x) format(x, digits = 2, big.mark = ",")
+theme_set(theme_linedraw())
+color.blues <- c(NA,"#BDD7E7", "#6BAED6", "#3182BD", "#08519C", "#074789", "#063e77", "#053464")
+color.itam  <- c("#00362b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f")
+
+
+sin_lineas <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+sin_leyenda <- theme(legend.position = "none")
+sin_ejes <- theme(axis.ticks = element_blank(), 
+                  axis.text = element_blank())
+```
+
+## Resiudales {-}
+
+```{r}
+kidiq <- read_csv("../datos/kidiq.csv")
+kidiq %>% head()
+```
+
+```{r}
+kidiq <- kidiq %>% mutate(mom_iq_c = mom_iq - mean(mom_iq))
+
+fit_kid <- stan_glm(kid_score ~ mom_iq_c, data=kidiq, refresh = 0)
+print(fit_kid)
+```
+
+```{r}
+
+kidiq %>% 
+    mutate( residuals = kid_score - predict(fit_kid)) %>% 
+    ggplot(aes(x = mom_iq, y = residuals)) + 
+        geom_point() + sin_lineas + 
+        geom_hline(yintercept = 0, lty = 2, size = 1) + 
+        # geom_hline(yintercept = c(18.3, -18.3), lty = 2) + 
+        geom_ribbon(aes(ymin = -18.3, ymax = 18.3), alpha = .3) + 
+        geom_ribbon(aes(ymin = -2 * 18.3, ymax = 2 * 18.3), alpha = .3) + 
+        ggtitle("Residuales contra predictor")
+
+```
+
+```{r}
+
+g1 <- kidiq %>% 
+    mutate( residuals  = kid_score - predict(fit_kid), 
+            prediccion = predict(fit_kid)) %>% 
+    ggplot(aes(x = prediccion, y = residuals)) + 
+        geom_point() + sin_lineas + 
+        geom_hline(yintercept = 0, lty = 2, size = 1) + 
+        # geom_hline(yintercept = c(18.3, -18.3), lty = 2) + 
+        geom_ribbon(aes(ymin = -18.3, ymax = 18.3), alpha = .3) + 
+        geom_ribbon(aes(ymin = -2 * 18.3, ymax = 2 * 18.3), alpha = .3) + 
+        ggtitle("Residuales contra prediccion")
+    
+g2 <- kidiq %>% 
+    mutate( residuals  = kid_score - predict(fit_kid), 
+            prediccion = predict(fit_kid)) %>% 
+    ggplot(aes(x = kid_score, y = residuals)) + 
+        geom_point() + sin_lineas + 
+        geom_hline(yintercept = 0, lty = 2, size = 1) + 
+        # geom_hline(yintercept = c(18.3, -18.3), lty = 2) + 
+        geom_ribbon(aes(ymin = -18.3, ymax = 18.3), alpha = .3) + 
+        geom_ribbon(aes(ymin = -2 * 18.3, ymax = 2 * 18.3), alpha = .3) + 
+        ggtitle("Residuales contra observación")
+
+g1 + g2
+```
+
+```{r}
+
+a <- 0.6    
+b <- 86.8
+sigma <- 18.3
+
+kidiq_sim <- tibble(mom_iq_c    = kidiq$mom_iq_c, 
+                     kid_score = a * kidiq$mom_iq_c + b + 18.3 * rnorm(nrow(kidiq)))
+
+fit_sim <- stan_glm(kid_score ~ mom_iq_c, data=kidiq_sim, refresh = 0)
+print(fit_sim)
+
+```
+
+```{r}
+g1 <- kidiq_sim %>% 
+    mutate( residuals  = kid_score - predict(fit_sim), 
+            prediccion = predict(fit_sim)) %>% 
+    ggplot(aes(x = prediccion, y = residuals)) + 
+        geom_point() + sin_lineas + 
+        geom_hline(yintercept = 0, lty = 2, size = 1) + 
+        # geom_hline(yintercept = c(18.3, -18.3), lty = 2) + 
+        geom_ribbon(aes(ymin = -18.3, ymax = 18.3), alpha = .3) + 
+        geom_ribbon(aes(ymin = -2 * 18.3, ymax = 2 * 18.3), alpha = .3) + 
+        ggtitle("Residuales contra prediccion")
+    
+g2 <- kidiq_sim %>% 
+    mutate( residuals  = kid_score - predict(fit_sim), 
+            prediccion = predict(fit_sim)) %>% 
+    ggplot(aes(x = kid_score, y = residuals)) + 
+        geom_point() + sin_lineas + 
+        geom_hline(yintercept = 0, lty = 2, size = 1) + 
+        # geom_hline(yintercept = c(18.3, -18.3), lty = 2) + 
+        geom_ribbon(aes(ymin = -18.3, ymax = 18.3), alpha = .3) + 
+        geom_ribbon(aes(ymin = -2 * 18.3, ymax = 2 * 18.3), alpha = .3) + 
+        ggtitle("Residuales contra observación")
+
+g1 + g2
+```
+
+## Evaluación de la predictiva posterior {-}
+
+```{r}
+
+newcomb <- read_table("../datos/newcomb")
+newcomb %>% head()
+
+```
+
+```{r}
+
+newcomb %>% 
+    ggplot(aes(x = y)) + 
+        geom_histogram() + sin_lineas
+
+```
+
+```{r}
+
+fit_newc <- stan_glm(y ~ 1, data=newcomb, refresh=0)
+fit_newc
+
+```
+
+```{r}
+
+y_rep <- posterior_predict(fit_newc)
+
+```
+
+```{r}
+
+ppc_hist(newcomb$y, y_rep[1:19, ], binwidth = 8) + sin_lineas
+
+```
+
+```{r}
+
+ppc_dens_overlay(newcomb$y, y_rep[1:100, ]) + sin_lineas
+
+```
+
+```{r}
+
+ppc_stat(newcomb$y, y_rep, stat = "min", binwidth = 2) + sin_lineas
+
+```
+
+```{r}
+
+unemp <- read_table("../datos/unemployment")
+unemp %>% head()
+
+```
+
+```{r}
+
+unemp %>% 
+    ggplot(aes(year, y)) + 
+        geom_line() + sin_lineas + 
+        ylab("Unemployment rate (%)")
+
+```
+```{r}
+
+fit_lag <- stan_glm(y ~ y_lag, data=unemp %>% mutate(y_lag = lag(y)), refresh=0)
+fit_lag
+
+```
+
+```{r}
+y_rep <- posterior_predict(fit_lag)
+y_rep <- cbind(unemp$y[1], y_rep)
+n_sims <- nrow(y_rep)
+```
+
+```{r}
+
+as_tibble(y_rep) %>% 
+    mutate(sim = 1:n_sims) %>% 
+    sample_n(15) %>% 
+    pivot_longer(cols = V1:70) %>% 
+    mutate(year = rep(unemp$year, 15)) %>% 
+    ggplot(aes(x = year, y = value)) + 
+        geom_line() + 
+        facet_wrap(~sim, ncol = 5)
+
+```
+
+```{r}
+
+test <- function (y){
+  n <- length(y)
+  y_lag <- c(NA, y[1:(n-1)])
+  y_lag_2 <- c(NA, NA, y[1:(n-2)])
+  return(sum(sign(y-y_lag) != sign(y_lag-y_lag_2), na.rm=TRUE))
+}
+test_y <- test(unemp$y)
+test_rep <- apply(y_rep, 1, test)
+print(mean(test_rep > test_y))
+
+```
+
+```{r}
+print(quantile(test_rep, c(.1,.5,.9)))
+```
+
+```{r}
+ppc_stat(y=unemp$y, yrep=y_rep, stat=test, binwidth = 1) + sin_lineas
+```
+
+## Desviación estándar de los residuales $\sigma$ y varianza explicada $R^2$ {-}
+
+$$ \hat R = 1 - \frac{\hat \sigma2}{\sigma_y^2} \,.$$
+```{r}
+
+data <- tibble(x = 1:5 - 3, 
+               y = c(1.7, 2.6, 2.5, 4.4, 3.8) - 3)
+
+summary(ols <- lm(y ~ x, data))
+
+```
+
+```{r}
+
+
+fit_bayes <- stan_glm(y ~ x, data = data,
+  prior_intercept = normal(0, 0.2, autoscale = FALSE),
+  prior = normal(1, 0.2, autoscale = FALSE),
+  prior_aux = NULL,
+  seed = 108727, refresh = 0
+)
+
+c(OLS   = var(predict(ols))/var(data$y), 
+  Bayes = var(predict(fit_bayes))/var(data$y))
+
+```
+
+```{r}
+
+bayesR2 <- bayes_R2(fit_bayes)
+
+mcmc_hist(data.frame(bayesR2), binwidth=0.02)  +
+    xlab('Bayesian R2') +
+    geom_vline(xintercept=median(bayesR2)) + sin_lineas
+
+```
+
+```{r}
+
+bayesR2 <- bayes_R2(fit_kid)
+
+g1_kid <- mcmc_hist(data.frame(bayesR2), binwidth=0.01)  +
+    xlab('Bayesian R2') +
+    geom_vline(xintercept=median(bayesR2)) + sin_lineas + 
+    xlim(0, .35) + ggtitle("Modelo regresión")
+
+g1_kid
+
+```
+
+```{r}
+
+n <- nrow(kidiq)
+kidiqr <- kidiq
+kidiqr$noise <- array(rnorm(5*n), c(n,5))
+
+```
+
+```{r}
+fit_3n <- stan_glm(kid_score ~ mom_hs + mom_iq + noise, data=kidiqr,
+                   seed=108727, refresh=0)
+print(fit_3n)
+```
+
+```{r}
+
+c(median(bayesR2), median(bayesR2n<-bayes_R2(fit_3n)))
+
+```
+
+```{r}
+
+g2_kid <- mcmc_hist(data.frame(bayesR2n), binwidth=0.01)  +
+    xlab('Bayesian R2') +
+    geom_vline(xintercept=median(bayesR2n)) + sin_lineas + xlim(0, .35) + 
+    ggtitle("Modelo con malos predictores")
+
+g1_kid / g2_kid
+
+
+```
+
+## Validación cruzada {-}
+
+```{r}
+
+x <- 1:20
+n <- length(x)
+a <- 0.2
+b <- 0.3
+sigma <- 1
+set.seed(2141) 
+y <- a + b*x + sigma*rnorm(n)
+fake <- data.frame(x, y)
+
+head(fake)
+
+```
+
+Ajustamos modelo lineal
+
+```{r}
+
+fit_all <- stan_glm(y ~ x, data = fake, seed=2141, chains=10, refresh=0)
+
+```
+
+Ajustamos modelo sin la observación 18
+
+```{r}
+
+fit_minus_18 <- stan_glm(y ~ x, data = fake[-18,], seed=2141, refresh=0)
+
+```
+
+Extraemos muestras de la posterior
+
+```{r}
+
+sims <- as.matrix(fit_all)
+sims_minus_18 <- as.matrix(fit_minus_18)
+
+```
+
+
+Calculamos la distribución predictiva posterior para $x = 18$
+
+```{r}
+
+condpred<-data.frame(y=seq(0,9,length.out=100))
+condpred$x <- sapply(condpred$y, FUN=function(y) mean(dnorm(y, sims[,1] + sims[,2]*18, sims[,3])*6+18))
+
+
+
+```
+
+Calculamos la predictiva posterior (LOO) para $x = 18$
+
+```{r}
+
+condpredloo<-data.frame(y=seq(0,9,length.out=100))
+condpredloo$x <- sapply(condpredloo$y, FUN=function(y) mean(dnorm(y, sims_minus_18[,1] + sims_minus_18[,2]*18, sims_minus_18[,3])*6+18))
+
+```
+
+
+Graficamos 
+
+```{r}
+
+
+p1 <- ggplot(fake, aes(x = x, y = y)) +
+  geom_point(color = "white", size = 3) +
+  geom_point(color = "black", size = 2) + sin_lineas
+p2 <- p1 +
+  geom_abline(
+    intercept = mean(sims[, 1]),
+    slope = mean(sims[, 2]),
+    size = 1,
+    color = "black"
+  )
+p3 <- p2 + 
+  geom_path(data=condpred,aes(x=x,y=y), color="black") +
+  geom_vline(xintercept=18, linetype=3, color="grey")
+
+```
+Agregamos la predicción con LOO 
+
+```{r}
+
+p4 <- p3 +
+  geom_point(data=fake[18,], color = "grey50", size = 5, shape=1) +
+  geom_abline(
+    intercept = mean(sims_minus_18[, 1]),
+    slope = mean(sims_minus_18[, 2]),
+    size = 1,
+    color = "grey50",
+    linetype=2
+  ) +
+  geom_path(data=condpredloo,aes(x=x,y=y), color="grey50", linetype=2)
+p4
+
+```
+
+```{r}
+
+fake$residual <- fake$y-fit_all$fitted
+fake$looresidual <- fake$y-loo_predict(fit_all)$value
+
+```
+
+```{r}
+
+p1 <- ggplot(fake, aes(x = x, y = residual)) +
+  geom_point(color = "black", size = 2, shape=16) +
+  geom_point(aes(y=looresidual), color = "grey50", size = 2, shape=1) +
+  geom_segment(aes(xend=x, y=residual, yend=looresidual)) +
+  geom_hline(yintercept=0, linetype=2) + sin_lineas
+p1
+
+```
+
+
+```{r }
+c(posterior = round(sd(fake$residual),2), 
+  loo       = round(sd(fake$looresidual),2), 
+  sigma     = sigma)
+```
+
+
+```{r }
+ll_1 <- log_lik(fit_all)
+```
+
+
+```{r }
+fake$lpd_post <- matrixStats::colLogSumExps(ll_1) - log(nrow(ll_1))
+```
+
+```{r }
+loo_1 <- loo(fit_all)
+fake$lpd_loo <-loo_1$pointwise[,"elpd_loo"]
+```
+
+```{r }
+p1 <- ggplot(fake, aes(x = x, y = lpd_post)) +
+  geom_point(color = "black", size = 2, shape=16) +
+  geom_point(aes(y=lpd_loo), color = "grey50", size = 2, shape=1) +
+  geom_segment(aes(xend=x, y=lpd_post, yend=lpd_loo)) +
+  ylab("log predictive density") + sin_lineas
+p1
+```
