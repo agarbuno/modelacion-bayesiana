@@ -291,14 +291,14 @@ kidiqr$noise <- array(rnorm(5*n), c(n,5))
 ```
 
 ```{r}
-fit_3n <- stan_glm(kid_score ~ mom_hs + mom_iq + noise, data=kidiqr,
+fit_kid_noise <- stan_glm(kid_score ~ mom_hs + mom_iq + noise, data=kidiqr,
                    seed=108727, refresh=0)
-print(fit_3n)
+print(fit_kid_noise)
 ```
 
 ```{r}
 
-c(median(bayesR2), median(bayesR2n<-bayes_R2(fit_3n)))
+c(median(bayesR2), median(bayesR2n<-bayes_R2(fit_kid_noise)))
 
 ```
 
@@ -314,28 +314,29 @@ g1_kid / g2_kid
 
 ```
 
-## Validación cruzada {-}
+## Evaluación de modelos {-}
 
 ```{r}
+SEED <- 2141
+set.seed(SEED) 
 
 x <- 1:20
 n <- length(x)
 a <- 0.2
 b <- 0.3
 sigma <- 1
-set.seed(2141) 
 y <- a + b*x + sigma*rnorm(n)
 fake <- data.frame(x, y)
 
 head(fake)
 
 ```
-
 Ajustamos modelo lineal
 
 ```{r}
 
-fit_all <- stan_glm(y ~ x, data = fake, seed=2141, chains=10, refresh=0)
+fit_all <- stan_glm(y ~ x, data = fake, seed=SEED, chains=10, refresh=0)
+print(fit_all)
 
 ```
 
@@ -343,28 +344,28 @@ Ajustamos modelo sin la observación 18
 
 ```{r}
 
-fit_minus_18 <- stan_glm(y ~ x, data = fake[-18,], seed=2141, refresh=0)
+fit_minus_18 <- stan_glm(y ~ x, data = fake[-18,], seed=SEED, refresh=0)
+print(fit_minus_18)
 
 ```
-
 Extraemos muestras de la posterior
 
 ```{r}
-
+# Modelo completo
 sims <- as.matrix(fit_all)
+
+# Modelo sin observación
 sims_minus_18 <- as.matrix(fit_minus_18)
 
 ```
-
 
 Calculamos la distribución predictiva posterior para $x = 18$
 
 ```{r}
 
-condpred<-data.frame(y=seq(0,9,length.out=100))
-condpred$x <- sapply(condpred$y, FUN=function(y) mean(dnorm(y, sims[,1] + sims[,2]*18, sims[,3])*6+18))
-
-
+predpost <- tibble(y = seq(0,9,length.out=100)) %>% 
+  mutate(x = map(y, ~mean(dnorm(., sims[,1] + sims[,2] * 18, sims[,3])*6+18))) %>% 
+  unnest(x)
 
 ```
 
@@ -372,37 +373,40 @@ Calculamos la predictiva posterior (LOO) para $x = 18$
 
 ```{r}
 
-condpredloo<-data.frame(y=seq(0,9,length.out=100))
-condpredloo$x <- sapply(condpredloo$y, FUN=function(y) mean(dnorm(y, sims_minus_18[,1] + sims_minus_18[,2]*18, sims_minus_18[,3])*6+18))
+predpost.loo <- tibble(y = seq(0,9,length.out=100)) %>% 
+  mutate(x = map(y, ~mean(dnorm(., sims_minus_18[,1] + sims_minus_18[,2] * 18, 
+                                sims_minus_18[,3])*6+18))) %>% 
+  unnest(x)
 
 ```
-
 
 Graficamos 
 
 ```{r}
 
-
-p1 <- ggplot(fake, aes(x = x, y = y)) +
+p.datos <- ggplot(fake, aes(x = x, y = y)) +
   geom_point(color = "white", size = 3) +
   geom_point(color = "black", size = 2) + sin_lineas
-p2 <- p1 +
+
+p.modelo <- p.datos +
   geom_abline(
     intercept = mean(sims[, 1]),
     slope = mean(sims[, 2]),
     size = 1,
     color = "black"
   )
-p3 <- p2 + 
+
+p.predpost <- p.modelo + 
   geom_path(data=condpred,aes(x=x,y=y), color="black") +
   geom_vline(xintercept=18, linetype=3, color="grey")
 
 ```
-Agregamos la predicción con LOO 
+
+Agregamos la predicción con modelo incompleto (LOO)
 
 ```{r}
 
-p4 <- p3 +
+p.predloo <- p.predpost +
   geom_point(data=fake[18,], color = "grey50", size = 5, shape=1) +
   geom_abline(
     intercept = mean(sims_minus_18[, 1]),
@@ -412,9 +416,13 @@ p4 <- p3 +
     linetype=2
   ) +
   geom_path(data=condpredloo,aes(x=x,y=y), color="grey50", linetype=2)
-p4
+
+p.predloo
 
 ```
+
+Calculamos los residuales para ambos modelos. La función `loo_predict` calcula 
+de manera agilizada las predicciones para validación con LOO. 
 
 ```{r}
 
@@ -441,19 +449,34 @@ c(posterior = round(sd(fake$residual),2),
   sigma     = sigma)
 ```
 
+Calculamos la log-densidad predictiva para cada simulación de nuestro modelo
+
+$$\log \pi( \,y_i \,| x_i, \theta^s \, ), \, \qquad s = 1, \ldots, 10,000\,.$$
 
 ```{r }
+
 ll_1 <- log_lik(fit_all)
+
 ```
 
+Calculamos la log-densidad predictiva marginalizada para cada observación
+
+$$\log \pi(y_i \, |\, x_i) = \log \left(\frac1S \sum_{s = 1}^S \pi( \,y_i \,| x_i, \theta^s \, ) \right) \,.$$
 
 ```{r }
+
 fake$lpd_post <- matrixStats::colLogSumExps(ll_1) - log(nrow(ll_1))
+
 ```
+
+Calculamos de manera puntual cada log-densidad predictiva sin usar la observación 
+$i$-ésima
+
+$$\log \pi(y_i \, |\, x_i) = \log \left(\frac1S \sum_{s = 1}^S \pi( \,y_i \,| x_i, \theta^s_{-i} \, ) \right) \,.$$
 
 ```{r }
 loo_1 <- loo(fit_all)
-fake$lpd_loo <-loo_1$pointwise[,"elpd_loo"]
+fake$lpd_loo <- loo_1$pointwise[,"elpd_loo"] 
 ```
 
 ```{r }
@@ -462,5 +485,6 @@ p1 <- ggplot(fake, aes(x = x, y = lpd_post)) +
   geom_point(aes(y=lpd_loo), color = "grey50", size = 2, shape=1) +
   geom_segment(aes(xend=x, y=lpd_post, yend=lpd_loo)) +
   ylab("log predictive density") + sin_lineas
+
 p1
 ```
