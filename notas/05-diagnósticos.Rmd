@@ -606,3 +606,16 @@ loo.noise_reg <- loo(fit_noise_reg)
 loo_compare(loo.m, loo.int, loo.hs, loo.noise, loo.cnoise, loo.hs_reg, loo.noise_reg)
 
 ```
+
+## Validación cruzada {-}
+
+```{r}
+
+loo(fit_kid_int)
+
+kfold_10 <- kfold(fit_kid_int, K=10)
+
+print(kfold_10)
+
+```
+
