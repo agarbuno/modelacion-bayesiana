@@ -291,7 +291,7 @@ kidiqr$noise <- array(rnorm(5*n), c(n,5))
 ```
 
 ```{r}
-fit_kid_noise <- stan_glm(kid_score ~ mom_hs + mom_iq + noise, data=kidiqr,
+fit_kid_noise <- stan_glm(kid_score ~ mom_hs + mom_iq_c + noise, data=kidiqr,
                    seed=108727, refresh=0)
 print(fit_kid_noise)
 ```
@@ -397,7 +397,7 @@ p.modelo <- p.datos +
   )
 
 p.predpost <- p.modelo + 
-  geom_path(data=condpred,aes(x=x,y=y), color="black") +
+  geom_path(data=predpost,aes(x=x,y=y), color="black") +
   geom_vline(xintercept=18, linetype=3, color="grey")
 
 ```
@@ -415,14 +415,14 @@ p.predloo <- p.predpost +
     color = "grey50",
     linetype=2
   ) +
-  geom_path(data=condpredloo,aes(x=x,y=y), color="grey50", linetype=2)
+  geom_path(data=predpost.loo,aes(x=x,y=y), color="grey50", linetype=2)
 
 p.predloo
 
 ```
 
 Calculamos los residuales para ambos modelos. La función `loo_predict` calcula 
-de manera agilizada las predicciones para validación con LOO. 
+de manera agilizada las predicciones para validación utilizando LOO. 
 
 ```{r}
 
@@ -438,15 +438,18 @@ p1 <- ggplot(fake, aes(x = x, y = residual)) +
   geom_point(aes(y=looresidual), color = "grey50", size = 2, shape=1) +
   geom_segment(aes(xend=x, y=residual, yend=looresidual)) +
   geom_hline(yintercept=0, linetype=2) + sin_lineas
+
 p1
 
 ```
 
 
 ```{r }
+
 c(posterior = round(sd(fake$residual),2), 
   loo       = round(sd(fake$looresidual),2), 
   sigma     = sigma)
+
 ```
 
 Calculamos la log-densidad predictiva para cada simulación de nuestro modelo
@@ -487,4 +490,119 @@ p1 <- ggplot(fake, aes(x = x, y = lpd_post)) +
   ylab("log predictive density") + sin_lineas
 
 p1
+```
+
+## Criterios de información y desempeño de modelos {-}
+
+```{r }
+fit_kid_m <- stan_glm(kid_score ~ mom_hs + mom_iq_c, data=kidiq,
+                  seed=108727, refresh = 0)
+fit_kid_m
+```
+```{r }
+fit_kid_hs <- stan_glm(kid_score ~ mom_hs, data=kidiq,
+                  seed=108727, refresh = 0)
+fit_kid_hs
+```
+```{r}
+waic.hs <- waic(fit_kid_hs)
+waic.hs
+```
+
+
+```{r}
+waic.m  <- waic(fit_kid_m)
+waic.m
+```
+
+```{r}
+
+loo_compare(waic.hs, waic.m)
+
+```
+
+```{r}
+
+loo.hs <- loo(fit_kid_hs)
+loo.hs
+
+```
+
+```{r}
+
+loo.m  <- loo(fit_kid_m)
+loo.m
+
+```
+
+```{r}
+
+loo_compare(loo.hs, loo.m)
+
+```
+
+### Considerando un modelo mas complejo {-}
+
+```{r}
+
+fit_kid_int  <- stan_glm(kid_score ~ mom_hs + mom_iq_c + mom_hs:mom_iq_c,
+                  data=kidiq, refresh=0)
+fit_kid_int
+
+```
+
+```{r}
+
+loo.int <- loo(fit_kid_int)
+loo.int
+
+```
+
+```{r}
+
+loo_compare(loo.m, loo.int, loo.hs)
+
+```
+
+```{r}
+
+loo.noise <- loo(fit_kid_noise)
+loo_compare(loo.m, loo.int, loo.hs, loo.noise)
+
+```
+
+```{r}
+
+fit_kid_cnoise <- stan_glm(kid_score ~ noise, data=kidiqr,
+                  seed=108727, refresh = 0)
+loo.cnoise <- loo(fit_kid_cnoise)
+
+```
+
+```{r}
+
+loo_compare(loo.m, loo.int, loo.hs, loo.noise, loo.cnoise)
+
+```
+
+```{r}
+
+fit_hs_reg <- stan_glm(kid_score ~ mom_hs + mom_iq_c, prior=hs(), data=kidiq,
+                     seed=SEED, refresh = 0)
+
+fit_noise_reg <- stan_glm(kid_score ~ mom_hs + mom_iq_c + noise, prior=hs(),
+                      data=kidiqr, seed=SEED, refresh = 0)
+
+print(fit_hs_reg)
+print(fit_noise_reg)
+
+loo.hs_reg <- loo(fit_hs_reg)
+loo.noise_reg <- loo(fit_noise_reg)
+
+```
+
+```{r}
+
+loo_compare(loo.m, loo.int, loo.hs, loo.noise, loo.cnoise, loo.hs_reg, loo.noise_reg)
+
 ```
