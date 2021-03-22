@@ -565,7 +565,7 @@ loo_compare(loo.m, loo.int, loo.hs)
 ```
 
 ```{r}
-
+fit_kid_noise
 loo.noise <- loo(fit_kid_noise)
 loo_compare(loo.m, loo.int, loo.hs, loo.noise)
 
@@ -575,6 +575,7 @@ loo_compare(loo.m, loo.int, loo.hs, loo.noise)
 
 fit_kid_cnoise <- stan_glm(kid_score ~ noise, data=kidiqr,
                   seed=108727, refresh = 0)
+fit_kid_cnoise
 loo.cnoise <- loo(fit_kid_cnoise)
 
 ```
@@ -616,6 +617,12 @@ loo(fit_kid_int)
 kfold_10 <- kfold(fit_kid_int, K=10)
 
 print(kfold_10)
+
+```
+
+```{r}
+
+loo(fit_all)
 
 ```
 
