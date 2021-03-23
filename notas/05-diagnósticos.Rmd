@@ -784,6 +784,7 @@ loo_compare(loo.m, loo.int, loo.hs)
 
 ```
 
+
 Y lo que resulta es que pareciera que el mejor modelo es el que integra la interacción entre variables. Sin embargo, existe poca diferencia con la log-densidad predictiva posterior del modelo que tiene dos predictores.
 
 Viendo el ejemplo donde se integraban variables de ruido:
@@ -804,6 +805,7 @@ Lo que podemos ver en el resultado anterior es que la desviación estándar de l
 
 fit_kid_cnoise <- stan_glm(kid_score ~ noise, data=kidiqr,
                   seed=108727, refresh = 0)
+fit_kid_cnoise
 loo.cnoise <- loo(fit_kid_cnoise)
 
 ```
@@ -857,3 +859,9 @@ print(kfold_10)
 ```
 
 Como se puede observar este método no estima el número efectivo de parámetros porque no lo incorpora, pero podemos notar que en términos de la devianza loo y validación cruzada son muy similares.
+
+```{r}
+
+loo(fit_all)
+
+```
