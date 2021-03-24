@@ -169,7 +169,7 @@ g1
 ```{r}
 make_predictions <- function(coefs){
     tibble(height = seq(55 * 2.54, 85 * 2.54, length.out = 50)) %>% 
-        mutate(pred = exp(coefs$`(Intercept)` + coefs$height * height))
+        mutate(pred = exp(coefs$`(Intercept)` + coefs$height * height + 0.5 * (coefs$sigma)**2))
 }
 
 predictions.log <- as_tibble(logmodel_1) %>% 
@@ -212,7 +212,8 @@ print(loglogmodel_2, digits=2)
 
 make_predictions <- function(coefs){
     tibble(height = seq(55 * 2.54, 85 * 2.54, length.out = 50)) %>% 
-        mutate(pred = exp(coefs$`(Intercept)` + coefs$`log(height)` * log(height)))
+        mutate(pred = exp(coefs$`(Intercept)` + coefs$`log(height)` * log(height) + 
+                            .5 * coefs$sigma**2))
 }
 
 predictions.loglog <- as_tibble(loglogmodel_2) %>% 
@@ -225,6 +226,60 @@ predictions.loglog <- as_tibble(loglogmodel_2) %>%
 ```
 
 ```{r}
+dat <- tibble(height = seq(55 * 2.54, 85 * 2.54, length.out = 50))
+
+dat.predict <- as_tibble(posterior_predict(logmodel_1, newdata = dat, fun = "exp")) %>% 
+  mutate(sample_id = 1:4000) %>% 
+  pivot_longer(cols = 1:50) %>% 
+  mutate(name = fct_inorder(name)) %>% 
+  group_by(name) %>% 
+  summarise(mean = mean(value), 
+            median = median(value), 
+            low = quantile(value, .05), 
+            hi = quantile(value, .95)) %>% 
+  mutate(height = seq(55 * 2.54, 85 * 2.54, length.out = 50)) 
+
+dat.linpred <- as_tibble(posterior_linpred(logmodel_1, newdata = dat)) %>% 
+  mutate(sample_id = 1:4000) %>% 
+  pivot_longer(cols = 1:50) %>% 
+  mutate(name = fct_inorder(name)) %>% 
+  group_by(name) %>% 
+  summarise(mean = mean(exp(value + 0.5 * .88**2)), 
+            median = median(exp(value+ 0.5 * .88**2)), 
+            low = quantile(exp(value+ 0.5 * .88**2), .05), 
+            hi = quantile(exp(value+ 0.5 * .88**2), .95)) %>% 
+  mutate(height = seq(55 * 2.54, 85 * 2.54, length.out = 50)) 
+```
+
+
+```{r, fig.asp = .4}
+
+g4 <- dat.predict %>% 
+  ggplot(aes(height, mean)) + 
+    geom_ribbon(aes(ymin =low, ymax = hi), alpha = .2) + 
+    geom_line() + sin_lineas + 
+      geom_jitter(data = earnings %>% filter(earn>0), 
+                  aes(height, earn), 
+                  height = 0, width = 0.25) + 
+    labs(title = "Predicción modelo")
+
+g5 <- dat.linpred %>% 
+  ggplot(aes(height, mean)) + 
+    geom_ribbon(aes(ymin =low, ymax = hi), alpha = .3) + 
+    geom_line() + sin_lineas + 
+    geom_ribbon(data = dat.predict, aes(ymin =low, ymax = hi), alpha = .2) + 
+    geom_line(data = dat.predict,aes(height, mean)) + 
+      geom_jitter(data = earnings %>% filter(earn>0), 
+                  aes(height, earn), 
+                  height = 0, width = 0.25) + 
+    labs(title = "Predicción con descomposición de errores")
+
+g2 + g4 + g5
+
+```
+
+
+```{r, fig.asp = .4}
 g3 <- earnings %>% filter(earn>0) %>% 
     ggplot(aes(height, earn)) +
       geom_jitter(height = 0, width = 0.25) +
@@ -269,7 +324,6 @@ ppc_0 + ppc_log_1
 
 mesquite <- as_tibble(read.table("../datos/mesquite.dat", header = TRUE))
 mesquite %>% head()
-
 
 ```
 
