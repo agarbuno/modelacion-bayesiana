@@ -73,13 +73,15 @@ invlogit <- plogis
 ```{r}
 wells.loc <- read.csv("../datos/arsenic/All.csv")
 
-
 wells.loc %>% 
+    mutate(seguro = factor(ifelse(As > 50, "Si", "No"))) %>% 
     filter(X > 100) %>% 
     ggplot(aes(X,Y)) + 
-    geom_point(size = .5, color = 'darkgray') + 
-    sin_lineas + coord_equal() + 
-    labs(title = 'Ubicación de pozos')
+    geom_point(aes(color = seguro), size = .5) + 
+    sin_lineas + coord_equal() + #sin_leyenda + 
+    labs(title = 'Ubicación de pozos') + 
+    theme(axis.ticks = element_blank(), axis.text.y = element_blank()) + 
+    theme(axis.ticks = element_blank(), axis.text.x = element_blank())
 
 ```
 
@@ -120,7 +122,8 @@ posterior_epred(fit_0, draws= 4000, newdata = tibble(x = 0)) %>%
     as_tibble() %>% 
     ggplot(aes(`1`)) + 
         geom_histogram(fill = 'darkgray') + 
-        geom_vline(xintercept = mean(wells$switch), lty = 2) + sin_lineas
+        geom_vline(xintercept = mean(wells$switch), lty = 2) + sin_lineas + 
+    xlab("Probabilidad de cambio")
 
 ```
 
@@ -133,6 +136,16 @@ posterior_epred(fit_0, draws= 4000, newdata = tibble(x = 0)) %>%
 ## Modelo con un predictor
 
 #### Ajustamos un modelo considerando la distancia al pozo
+
+```{r}
+
+wells %>% 
+    ggplot(aes(x = dist)) + 
+        geom_histogram(fill = "darkgray") + sin_lineas + 
+        xlab("Distancia al pozo mas cercano")
+
+```
+
 
 ```{r results='hide'}
 fit_1 <- stan_glm(switch ~ dist, 
@@ -348,22 +361,23 @@ ngrid    <- 100
 
 posterior_epred(fit_4, draws = nsamples,
                 newdata = tibble(dist100 = rep(seq(0, 3.5, length.out = ngrid), 2), 
-                                 arsenic = rep(c(.5, 1.), each = ngrid))) %>% 
+                                 arsenic = rep(c(.5, 1.5), each = ngrid))) %>% 
     as_tibble() %>% 
     mutate(id_sample = 1:nsamples) %>% 
-    pivot_longer(cols = 1:(ngrid + ngrid)) %>% 
+    pivot_longer(cols = 1:(ngrid + ngrid)) %>%         # Etiquetas para graficar
     mutate(dist100 = rep(seq(0, 3.5, length.out = ngrid), 2 * nsamples), 
            pred_id = factor(rep(rep(c(0,1), each = ngrid), nsamples))) %>% 
-    group_by(pred_id, dist100) %>% 
+    group_by(pred_id, dist100) %>%                     # Agrupamos
     summarise(mean = mean(value), 
            hi = quantile(value, .95), 
-           low = quantile(value, .05)) %>% 
+           low = quantile(value, .05), 
+           .groups = 'drop') %>%                       # Graficamos
     ggplot(aes(dist100 * 100, mean)) + 
         geom_ribbon(aes(ymin = low, ymax = hi, group = pred_id), alpha = .3, fill = 'darkgray') +
         geom_line(aes(group = pred_id, color = pred_id)) + sin_lineas + 
         geom_jitter(data = wells, aes(dist, switch), height = .02,  size = 1, width = .01) + 
         labs(x = 'Distancia al pozo seguro mas cercano') + 
         annotate("text", x = 50, y = .29, label = "Arsenic = 0.5") + 
-        annotate("text", x = 50, y = .70, label = "Arsenic = 1.0") + sin_leyenda
-    
+        annotate("text", x = 50, y = .75, label = "Arsenic = 1.5") + sin_leyenda
+
 ```
