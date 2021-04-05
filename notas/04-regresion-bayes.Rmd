@@ -1,0 +1,367 @@
+
+# Regresión lineal Bayesiana
+
+
+```{r, include=FALSE, message=FALSE}
+library(tidymodels)
+library(tidyverse)
+library(cmdstanr)
+library(rstanarm)
+library(bayesplot)
+
+library(patchwork)
+library(scales)
+
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning=FALSE, 
+                      fig.align = 'center', fig.width = 5, fig.height=3, cache = TRUE)
+comma <- function(x) format(x, digits = 2, big.mark = ",")
+theme_set(theme_linedraw())
+color.blues <- c(NA,"#BDD7E7", "#6BAED6", "#3182BD", "#08519C", "#074789", "#063e77", "#053464")
+color.itam  <- c("#00362b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f")
+
+
+sin_lineas <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+sin_leyenda <- theme(legend.position = "none")
+sin_ejes <- theme(axis.ticks = element_blank(), 
+                  axis.text = element_blank())
+
+source("../funciones-auxiliares/setup-utility.R")
+```
+
+```{r }
+hibbs <- read.table("../datos/hibbs.dat", header=TRUE)
+hibbs <- hibbs %>% 
+    mutate(Crecimiento = cut(growth, 
+                        breaks = c(-Inf, 0, 1, 2, 3, 4, Inf), 
+                        labels = c("Negativo", "0 - 1%", "1 - 2%", 
+                                   "2 - 3%", "3 - 4%", 
+                                   "Arriba de 4%")),
+           Crecimiento = fct_rev(Crecimiento))
+```
+
+```{r }
+
+gdatos <- hibbs %>% 
+    ggplot(aes(vote, growth, color = Crecimiento)) + 
+        geom_point() + 
+        geom_vline(xintercept = 50, lty = 2) + 
+        xlab("Porcentaje de voto a favor (%)") + 
+        ylab("Crecimiento Económico (%)") + 
+        coord_flip() + sin_lineas
+
+gdatos
+
+```
+
+```{r}
+ruta <- "modelos-stan/regesion-previa.stan"
+print_file(ruta)
+```
+
+```{r}
+modelo.previa <- cmdstan_model(ruta)
+```
+
+```{r}
+muestras <- modelo.previa$sample(data = list(sigma = 2), 
+                          chains = 1, 
+                          iter=200, 
+                          iter_warmup=500, 
+                          seed=483892929, 
+                          refresh=1200)
+```
+
+```{r}
+muestras$cmdstan_summary()
+```
+
+
+```{r}
+muestras.previa <- tibble(posterior::as_draws_df(muestras$draws(c("a","b"))))
+head(muestras.previa)
+```
+
+```{r}
+
+calcula_linea <- function(data){
+    tibble(x =  seq(-1, 5, by = 1/100), 
+           y = x * data$a + data$b)
+}
+
+gprevia <- muestras.previa %>% 
+    nest(a,b) %>% 
+    mutate(lines = map(data, calcula_linea)) %>% 
+    unnest(lines) %>% 
+    ggplot(aes(x, y, group = interaction(.chain, .iteration))) + 
+        geom_line(alpha = .2) + sin_lineas + 
+        geom_hline(yintercept = 50, lty = 2) +
+        ylim(44, 62)
+
+gdatos + gprevia
+
+```
+
+```{r}
+ruta <- "modelos-stan/regesion-posterior.stan"
+print_file(ruta)
+```
+
+```{r}
+modelo.posterior <- cmdstan_model(ruta)
+```
+
+```{r}
+data_list <- list(sigma_0 = 2, N = nrow(hibbs), y = hibbs$vote, x = hibbs$growth)
+
+muestras <- modelo.posterior$sample(data = data_list,
+                          chains = 1, 
+                          iter=500, 
+                          iter_warmup=500, 
+                          seed=483892929, 
+                          refresh=1200)
+```
+
+```{r}
+muestras$cmdstan_summary()
+```
+
+```{r, fig.asp = .3}
+muestras.posterior <- tibble(posterior::as_draws_df(muestras$draws(c("a","b", "sigma"))))
+
+gposterior <- muestras.posterior %>% 
+    nest(a,b) %>% 
+    sample_frac(.2) %>% 
+    mutate(lines = map(data, calcula_linea)) %>% 
+    unnest(lines) %>% 
+    ggplot(aes(x, y, group = interaction(.chain, .iteration))) + 
+        geom_line(alpha = .2) + sin_lineas + 
+        geom_hline(yintercept = 50, lty = 2) + 
+        geom_point(data = hibbs %>% mutate(.chain = 1, .iteration = 1), 
+                   aes(x = growth, y = vote)) + 
+        ylim(44, 62) 
+
+gdatos + gprevia + gposterior
+
+```
+
+```{r}
+muestras.posterior %>% 
+    pivot_longer(cols = a:sigma, names_to = "parameter") %>% 
+    group_by(parameter) %>% 
+    summarise(mean = mean(value), var = var(value), std = sd(value), .groups = "drop")
+```
+
+```{r }
+
+model <- lm(vote ~ growth, hibbs)
+summary(model)
+
+```
+
+### Predicciones con `Stan` {-}
+
+```{r}
+ruta <- "modelos-stan/regresion-prediccion.stan"
+print_file(ruta)
+```
+
+```{r}
+modelo.prediccion <- cmdstan_model(ruta)
+```
+
+```{r}
+data_list <- list(sigma_0 = 2, N = nrow(hibbs), y = hibbs$vote, x = hibbs$growth)
+
+muestras <- modelo.prediccion$sample(data = data_list,
+                          chains = 1, 
+                          iter=500, 
+                          iter_warmup=500, 
+                          seed=483892929, 
+                          refresh=1200)
+```
+
+```{r}
+muestras$cmdstan_summary()
+```
+
+```{r}
+muestras.prediccion <- tibble(posterior::as_draws_df(muestras$draws(c("y_new"))))
+
+muestras.prediccion %>% 
+    ggplot(aes(x = y_new)) + 
+        geom_histogram(binwidth = 2, alpha = .8) + 
+        geom_vline(xintercept = 50, lty = 2) + 
+        xlab("Porcentaje de voto a favor") + sin_lineas
+
+muestras.prediccion %>% 
+    summarise(cuantiles = quantile(y_new, probs = c(.05, .50, .95)))
+
+muestras.prediccion %>% 
+    mutate(wins = y_new > 50) %>% 
+    summarise(`P(ganar)` = mean(wins))
+
+```
+
+```{r}
+
+model <- lm(vote ~ growth, data = hibbs)
+summary(model)
+predict(model, newdata = tibble(growth = 2), interval = "confidence")
+
+```
+
+### Usando `rstanarm::stan_glm` {-}
+
+```{r }
+M1 <- stan_glm(vote ~ growth, data = hibbs, refresh = 0)
+```
+
+Print default summary of the fitted model
+
+```{r }
+print(M1)
+```
+
+```{r }
+prior_summary(M1)
+```
+
+```{r }
+summary(M1)
+```
+
+```{r }
+round(posterior_interval(M1),1)
+```
+
+```{r }
+
+ggplot(data = hibbs, aes(x = growth, y = vote))  + 
+    geom_point() + 
+    geom_abline(slope = coef(M1)[2], intercept = coef(M1)[1], color = 'salmon') + 
+    sin_lineas
+
+```
+```{r}
+
+ggplot(data = hibbs, aes(x = growth, y = vote))  + 
+    geom_abline(data = as_tibble(M1) %>% sample_frac(.2), 
+                aes(slope = growth, intercept = `(Intercept)`), 
+                color = 'grey', alpha = .4) + 
+    geom_abline(slope = coef(M1)[2], intercept = coef(M1)[1], color = 'salmon') + 
+    geom_point() + 
+    sin_lineas
+
+```
+
+### Predicciones usando `stan_glm`
+
+```{r }
+new <- data.frame(growth=2.0)
+y_point_pred <- predict(M1, newdata=new)
+y_point_pred
+```
+
+### Predicciones con incertidumbre {-}
+
+```{r }
+y_linpred <- posterior_linpred(M1, newdata=new)
+summary(y_linpred)
+```
+
+```{r }
+y_pred <- posterior_predict(M1, newdata=new)
+summary(y_pred)
+```
+
+## Incorporando estudios previos {-}
+
+```{r}
+
+x <- seq(-2,2,1)
+y <- c(50, 44, 50, 47, 56)
+sexratio <- data.frame(x, y)
+
+ratios <- sexratio %>% 
+    mutate(groups = ifelse(x < 2, 0, 1))
+
+summary(lm(y ~ groups, ratios))
+
+```
+
+```{r}
+
+theta_hat_prior <- 0
+se_prior <- 0.25
+theta_hat_data <- 8
+se_data <- 3
+theta_hat_bayes <- (theta_hat_prior/se_prior^2 + theta_hat_data/se_data^2)/(1/se_prior^2 + 1/se_data^2)
+se_bayes <- sqrt(1/(1/se_prior^2 + 1/se_data^2))
+
+```
+
+```{r}
+
+gols <- sexratio %>% 
+    ggplot(aes(x, y)) + 
+        geom_point() + 
+        geom_smooth(method = 'lm', color = 'salmon') +
+        xlab('Belleza en padres') + ylab("Porcentaje de niñas") + 
+        ggtitle("Solución de mínimos cuadrados") + sin_lineas
+
+gols
+```
+
+```{r}
+
+model.ls <- lm(y ~ x, sexratio)
+summary(model.ls)
+
+```
+
+
+```{r}
+fit_ols <- stan_glm(y ~ x, data = sexratio, refresh = 0, 
+                        prior = NULL, prior_intercept = NULL, prior_aux = NULL)
+
+fit_default <- stan_glm(y ~ x, data = sexratio, refresh = 0)
+
+print(fit_default)
+
+```
+
+
+```{r}
+
+fit_post <- stan_glm(y ~ x, data = sexratio,
+                     prior = normal(0, 0.2),
+                     prior_intercept = normal(48.8, 0.5),
+                     refresh = 0)
+print(fit_post)
+
+```
+
+
+```{r, fig.asp = .4}
+
+gdefault <- ggplot(data = sexratio, aes(x = x, y = y))  + 
+    geom_abline(data = as_tibble(fit_default) %>% sample_frac(.1),
+                aes(slope = x, intercept = `(Intercept)`),
+                color = 'grey', alpha = .4) +
+    geom_abline(slope = coef(fit_default)[2], intercept = coef(fit_default)[1], color = 'salmon') +
+    geom_point() + ggtitle("Ajuste con default") + ylim(35,65) + ylab("") + 
+    sin_lineas
+
+gposterior <- ggplot(data = sexratio, aes(x = x, y = y))  + 
+    geom_abline(data = as_tibble(fit_post) %>% sample_frac(.1),
+                aes(slope = x, intercept = `(Intercept)`),
+                color = 'grey', alpha = .4) +
+    geom_abline(slope = coef(fit_post)[2], intercept = coef(fit_post)[1], color = 'salmon') +
+    geom_hline(yintercept = 48.8, lty = 2) + 
+    geom_point() + ggtitle("Ajuste posterior") + ylim(35,65) +  ylab("") + 
+    sin_lineas
+
+gols + gdefault + gposterior
+
+```
+
