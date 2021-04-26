@@ -201,7 +201,7 @@ posterior_epred(fit_2, draws = nsamples,
 ```{r }
 (loo2 <- loo(fit_2, save_psis = TRUE))
 
-loo_compare(loo1, loo0)
+loo_compare(loo2, loo0)
 ```
 
 #### Grafico de incertidumbre en los dos coeficientes

@@ -278,6 +278,9 @@ g2 + g4 + g5
 
 ```
 
+$$ \log y \sim \mathsf{N}(\mu(x), \sigma^2)$$ 
+$$ y \sim \log   \mathsf{N}(\mu(x), \sigma^2)$$
+$$ \mathbb{E}(y) = \exp(\mu + \frac{\sigma^2}{2}) $$
 
 ```{r, fig.asp = .4}
 g3 <- earnings %>% filter(earn>0) %>% 
