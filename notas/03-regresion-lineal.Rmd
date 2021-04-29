@@ -1,0 +1,523 @@
+
+# Modelos de regresión lineal
+
+
+```{r, include=FALSE, message=FALSE}
+library(tidymodels)
+library(tidyverse)
+library(patchwork)
+library(scales)
+library(ISLR)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning=FALSE, 
+                      fig.align = 'center', fig.width = 5, fig.height=3, cache = TRUE)
+comma <- function(x) format(x, digits = 2, big.mark = ",")
+theme_set(theme_linedraw())
+color.blues <- c(NA,"#BDD7E7", "#6BAED6", "#3182BD", "#08519C", "#074789", "#063e77", "#053464")
+color.itam  <- c("#00362b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f")
+
+
+sin_lineas <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+sin_leyenda <- theme(legend.position = "none")
+sin_ejes <- theme(axis.ticks = element_blank(), 
+                  axis.text = element_blank())
+```
+
+```{r}
+
+datos <- read.csv("../datos/Advertising.csv")
+
+datos %>% 
+    pivot_longer(cols = TV:Newspaper, values_to = "Presupuesto") %>% 
+    ggplot(aes( x = Presupuesto, y = Sales)) + 
+        geom_point() + 
+        facet_wrap(~name, scales = "free_x")  + 
+        sin_lineas
+
+```
+
+### Estimación de coeficientes {-}
+
+```{r}
+
+modelo <- lm(Sales ~ TV, data = datos)
+modelo
+
+```
+
+
+```{r}
+
+datos %>% 
+    ggplot(aes(TV, Sales)) + 
+        geom_point() + 
+        stat_smooth(method = 'lm', col = 'salmon') + sin_lineas + 
+        geom_hline(yintercept = mean(datos$Sales), linetype = 'dashed') + 
+        geom_vline(xintercept = mean(datos$TV), linetype = 'dashed')
+
+```
+
+
+```{r}
+
+datos %>% 
+    summarise(Xbar = mean(TV), Ybar = mean(Sales))
+
+
+```
+
+
+### Precisión en estimaciones {-}
+
+Codigo obtenido de
+[tidymodels](https://www.tidymodels.org/learn/statistics/bootstrap/). También
+pueden consultar la sección correspondiente en libro [R for Data
+Science](https://r4ds.had.co.nz/many-models.html).
+
+```{r}
+
+library(rsample)
+set.seed(108727)
+
+boots <- bootstraps(datos %>% dplyr::select(Sales, TV), times = 5000, apparent = TRUE)
+
+```
+
+```{r}
+
+ajusta_modelo <- function(split) {
+    lm(Sales ~ TV, analysis(split))
+}
+
+```
+
+```{r, cache = TRUE}
+
+boot_models <- boots %>%
+    mutate(modelo = map(splits, ajusta_modelo), 
+           coefs  = map(modelo, tidy)) 
+    
+boot_coefs <- boot_models %>% 
+    unnest(coefs)
+
+```
+
+```{r}
+
+boot_models %>% 
+    unnest(coefs) %>% 
+    group_by(term) %>% 
+    summarise(mean = mean(estimate), se = sd(estimate))
+
+```
+
+
+```{r}
+t_intervals <- int_t(boot_models, coefs)
+t_intervals
+
+percentile_intervals <- int_pctl(boot_models, coefs)
+percentile_intervals
+
+```
+
+
+```{r}
+
+ggplot(boot_coefs, aes(estimate)) +
+  geom_histogram(bins = 30) +
+  facet_wrap( ~ term, scales = "free") +
+  geom_vline(aes(xintercept = .lower), data = percentile_intervals, col = "salmon") +
+  geom_vline(aes(xintercept = .upper), data = percentile_intervals, col = "salmon") + 
+    sin_lineas
+
+```
+
+```{r}
+
+boot_aug <- 
+  boot_models %>% 
+  sample_n(200) %>% 
+  mutate(augmented = map(modelo, augment)) %>% 
+  unnest(augmented)
+
+ggplot(boot_aug, aes(TV, Sales)) +
+  geom_line(aes(y = .fitted, group = id), alpha = .2, col = "salmon") +
+  geom_point() + sin_lineas
+
+```
+
+```{r}
+
+summary(modelo)
+
+```
+
+
+### Precisión de las predicciones {-}
+
+```{r}
+
+RSE <- sqrt(sum(residuals(modelo)**2)/198)
+RSE 
+```
+
+
+Error porcentual: 
+
+```{r}
+
+RSE / mean(datos$Sales)
+
+```
+
+
+```{r}
+
+summary(modelo)$r.squared
+
+```
+
+## Regresión lineal múltiple {-}
+
+```{r, warning = FALSE}
+
+datos %>% 
+    pivot_longer(cols = TV:Newspaper, values_to = "Presupuesto") %>% 
+    nest(-name) %>% 
+    mutate(modelo = map(data, ~lm(Sales ~ Presupuesto, data = .x)), 
+           resumen = map(modelo, tidy)) %>% 
+    unnest(resumen) %>% 
+    select(-data, -modelo)
+
+```
+
+
+### Estimación de coefficientes {-}
+
+```{r}
+
+modelo.multiple <- lm(Sales ~ ., data = datos %>% select(-X))
+modelo.multiple
+
+```
+
+
+###  Precisión en las estimaciones {-}
+
+```{r}
+
+X <- as.matrix(datos %>% select(-X, -Sales) %>% mutate( cte = 1))
+sigma <- sqrt(var(residuals(summary(modelo.multiple)))*(199/196))
+sigma * sqrt(diag(solve(t(X) %*% X)))
+
+```
+
+
+```{r}
+
+sqrt(diag(vcov(modelo.multiple)))
+
+```
+
+
+```{r}
+
+summary(modelo.multiple)
+
+```
+
+
+
+```{r}
+
+reshape2::melt(cor(datos %>% select(-X))) %>% 
+  ggplot(aes(Var1, Var2, fill = value)) + 
+    geom_tile() + 
+    geom_text(aes(Var2, Var1, label = round(value, 2)), color = "black", size = 4) + 
+    sin_lineas + xlab("") + ylab("") + 
+    scale_fill_gradient2(low = "blue", high = "salmon", mid = "white", 
+                         midpoint = 0, limit = c(-1,1), space = "Lab",
+                         name="Correlación\n de Pearson\n")
+
+```
+
+
+```{r, cache = TRUE}
+
+n <- 500
+p <- 100
+
+
+simula_modelo <- function(id){
+  dt <- as.tibble(matrix(rnorm(n * p), nrow = n, byrow = TRUE)) %>% 
+  mutate(y = rnorm(n))
+
+  lm(y ~ ., data = dt)
+}
+
+dt <- tibble(id = seq(200)) %>% 
+  mutate(modelo = map(id, simula_modelo), 
+         coefs  = map(modelo, tidy)) %>% 
+  unnest(coefs) %>% 
+  filter(term != "(Intercept)") %>% 
+  group_by(id) %>% 
+  summarise(nump = sum(p.value < 0.05), .groups = "drop") %>% 
+  group_by(nump) %>% 
+  summarise(conteo = n(), .groups = 'drop')
+  
+dt %>% 
+  ggplot(aes(nump, conteo)) +
+    geom_bar(stat = "identity") + 
+    xlab("Número de valores-p significativos") + 
+    ylab("Frecuencia")  + sin_lineas
+
+```
+
+
+
+```{r}
+
+c(summary(lm(Sales ~ ., data = datos %>% select(-X)))$r.squared, 
+  summary(lm(Sales ~ . - Newspaper, data = datos %>% select(-X)))$r.squared, 
+  summary(lm(Sales ~ . - Newspaper - Radio, data = datos %>% select(-X)))$r.squared)
+
+```
+
+
+```{r}
+summary(lm(Sales ~ ., data = datos %>% select(-X)))
+```
+
+
+### Predictores categóricos {-}
+
+
+```{r}
+
+summary(lm(Balance ~ Student, Credit))
+
+```
+
+```{r}
+
+t.test(Balance ~ Student, data = Credit)
+
+```
+
+
+
+```{r}
+
+summary(lm(Balance ~ Student, Credit %>% mutate(Student = fct_relevel(Student, "Yes"))))
+
+```
+
+
+```{r}
+
+summary(lm(Balance ~ Ethnicity, Credit))
+
+```
+
+```{r}
+
+summary(lm(Balance ~ Ethnicity, Credit %>% mutate(Ethnicity = fct_relevel(Ethnicity, "Asian"))))
+
+```
+
+```{r}
+
+summary(lm(Balance ~ Income + Student, Credit))
+
+```
+
+### Interacciones {-}
+
+```{r}
+
+summary(lm(Sales ~ TV + Radio + TV*Radio, datos))
+
+```
+
+
+```{r}
+
+summary(lm(Balance ~ Income + Student + Income * Student, Credit))
+
+```
+
+
+```{r, fig.asp = .4}
+
+g1 <- Credit %>% 
+  ggplot(aes(Income, Balance)) + 
+    geom_point() + sin_lineas
+
+g2 <- Credit %>% 
+  ggplot(aes(Income, Balance, group = Student, color = Student)) + 
+    geom_point() + sin_leyenda + sin_lineas
+
+g3 <- Credit %>% 
+  ggplot(aes(Income, Balance, group = Student, color = Student)) + 
+    geom_point(alpha = .3) + 
+    stat_smooth(method = "lm")  + sin_lineas
+
+g1 + g2 + g3
+
+```
+### ¿Interpretación de coeficientes? {-}
+
+```{r, message = FALSE}
+kidiq <- read_csv("../datos/kidiq.csv")
+summary(lm(kid_score ~ mom_iq, kidiq))
+```
+
+```{r}
+summary(lm(kid_score ~ mom_iq + mom_hs + mom_iq * mom_hs, kidiq))
+```
+
+```{r, message = FALSE}
+g1 <- ggplot(kidiq, aes(mom_iq, kid_score)) + 
+  geom_point(alpha = .3) + 
+  stat_smooth(method = lm, color ='salmon') + sin_lineas
+
+g2 <- ggplot(kidiq, aes(mom_iq, kid_score, group = mom_hs, color = factor(mom_hs))) + 
+  geom_point(alpha = .3) + 
+  stat_smooth(method = lm) + sin_lineas
+
+g1 + g2
+```
+
+```{r}
+
+kidiq.centered <- kidiq %>% 
+  mutate(mom_iq = mom_iq - mean(mom_iq))
+
+summary(lm(kid_score ~ mom_iq + mom_hs + mom_iq * mom_hs, kidiq.centered))
+
+```
+
+
+### Relaciones no lineales {-}
+
+```{r}
+
+summary(lm(mpg ~ poly(horsepower, 2, raw = TRUE), Auto))
+
+```
+
+
+```{r}
+
+g1 <- Auto %>% 
+  ggplot(aes(horsepower, mpg)) + 
+  geom_point(alpha = .3) + 
+  stat_smooth(method = lm, formula = y ~ x, color = 'salmon') + sin_lineas
+
+g2 <- Auto %>% 
+  ggplot(aes(horsepower, mpg)) + 
+  geom_point(alpha = .3) + 
+  stat_smooth(method = lm, formula = y ~ poly(x, 2, raw = TRUE), color = 'salmon') + 
+  sin_lineas
+
+g1 + g2
+
+```
+
+## Extensiones del modelo lineal {-}
+
+```{r}
+x <- 7*runif(50)
+y <- cos(x) + 0.15 * rnorm(length(x))
+
+newx <- tibble(x = matrix(seq(0,12,.1)))
+dt <- tibble(x = x, y = y)
+
+g1 <- ggplot(dt, aes(x,y)) + geom_point(size=2)
+g1
+```
+
+
+```{r}
+m1 <- lm(y ~ x, data = dt)
+
+newx <- data.frame(x = matrix(seq(0,7,.01)))
+dnew <- tibble(x = newx$x, y = predict(m1, newx))
+pred <- geom_line(data = dnew, aes(x = x, y = y), colour = 'salmon')
+
+g1 + geom_smooth(method = lm, colour = 'salmon') 
+```
+
+```{r, echo = F}
+eps1 <- 2
+eps2 <- 4
+dt$reg <- cut(dt$x, breaks = c(min(dt$x),eps1,eps2,max(dt$x)), include.lowest = T)
+m4 <- lm(y~reg, data = dt)
+
+newx$reg <- cut(newx$x, breaks = c(min(dt$x),eps1,eps2,max(dt$x)), include.lowest = T)
+dnew$reg <- newx$reg
+dnew$y1 <- predict(m4, newx)
+dnew$s2 <- predict(m4, newx, se.fit = T)$se.fit
+
+pred2 <- geom_line(data = dnew, aes(x = x, y = y1, group = reg), colour = 'salmon')
+
+e1 <-  geom_vline(data = dnew, xintercept = eps1, lty = 2) 
+e2 <-  geom_vline(data = dnew, xintercept = eps2, lty = 2)
+rib2 <- geom_ribbon(data = dnew, aes(x = x, ymin= y1-2*s2, ymax = y1+2*s2, group = reg),
+alpha = 0.3) 
+
+print(g1 + pred2 + e1 + e2 + rib2 + ggtitle("Predicción lineal por regiones"))
+```
+
+```{r}
+eps1 <- 2
+eps2 <- 4
+dt$reg <- cut(dt$x, breaks = c(min(dt$x),eps1,eps2,max(dt$x)), include.lowest = T)
+m4 <- lm(y~reg * x, data = dt)
+
+newx$reg <- cut(newx$x, breaks = c(min(dt$x),eps1,eps2,max(dt$x)), include.lowest = T)
+dnew$reg <- newx$reg
+dnew$y1 <- predict(m4, newx)
+dnew$s2 <- predict(m4, newx, se.fit = T)$se.fit
+
+pred2 <- geom_line(data = dnew, aes(x = x, y = y1, group = reg), colour = 'salmon')
+
+e1 <-  geom_vline(data = dnew, xintercept = eps1, lty = 2) 
+e2 <-  geom_vline(data = dnew, xintercept = eps2, lty = 2)
+rib2 <- geom_ribbon(data = dnew, aes(x = x, ymin= y1-2*s2, ymax = y1+2*s2, group = reg),
+alpha = 0.3) 
+
+print(g1 + pred2 + e1 + e2 + rib2 + ggtitle("Predicción lineal por regiones"))
+```
+
+
+```{r, echo = F}
+library(splines)
+m4 <- lm( y~bs(x, degree = 1, 2), data = dt)
+
+dnew$y1 <- predict(m4, newx)
+dnew$lower <- as_tibble(predict(m4, newx, interval = 'confidence'))$lwr
+dnew$upper <- as_tibble(predict(m4, newx, interval = 'confidence'))$upr
+
+pred2 <- geom_line(data = dnew, aes(x = x, y = y1), colour = 'salmon')
+rib2 <- geom_ribbon(data = dnew, aes(x = x, ymin= lower, ymax = upper),
+alpha = 0.3) 
+
+print(g1 + pred2 + rib2 + ggtitle("Regresión con splines"))
+```
+
+
+```{r, echo = F}
+m4 <- lm( y~bs(x, degree = 1, 3), data = dt)
+
+dnew$y1 <- predict(m4, newx)
+dnew$lower <- as_tibble(predict(m4, newx, interval = 'confidence'))$lwr
+dnew$upper <- as_tibble(predict(m4, newx, interval = 'confidence'))$upr
+
+pred2 <- geom_line(data = dnew, aes(x = x, y = y1), colour = 'salmon')
+rib2 <- geom_ribbon(data = dnew, aes(x = x, ymin= lower, ymax = upper),
+alpha = 0.3) 
+
+
+print(g1 + pred2 + rib2 + ggtitle("Regresión con splines"))
+```

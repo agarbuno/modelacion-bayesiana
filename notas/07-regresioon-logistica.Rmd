@@ -1,0 +1,383 @@
+
+# Regresión logística
+
+
+```{r setup, include=FALSE, message=FALSE}
+library(tidymodels)
+library(tidyverse)
+library(cmdstanr)
+library(rstanarm)
+library(arm)
+library(bayesplot)
+library(loo)
+
+library(patchwork)
+library(scales)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning=FALSE, 
+                      fig.align = 'center', fig.width = 5, fig.height=3, cache = TRUE)
+comma <- function(x) format(x, digits = 2, big.mark = ",")
+theme_set(theme_linedraw())
+color.blues <- c(NA,"#BDD7E7", "#6BAED6", "#3182BD", "#08519C", "#074789", "#063e77", "#053464")
+color.itam  <- c("#00362b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f")
+
+
+sin_lineas <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+sin_leyenda <- theme(legend.position = "none")
+sin_ejes <- theme(axis.ticks = element_blank(), 
+                  axis.text = element_blank())
+```
+
+
+```{r}
+bayes_sim <- function(n, a=-2, b=0.8, refresh = 0){
+  x <- runif(n, -1, 1)
+  z <- rlogis(n, a + b*x, 1)
+  y <- ifelse(z>0, 1, 0)
+  fake <- data.frame(x, y)
+  glm_fit <- glm(y ~ x, family = binomial(link = "logit"), data = fake)
+  stan_fit <- stan_glm(y ~ x, family = binomial(link = "logit"),
+     prior=normal(0.5, 0.5, autoscale=FALSE), data = fake, 
+     refresh = refresh)
+  display(glm_fit, digits=1)
+  print(stan_fit, digits=1)
+}
+```
+
+```{r}
+
+SEED <- 363852
+set.seed(SEED)
+
+bayes_sim(10)
+
+
+```
+
+```{r}
+bayes_sim(100)
+```
+
+```{r}
+bayes_sim(1000)
+```
+
+## Construcción de modelo {-}
+
+```{r}
+invlogit <- plogis
+```
+
+
+#### Carga de datos
+
+```{r}
+wells.loc <- read.csv("../datos/arsenic/All.csv")
+
+wells.loc %>% 
+    mutate(seguro = factor(ifelse(As > 50, "Si", "No"))) %>% 
+    filter(X > 100) %>% 
+    ggplot(aes(X,Y)) + 
+    geom_point(aes(color = seguro), size = .5) + 
+    sin_lineas + coord_equal() + #sin_leyenda + 
+    labs(title = 'Ubicación de pozos') + 
+    theme(axis.ticks = element_blank(), axis.text.y = element_blank()) + 
+    theme(axis.ticks = element_blank(), axis.text.x = element_blank())
+
+```
+
+
+```{r }
+wells <- read.csv("../datos/arsenic/wells.csv")
+head(wells)
+n <- nrow(wells)
+```
+
+## Modelo nulo
+
+#### Log-score para decisiones con una moneda
+
+```{r }
+prob <- 0.5
+round(log(prob)*sum(wells$switch) + log(1-prob)*sum(1-wells$switch),1)
+```
+
+#### Log-score para modelo con solo el intercepto
+
+```{r }
+round(c(prob = prob <- mean(wells$switch)),2)
+round(c(log.score = log(prob)*sum(wells$switch) + log(1-prob)*sum(1-wells$switch)),2)
+```
+
+```{r}
+fit_0 <- stan_glm(switch ~ 1, 
+                  family = binomial(link = "logit"), 
+                  data=wells, 
+                  refresh = 0)
+```
+
+```{r}
+print(fit_0, 2)
+
+posterior_epred(fit_0, draws= 4000, newdata = tibble(x = 0)) %>% 
+    as_tibble() %>% 
+    ggplot(aes(`1`)) + 
+        geom_histogram(fill = 'darkgray') + 
+        geom_vline(xintercept = mean(wells$switch), lty = 2) + sin_lineas + 
+    xlab("Probabilidad de cambio")
+
+```
+
+
+```{r}
+(loo0 <- loo(fit_0))
+```
+
+
+## Modelo con un predictor
+
+#### Ajustamos un modelo considerando la distancia al pozo
+
+```{r}
+
+wells %>% 
+    ggplot(aes(x = dist)) + 
+        geom_histogram(fill = "darkgray") + sin_lineas + 
+        xlab("Distancia al pozo mas cercano")
+
+```
+
+
+```{r results='hide'}
+fit_1 <- stan_glm(switch ~ dist, 
+                  family = binomial(link = "logit"), 
+                  data=wells, 
+                  refresh = 0)
+
+print(fit_1, digits=3)
+```
+
+
+```{r}
+
+wells <- wells %>% mutate(dist100 = dist/100)
+
+fit_2 <- stan_glm(switch ~ dist100, 
+                  family = binomial(link = "logit"), 
+                  data=wells, 
+                  refresh = 0)
+
+print(fit_2, digits=3)
+
+```
+
+#### Graficando el modelo
+
+```{r}
+nsamples <- 100
+ngrid    <- 100
+
+posterior_epred(fit_2, draws = nsamples,
+                newdata = tibble(dist100 = seq(0, 4, length.out = ngrid))) %>% 
+    as_tibble() %>% 
+    mutate(id_sample = 1:nsamples) %>% 
+    pivot_longer(cols = 1:ngrid) %>% 
+    mutate(name = fct_inorder(name)) %>% 
+    group_by(name) %>% 
+    summarise(mean = mean(value), 
+           hi = quantile(value, .95), 
+           low = quantile(value, .05)) %>% 
+    mutate(dist100 = seq(0, 4, length.out = ngrid)) %>% 
+    ggplot(aes(dist100 * 100, mean)) + 
+        geom_ribbon(aes(ymin = low, ymax = hi), alpha = .3, color = 'darkgray') + 
+        geom_line() + sin_lineas + 
+        geom_jitter(data = wells, aes(dist, switch), height = .02,  size = 1, width = .01) + 
+        labs(x = 'Distancia al pozo seguro mas cercano')
+    
+
+```
+
+#### LOO log score
+
+```{r }
+(loo2 <- loo(fit_2, save_psis = TRUE))
+
+loo_compare(loo2, loo0)
+```
+
+#### Grafico de incertidumbre en los dos coeficientes
+
+```{r}
+
+fit_2 %>% 
+    as_tibble() %>% 
+    ggplot(aes(`(Intercept)`, dist100)) + 
+        geom_point() + 
+        labs(x = expression(beta[0]), 
+             y = expression(beta[1])) + 
+    sin_lineas
+
+```
+
+## Dos predictores
+
+#### Histograma de los niveles de arsénico
+
+```{r}
+
+ggplot(wells, aes(arsenic)) + 
+    geom_histogram(fill = 'darkgray') + 
+    geom_vline(xintercept = .5, lty = 2, color = 'black', size = 1.5) + 
+    sin_lineas
+
+
+```
+
+#### Fit a model using scaled distance and arsenic level
+
+```{r}
+fit_3 <- stan_glm(switch ~ dist100 + arsenic, 
+                  family = binomial(link = "logit"), 
+                  data=wells, 
+                  refresh = 0)
+
+print(fit_3, digits=2)
+```
+
+#### Comparando e interpretando coeficientes
+
+```{r}
+
+fit_3 %>% 
+    as_tibble() %>%
+    pivot_longer(cols = dist100:arsenic) %>% 
+    group_by(name) %>% 
+    summarise(estimate = mean(value)) 
+
+estimate <- fit_3 %>% 
+    as_tibble() %>%
+    pivot_longer(cols = dist100:arsenic) %>% 
+    group_by(name) %>% 
+    summarise(estimate = mean(value)) %>% 
+    pull(estimate)
+
+sd.obs <- wells %>% 
+    pivot_longer(cols = c(dist100,arsenic)) %>% 
+    group_by(name) %>% 
+    summarise(obs.sd = sd(value)) %>% 
+    pull(obs.sd)
+
+c(estimate * sd.obs)/4
+```
+
+```{r}
+
+(dt <- tibble(dist100 = c(.05, 0.05), arsenic = c(.5, 1.5)))
+
+as_tibble(posterior_epred(fit_3, newdata = dt)) %>% 
+    pivot_longer(cols = 1:2) %>% 
+    group_by(name) %>% 
+    summarise(estimate = mean(value), 
+              sd = sd(value), 
+              lb.90 = quantile(value, .05), 
+              ub.90 = quantile(value, .95), .groups = "drop")
+
+```
+
+#### LOO log score
+
+```{r }
+(loo3 <- loo(fit_3, save_psis = TRUE))
+```
+
+#### Comparando modelos
+
+```{r }
+loo_compare(loo2, loo3)
+```
+
+#### Incorporando interacciones
+
+```{r}
+fit_4 <- stan_glm(switch ~ dist100 + arsenic + dist100:arsenic,
+                  family = binomial(link="logit"), data = wells, 
+                  refresh = 0)
+```
+
+```{r }
+print(fit_4, digits=2)
+```
+
+#### LOO log score
+
+```{r }
+(loo4 <- loo(fit_4))
+```
+
+#### Compare models
+
+```{r }
+loo_compare(loo3, loo4)
+```
+
+#### Centrando predictores
+
+```{r }
+wells$c_dist100 <- wells$dist100 - mean(wells$dist100)
+wells$c_arsenic <- wells$arsenic - mean(wells$arsenic)
+```
+
+```{r}
+fit_5 <- stan_glm(switch ~ c_dist100 + c_arsenic + c_dist100:c_arsenic,
+                  family = binomial(link="logit"), data = wells, 
+                  refresh = 0)
+```
+
+```{r }
+print(fit_5, digits=2)
+```
+
+
+```{r}
+(loo5 <- loo(fit_5))
+```
+
+```{r}
+print(fit_4, digits = 3)
+print(fit_5, digits = 3)
+```
+
+#### Comparando incertidumbre
+
+```{r}
+mcmc_pairs(fit_4)
+mcmc_pairs(fit_5)
+```
+#### Graficando el ajuste del modelo
+
+```{r }
+
+nsamples <- 100
+ngrid    <- 100
+
+posterior_epred(fit_4, draws = nsamples,
+                newdata = tibble(dist100 = rep(seq(0, 3.5, length.out = ngrid), 2), 
+                                 arsenic = rep(c(.5, 1.5), each = ngrid))) %>% 
+    as_tibble() %>% 
+    mutate(id_sample = 1:nsamples) %>% 
+    pivot_longer(cols = 1:(ngrid + ngrid)) %>%         # Etiquetas para graficar
+    mutate(dist100 = rep(seq(0, 3.5, length.out = ngrid), 2 * nsamples), 
+           pred_id = factor(rep(rep(c(0,1), each = ngrid), nsamples))) %>% 
+    group_by(pred_id, dist100) %>%                     # Agrupamos
+    summarise(mean = mean(value), 
+           hi = quantile(value, .95), 
+           low = quantile(value, .05), 
+           .groups = 'drop') %>%                       # Graficamos
+    ggplot(aes(dist100 * 100, mean)) + 
+        geom_ribbon(aes(ymin = low, ymax = hi, group = pred_id), alpha = .3, fill = 'darkgray') +
+        geom_line(aes(group = pred_id, color = pred_id)) + sin_lineas + 
+        geom_jitter(data = wells, aes(dist, switch), height = .02,  size = 1, width = .01) + 
+        labs(x = 'Distancia al pozo seguro mas cercano') + 
+        annotate("text", x = 50, y = .29, label = "Arsenic = 0.5") + 
+        annotate("text", x = 50, y = .75, label = "Arsenic = 1.5") + sin_leyenda
+
+```

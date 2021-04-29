@@ -1,0 +1,477 @@
+
+# Transformaciones y regresión lineal 
+
+
+```{r setup, include=FALSE, message=FALSE}
+library(tidymodels)
+library(tidyverse)
+library(cmdstanr)
+library(rstanarm)
+library(bayesplot)
+library(loo)
+
+library(patchwork)
+library(scales)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning=FALSE, 
+                      fig.align = 'center', fig.width = 5, fig.height=3, cache = TRUE)
+comma <- function(x) format(x, digits = 2, big.mark = ",")
+theme_set(theme_linedraw())
+color.blues <- c(NA,"#BDD7E7", "#6BAED6", "#3182BD", "#08519C", "#074789", "#063e77", "#053464")
+color.itam  <- c("#00362b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f")
+
+
+sin_lineas <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+sin_leyenda <- theme(legend.position = "none")
+sin_ejes <- theme(axis.ticks = element_blank(), 
+                  axis.text = element_blank())
+```
+
+## Modelos lineales con transformación: Ganancias {-}
+
+```{r}
+
+SEED <- 7783
+
+earnings <- read.csv("../datos/earnings.csv") %>% 
+    mutate(height = height * 2.54, 
+           weight = weight * 0.453592)
+head(earnings)
+
+```
+
+```{r}
+
+fit_0 <- stan_glm(earn ~ height, data=earnings,
+                  seed = SEED, refresh = 0)
+print(fit_0)
+
+```
+
+```{r, fig.asp = .4}
+earnings <- earnings %>% 
+    mutate(height.c = height - mean(height))
+
+fit_1 <- stan_glm(earn ~ height.c, data=earnings,
+                  seed = SEED, refresh = 0)
+print(fit_1)
+```
+
+
+```{r, fig.asp = .4}
+g.1 <- earnings %>% 
+    ggplot(aes(height, earn)) + 
+        geom_point() + sin_lineas + 
+    ggtitle("Datos")
+
+sims_display <- sample(nrow(as.matrix(fit_1)), 500)
+
+g.2 <- earnings %>% 
+    ggplot(aes(height, earn)) + 
+        geom_point() + 
+        geom_abline(intercept = as.matrix(fit_1)[sims_display,1] - 
+                        as.matrix(fit_1)[sims_display,2] * mean(earnings$height), 
+                    slope     = as.matrix(fit_1)[sims_display,2], 
+                    alpha = .01, 
+                    color = "darkgray") + sin_lineas + 
+        ggtitle("Modelo ajustado")
+
+
+g.3 <- mcmc_areas(as.matrix(fit_1), pars = c("(Intercept)", "height.c")) + sin_lineas + 
+    ggtitle("Simulaciones")
+
+g.1 + g.2 + g.3
+
+```
+
+```{r}
+fit_2 <- stan_glm(earnk ~ height, data = earnings,
+                  seed = SEED, refresh = 0)
+print(fit_2)
+```
+```{r}
+g.2 <- earnings %>% 
+    ggplot(aes(height, earn)) + 
+        geom_point() + 
+        geom_abline(intercept = as.matrix(fit_2)[sims_display,1] * 1000, 
+                    slope     = as.matrix(fit_2)[sims_display,2] * 1000, 
+                    alpha = .01) + sin_lineas + 
+        ggtitle("Modelo ajustado")
+
+
+g.3 <- mcmc_areas(as.matrix(fit_2), pars = c("(Intercept)", "height")) + sin_lineas + 
+    ggtitle("Simulaciones")
+
+g.1 + g.2 + g.3
+```
+
+```{r}
+
+earnings <- earnings %>% 
+    mutate(height.z = height.c/(2 * sd(height)))
+
+fit_3 <- stan_glm(earnk ~ height.z, data = earnings,
+                  seed = SEED, refresh = 0)
+print(fit_3)
+```
+
+```{r}
+
+g.3 <- mcmc_areas(as.matrix(fit_3), pars = c("(Intercept)", "height.z")) + sin_lineas + 
+    ggtitle("Simulaciones")
+
+g.1 + g.3
+```
+
+### Transformación logaritmica {-}
+
+```{r}
+
+logmodel_1 <- stan_glm(log(earn) ~ height, data = earnings,
+                       subset = earn>0,
+                       seed = SEED, refresh = 0)
+
+print(logmodel_1, digits=2)
+
+```
+
+```{r}
+exp(0.02)
+```
+
+$$ \exp(0.02) \approx 1.02\,. $$
+$$ \exp(x) \approx 1 + x\,.$$
+
+
+```{r}
+
+g1 <- earnings %>% filter(earn>0) %>% 
+    ggplot(aes(height, log(earn))) +
+      geom_jitter(height = 0, width = 0.25) +
+      geom_abline(
+        intercept = as.matrix(logmodel_1)[sims_display, 1],
+        slope = as.matrix(logmodel_1)[sims_display, 2],
+        color = "darkgray", 
+        alpha = .1
+      ) +
+      geom_abline(
+        intercept = coef(logmodel_1)[1],
+        slope = coef(logmodel_1)[2]
+      ) +
+      labs(
+        x = "height",
+        y = "log(earnings)",
+        title = "Regresión en escala logarítmica"
+      ) + sin_lineas
+
+g1
+```
+
+```{r}
+make_predictions <- function(coefs){
+    tibble(height = seq(55 * 2.54, 85 * 2.54, length.out = 50)) %>% 
+        mutate(pred = exp(coefs$`(Intercept)` + coefs$height * height + 0.5 * (coefs$sigma)**2))
+}
+
+predictions.log <- as_tibble(logmodel_1) %>% 
+    mutate(sample = seq(1, 4000)) %>% 
+    sample_n(500) %>% 
+    nest(-sample) %>% 
+    mutate(preds = map(data, make_predictions)) %>% 
+    unnest(preds)
+```
+
+
+```{r}
+g2 <- earnings %>% filter(earn>0) %>% 
+    ggplot(aes(height, earn)) +
+      geom_jitter(height = 0, width = 0.25) +
+    geom_line(data = predictions.log, aes(height, pred, group = sample), 
+              color = "darkgray", alpha = .1) +
+    geom_line(data = predictions.log %>% 
+                  group_by(height) %>% 
+                  summarise(pred = mean(pred)), aes(height, pred), 
+              color = "black") + 
+    labs(
+        x = "height",
+        y = "earnings",
+        title = "Regresión en escala original"
+      ) + sin_lineas
+
+g1 + g2
+```
+
+```{r}
+
+loglogmodel_2 <- stan_glm(log(earn) ~ log(height), data = earnings,
+                          subset = earn>0,
+                          seed = SEED, refresh = 0)
+print(loglogmodel_2, digits=2)
+
+```
+```{r}
+
+make_predictions <- function(coefs){
+    tibble(height = seq(55 * 2.54, 85 * 2.54, length.out = 50)) %>% 
+        mutate(pred = exp(coefs$`(Intercept)` + coefs$`log(height)` * log(height) + 
+                            .5 * coefs$sigma**2))
+}
+
+predictions.loglog <- as_tibble(loglogmodel_2) %>% 
+    mutate(sample = seq(1, 4000)) %>% 
+    sample_n(500) %>% 
+    nest(-sample) %>% 
+    mutate(preds = map(data, make_predictions)) %>% 
+    unnest(preds)
+
+```
+
+```{r}
+dat <- tibble(height = seq(55 * 2.54, 85 * 2.54, length.out = 50))
+
+dat.predict <- as_tibble(posterior_predict(logmodel_1, newdata = dat, fun = "exp")) %>% 
+  mutate(sample_id = 1:4000) %>% 
+  pivot_longer(cols = 1:50) %>% 
+  mutate(name = fct_inorder(name)) %>% 
+  group_by(name) %>% 
+  summarise(mean = mean(value), 
+            median = median(value), 
+            low = quantile(value, .05), 
+            hi = quantile(value, .95)) %>% 
+  mutate(height = seq(55 * 2.54, 85 * 2.54, length.out = 50)) 
+
+dat.linpred <- as_tibble(posterior_linpred(logmodel_1, newdata = dat)) %>% 
+  mutate(sample_id = 1:4000) %>% 
+  pivot_longer(cols = 1:50) %>% 
+  mutate(name = fct_inorder(name)) %>% 
+  group_by(name) %>% 
+  summarise(mean = mean(exp(value + 0.5 * .88**2)), 
+            median = median(exp(value+ 0.5 * .88**2)), 
+            low = quantile(exp(value+ 0.5 * .88**2), .05), 
+            hi = quantile(exp(value+ 0.5 * .88**2), .95)) %>% 
+  mutate(height = seq(55 * 2.54, 85 * 2.54, length.out = 50)) 
+```
+
+
+```{r, fig.asp = .4}
+
+g4 <- dat.predict %>% 
+  ggplot(aes(height, mean)) + 
+    geom_ribbon(aes(ymin =low, ymax = hi), alpha = .2) + 
+    geom_line() + sin_lineas + 
+      geom_jitter(data = earnings %>% filter(earn>0), 
+                  aes(height, earn), 
+                  height = 0, width = 0.25) + 
+    labs(title = "Predicción modelo")
+
+g5 <- dat.linpred %>% 
+  ggplot(aes(height, mean)) + 
+    geom_ribbon(aes(ymin =low, ymax = hi), alpha = .3) + 
+    geom_line() + sin_lineas + 
+    geom_ribbon(data = dat.predict, aes(ymin =low, ymax = hi), alpha = .2) + 
+    geom_line(data = dat.predict,aes(height, mean)) + 
+      geom_jitter(data = earnings %>% filter(earn>0), 
+                  aes(height, earn), 
+                  height = 0, width = 0.25) + 
+    labs(title = "Predicción con descomposición de errores")
+
+g2 + g4 + g5
+
+```
+
+$$ \log y \sim \mathsf{N}(\mu(x), \sigma^2)$$ 
+$$ y \sim \log   \mathsf{N}(\mu(x), \sigma^2)$$
+$$ \mathbb{E}(y) = \exp(\mu + \frac{\sigma^2}{2}) $$
+
+```{r, fig.asp = .4}
+g3 <- earnings %>% filter(earn>0) %>% 
+    ggplot(aes(height, earn)) +
+      geom_jitter(height = 0, width = 0.25) +
+    geom_line(data = predictions.loglog, aes(height, pred, group = sample), 
+              color = "darkgray", alpha = .1) +
+    geom_line(data = predictions.loglog %>% 
+                  group_by(height) %>% 
+                  summarise(pred = mean(pred)), aes(height, pred), 
+              color = "black") + 
+    labs(
+        x = "height",
+        y = "earnings",
+        title = "Regresión log-log en escala original"
+      ) + sin_lineas
+
+g1 + g2 + g3
+```
+
+```{r}
+yrep_0 <- posterior_predict(fit_1)
+n_sims <- nrow(yrep_0)
+sims_display <- sample(n_sims, 100)
+ppc_0 <- ppc_dens_overlay(earnings$earn, yrep_0[sims_display,]) +
+  theme(axis.line.y = element_blank()) + sin_lineas + 
+    labs(title = 'Regresion en escala original')
+```
+
+```{r}
+yrep_log_1 <- posterior_predict(logmodel_1)
+n_sims <- nrow(yrep_log_1)
+sims_display <- sample(n_sims, 100)
+ppc_log_1 <- ppc_dens_overlay(log(earnings$earn[earnings$earn>0]), yrep_log_1[sims_display,]) +
+    theme(axis.line.y = element_blank()) + sin_lineas + 
+    labs(title = 'Regresión en escala logaritmica')
+
+ppc_0 + ppc_log_1
+```
+
+## Modelos lineales con transformación: [Mezquite](https://es.wikipedia.org/wiki/Mezquite{-}
+
+```{r}
+
+mesquite <- as_tibble(read.table("../datos/mesquite.dat", header = TRUE))
+mesquite %>% head()
+
+```
+
+
+```{r}
+fit_1 <- stan_glm(weight ~ diam1 + diam2 + canopy_height + total_height +
+                    density + group, data=mesquite, seed=SEED, refresh=0)
+print(fit_1)
+```
+```{r}
+loo_1 <- loo(fit_1)
+loo_1
+```
+
+```{r}
+kfold_1 <- kfold(fit_1, K=10)
+kfold_1
+```
+
+```{r}
+fit_2 <- stan_glm(log(weight) ~ log(diam1) + log(diam2) + log(canopy_height) +
+                      log(total_height) + log(density) + group,
+                  data=mesquite, seed=SEED, refresh=0)
+(loo_2 <- loo(fit_2))
+```
+
+```{r}
+loo_2_with_jacobian <- loo_2
+loo_2_with_jacobian$pointwise[,1] <- loo_2_with_jacobian$pointwise[,1]-
+                                     log(mesquite$weight)
+(elpd_loo_2_with_jacobian <- sum(loo_2_with_jacobian$pointwise[,1]))
+```
+
+```{r}
+
+loo_compare(kfold_1, loo_2_with_jacobian)
+
+```
+
+
+```{r}
+yrep_1 <- posterior_predict(fit_1)
+n_sims <- nrow(yrep_1)
+sims_display <- sample(n_sims, 100)
+ppc_1 <- ppc_dens_overlay(mesquite$weight, yrep_1[sims_display,]) +
+    theme(axis.line.y = element_blank()) + sin_lineas + 
+    labs(title = "Modelo escala original")
+```
+
+```{r, fig.asp = .4}
+yrep_2 <- posterior_predict(fit_2)
+ppc_2 <- ppc_dens_overlay(log(mesquite$weight), yrep_2[sims_display,]) +
+  theme(axis.line.y = element_blank()) + sin_lineas + 
+    labs(title = "Modeo en escala logaritmica")
+
+ppc_1 + ppc_2
+```
+
+```{r}
+mcmc_areas(as.matrix(fit_2), regex_pars = "^log|^gro") + sin_lineas
+```
+
+
+```{r}
+mcmc_scatter(as.matrix(fit_2), pars = c("log(canopy_height)","log(total_height)"), size = 1) +
+    geom_vline(xintercept=0) +
+    geom_hline(yintercept=0) +
+    labs(x="coef of log(canopy_height)", y="coef of log(total_height)") + sin_lineas
+```
+
+```{r}
+mesquite$canopy_volume <- mesquite$diam1 * mesquite$diam2 * mesquite$canopy_height
+mesquite$canopy_area <- mesquite$diam1 * mesquite$diam2
+mesquite$canopy_shape <- mesquite$diam1 / mesquite$diam2
+```
+
+```{r}
+fit_3 <- stan_glm(log(weight) ~ log(canopy_volume), data=mesquite,
+                  seed=SEED, refresh=0)
+print(fit_3)
+```
+```{r}
+loo_3 <- loo(fit_3)
+```
+
+```{r}
+loo_compare(loo_2, loo_3)
+```
+
+```{r}
+fit_4 <- stan_glm(log(weight) ~ log(canopy_volume) +
+                      log(canopy_area) + log(canopy_shape) +
+                      log(total_height) + log(density) + group,
+                  data=mesquite, seed=SEED, refresh=0)
+print(fit_4)
+```
+```{r}
+(loo_4 <- loo(fit_4))
+```
+```{r}
+loo_compare(loo_2, loo_4)
+```
+
+```{r}
+r2_fit4 <- mcmc_hist(data.frame(bayes_R2(fit_4)), binwidth=0.005)+
+  xlab('Bayesian R^2') + scale_y_continuous(breaks=NULL) + sin_lineas + 
+    labs( title = "Modelo con 6 predictores")
+r2_fit4
+```
+
+```{r}
+mcmc_fit4 <- mcmc_areas(as.matrix(fit_4)) + sin_lineas +
+        labs(title = "Modelo complejo")
+mcmc_fit4
+```
+
+```{r}
+mcmc_pairs(as.matrix(fit_4), pars=c("log(canopy_volume)","log(canopy_area)",
+                                    "log(canopy_shape)","log(total_height)",
+                                    "log(density)"))
+```
+
+```{r}
+fit_5 <- stan_glm(log(weight) ~ log(canopy_volume) + log(canopy_shape) +
+    group, data=mesquite, seed=SEED, refresh=0)
+(loo_5 <- loo(fit_5))
+```
+
+```{r}
+loo_compare(loo_4, loo_5)
+```
+
+```{r}
+r2_fit5 <- mcmc_hist(data.frame(bayes_R2(fit_5)), binwidth=0.005)+
+  xlab('Bayesian R^2') + scale_y_continuous(breaks=NULL) + sin_lineas + 
+    labs( title = "Modelo con 3 predictores")
+
+r2_fit4 / r2_fit5
+```
+
+```{r}
+
+mcmc_fit5 <- mcmc_areas(as.matrix(fit_5)) + sin_lineas + 
+    labs(title = "Modelo parsimonioso")
+
+mcmc_fit4 + mcmc_fit5
+
+```
