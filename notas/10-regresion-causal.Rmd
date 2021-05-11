@@ -1,0 +1,35 @@
+
+# Modelos de regresión para inferencia causal
+
+
+```{r setup, include=FALSE, message=FALSE}
+library(cmdstanr)
+library(rstanarm)
+library(arm)
+library(bayesplot)
+library(loo)
+
+library(patchwork)
+library(scales)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning=FALSE, 
+                      fig.align = 'center', fig.width = 5, fig.height=3, cache = TRUE)
+comma <- function(x) format(x, digits = 2, big.mark = ",")
+theme_set(theme_linedraw())
+color.blues <- c(NA,"#BDD7E7", "#6BAED6", "#3182BD", "#08519C", "#074789", "#063e77", "#053464")
+color.itam  <- c("#00362b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f")
+
+
+sin_lineas <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+sin_leyenda <- theme(legend.position = "none")
+sin_ejes <- theme(axis.ticks = element_blank(), 
+                  axis.text = element_blank())
+
+options(mc.cores = 4)
+```
+
+
+
+```{r}
+https://github.com/avehtari/ROS-Examples/blob/master/ElectricCompany/data/electric_wide.txt
+```
+
