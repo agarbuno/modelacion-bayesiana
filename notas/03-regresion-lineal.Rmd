@@ -1,6 +1,32 @@
 
-# Modelos de regresión lineal
 
+
+---
+title: "Modelos de regresión lineal (clase 12)"
+author: "Elizabeth Viveros Vergara"
+date: "25 de febrero de 2021"
+output:
+  pdf_document: default
+  htm_document: default
+---
+
+\section{Introducción}
+
+El modelo de regresión lineal se utiliza para hacer predicciones sobre variables cuantitativas y, en este caso,
+se emplea para construir modelos más complejos desde un punto de vista estadístico.
+
+\section{Modelos de regresión lineal simple o en una dimensión}
+
+El modelo de regresión lineal bajo una dimensión $\mathbb{R}$, se define como:
+$$
+y \approx \beta_0 + \beta_1
+$$
+donde $y$ es la variable respuesta o variable dependiente, es decir, la variable objetivo que se desea predecir;
+mientras que $x$ es la variable predictora o variable inpependiente. Con ello, se espera predecir aproximadamente
+una relación lineal entre las variables en términos de una recta.
+
+Por ejemplo, se tiene un conjunto de datos correspondiente a las ventas y el presupuesto invertido en publicidad
+del producto, ya sea en periódico, televisión y radio (como se muestra en el siguiente gráfico.
 
 ```{r, include=FALSE, message=FALSE}
 library(tidymodels)
@@ -34,7 +60,66 @@ datos %>%
 
 ```
 
-### Estimación de coeficientes {-}
+Por lo que, si se quisiera realizar un modelo predictivo o estudiar la relación del efecto de hacer inversión
+en ciertos canales de publicidad, entonces se trataría de definir cuál es el mejor canal de comunicación para
+promover el producto; para ello es necesario hacer ciertas preguntas:
+
+- ¿Existe algún tipo de relación entre el presupuesto que se asigna a publicidad y las ventas?
+- ¿Qué tan fuerte es la asociación entre el presupuesto y las ventas?
+- ¿Qué tipo de anuncios tienen un mayor impacto?
+- ¿La asociación es fuerte o cuáles tienen un mayor impacto?
+
+Así mismo, después de que se realiza la estimación, se debe verificar qué tan precisa es la estimación de
+la relación que se encontró, además de comprobar qué tan precisa es la predicción sobre el nivel de ventas.
+Y, si la relación que se da entre las variables es lineal, eso significa que existe cierta monotonía, cierto
+comportamiento sobre el efecto de invertir dinero en publicidad para incrementar las unidades vendidas. De
+manera que, ¿existe algún tipo de cinergia entre los medios? Es decir, ¿se obtiene un incremento mayor
+en las ventas del producto, si se invierte la misma cantidad de dinero en publicidad, tanto en periódicos
+como en televisión, que si únicamente se hubiera invertido la misma cantidad de dinero, pero de manera
+independiente? Todas estás interrogantes se pueden reponder al estimar el modelo de regresión lineal, para
+este caso, se define de la siguiente manera:
+
+$$
+\textrm{Ventas} \approx \beta_0 + \beta_1\textrm{TV}.
+$$
+Con dicho modelo se espera que aproximadamente las ventas estén relacionadas de manera lineal con hacer
+publicidad en televisión. No se conocen los parámetros $\beta_0$ y $\beta_1$, el intercepto y la pendiente, respectivamente;
+así que al estimarlo se recuperan dichos parámetros ($\hat{\beta_0}$, $\hat{\beta_1}$), de tal forma que una predicción que se efectúe
+estará dada por:
+
+$$
+\hat{y} \approx \hat{\beta_0} + \hat{\beta_1}x.
+$$
+Para el modelo anterior se define el vector de parámetros de dos dimensiones que se denota como, $\theta =(\beta_0, \beta_1)^T \in \Bbb{R}^2$. Y para estimarlo (encontrar $\theta$), se minimiza la diferencia entre la estimación ($\hat{y}$) y el valor observado ($y$) de todas las observaciones que se tienen al cuadrado, es decir, $\sum_{i=1}^n(\hat{y_i}-y_i)^2$. Con lo que se espera que que la predicción sea lo más cercana a los datos observados. Así que,
+
+$$
+\hat{\theta} = \textrm{argmin}\underbrace{\sum_{i=1}^n(\hat{y_i}-y_i)^2}_{SR},
+$$
+donde $SR$ es la suma de los residuales al cuadrado ($\sum_{i=1}^n(\hat{y_i}-y_i)^2$), o sea,
+
+$$
+SR = \sum_{i=1}^n(\hat{y_i}-y_i)^2 = \sum_{i=1}^n r_i^2 = \sum_{i=1}^n (\beta_0+\beta_1x_i-y_i)^2.
+$$
+De manera que usando reglas de cálculo multivariado, derivando e igualdo a cero cada deriva parcial, se
+obtiene lo siguiente:
+
+$$
+\hat{\beta_1} = \frac{\sum_{i=1}^n (x_i - \bar{x}_n)(y_i - \bar{y}_n)}{(x_i - \bar{x}_n)^2},
+$$
+donde $\bar{x}_n=\frac{1}{n}\sum_{i=1}^n x_i$. Y, 
+
+$$
+\hat{\beta_0} = \hat{y}_n - \hat{\beta_1}\bar{x}_n.
+$$
+\subsection{Estimación de coeficientes usando código} 
+
+Se estiman los coeficientes usando la función **lm** que relaciona la variable de salida, **Sales** (ventas), con la
+cantidad de inversión en publicidad, en este caso, televisión. Al correr este modelo (como se observa en la
+salida del código siguiente) se obtienen los estimadores, $\hat{\beta_0} = 7.03259$ y $\hat{\beta_1}=0.04759$. La interpretación de
+estos coeficientes es que en general, **en promedio**, $\hat{\beta_1}$ representa representa las unidades adicionales que se venderan
+más por cada unidad adicional invertida en publicidad (TV), pero si se decide no invertir nada en publicidad
+en televisión, entonces las ventas **en promedio** serían de 7.03 unidades.
+
 
 ```{r}
 
@@ -42,7 +127,23 @@ modelo <- lm(Sales ~ TV, data = datos)
 modelo
 
 ```
+En la siguiente gráfica se puede ver la relación positiva lineal que tienen las ventas y la cantidad invertida en
+publicidad en televisión. Así mismo, con base en cómo se encuentra definida la ecuación, se sabe que la línea roja va ha descansar en el centro y este centro es, $(\bar{x}, \bar{y})$. Por otra parte, si,
 
+$$
+\hat{y} = \hat{\beta_0} + \hat{\beta_1} x,
+$$
+entonces, 
+
+$$
+\hat{y} = \hat{\beta_0} + \hat{\beta_1}\bar{x}_n + \hat{\beta_1}(x - \bar{x}_n),
+$$
+es decir, 
+
+$$
+\hat{y} = \bar{y}_n + \hat{\beta_1}(x - \bar{x}_n).
+$$
+Por consiguiente, los coeficientes se pueden interpretar como, por cada incremento adicional que se tenga sobre el promedio de inversión en publicidad en televisión, $(x - \bar{x}_n)$, se tiene un incremento de $\hat{\beta_1}$ unidades. Mientras que, el modelo asume que si no estamos por encima de lo que se invierte en promedio, o sea, estamos justo en lo que se invierte en promedio en ventas, $(x - \bar{x}_n) = 0$. Así que, la salida debe ser las ventas en promedio que hemos observado.
 
 ```{r}
 
@@ -65,7 +166,35 @@ datos %>%
 ```
 
 
-### Precisión en estimaciones {-}
+\subsection{Precisión en estimaciones}
+
+El modelo probabilístico que se ha utilizado es el siguiente:
+
+$$
+y = \underbrace{\beta_0 + \beta_1x}_{\textrm{Modelo linel}} + \underbrace{\varepsilon}_{\textrm{Término error}}.
+$$
+El término error puede representar un error observacional alrededor del modelo lineal, pero también puede representar toda la inalienabilidad que tiene este modelo para establecer una relación directa con los datos. Este término de error compensa las limitantes del modelo lineal. Por lo que, $\varepsilon$ es una variable aleatoria con $\Bbb{E}(\varepsilon) = 0$ y $\Bbb{V}(\varepsilon)=\sigma^2$. Y se desea que el nivel de varianza sea el mismo alrededor de la recta, en todo el dominio del problema $(x)$, es decir, $\Bbb{V}(\varepsilon)=\sigma^2 \neq \sigma^2(x)$. Por simplicidad, asumimos que,
+
+$$
+\varepsilon \sim N(0, \sigma^2),
+$$
+De manera que, 
+
+$$
+ln(\beta) = log \ \mathcal{L}_n(\beta) = \frac{1}{n} \sum_{i=1}^n log \ \pi_{\varepsilon} (y_i - \hat{y_i}),
+$$
+donde $\pi_{\varepsilon}$ es la densidad de una $N(0, \sigma^2)$. Si se quisiera efectuar el modelo bajo distintas realizaciones de $(x_i, y_i)$, se podría caracterizar la varianza de los estimadores $(\Bbb{V}(\hat{\beta}))$ usando el error cuadrático ($SE = (\hat{\beta_0}) = \sqrt{\Bbb{V}(\beta_0)}$) y $SE$ se puede calcular para cada estimador de la siguiente manera: 
+
+$$
+SE(\hat{\beta_0}) = \sigma^2 \left(\frac{1}{n} + \frac{\bar{x}_n^2}{\sum_{i=1}^{n}(x_i - x_n)^2}\right),
+$$
+y, 
+
+$$
+SE(\hat{\beta_1}) = \frac{\sigma^2}{\sum_{i=1}^{n}(x_i - x_n)^2}.
+$$
+
+También, otra forma de calcular lo anterior de manera aproximada, es decir, caracterizar la variación que existe en estas estimaciones cuando solo se tiene una muestra, es utilizar **bootstrap**.   
 
 Codigo obtenido de
 [tidymodels](https://www.tidymodels.org/learn/statistics/bootstrap/). También
@@ -100,6 +229,8 @@ boot_coefs <- boot_models %>%
 
 ```
 
+- Con **bootstrap** se puede calcular el promedio y la desviación estándar del modelo, así mismo intervalos de confianza centrados utilizando el supuesto de normalidad y/o intervalos de confianza basados en percentiles, como se muestra a continuación.
+
 ```{r}
 
 boot_models %>% 
@@ -119,6 +250,7 @@ percentile_intervals
 
 ```
 
+- Con este método se están generando distintos conjuntos de entrenamiento y como se presenta en los gráficos siguientes, se están calculando las estimaciones para $\beta_0$ y $\beta_1$.
 
 ```{r}
 
@@ -130,6 +262,23 @@ ggplot(boot_coefs, aes(estimate)) +
     sin_lineas
 
 ```
+
+Al final si se tiene una colección de remuestras, se puede pensar que se tiene una media de precisión sobre los parámetros $\beta$ y al tener una dispersión sobre los parámetros $\beta$, se tiene una familia de posibles funciones lineales que satisfacen la relación lineal. Finalmente lo que se dea es etimar, con este método de remuestreo, la incertidumbre del modelo, desde un enfoque frecuentista, la dispersión que tienen los datos bajo distintas realizaciones, bajos disintos intervalos de confianza. Y esto se realiza para considerar pruebas de hipótesis:
+
+$$
+\textrm{H}_0: \textrm{No existe una relación lineal entre} x \textrm{y} y.
+\textrm{H}_1: \textrm{Existe alguna relación lineal entre} x \textrm{y} y.
+$$
+
+Dicho de otra manera, 
+
+$$
+\textrm{H}_0:\beta_1 = 0.
+\textrm{H}_1:\beta_1 \neq 0.
+$$
+
+Y, las pruebas de hipótesis se resuelven al observar el valor-$p$, la distribución de muestreo y calcular probabilidades de tener un estadístico tan extremo como el que se observa.
+
 
 ```{r}
 
