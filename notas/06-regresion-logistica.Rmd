@@ -1,0 +1,210 @@
+---
+title: "Clasificación multiclase"
+header-includes:
+  - \usepackage[main=spanish]{babel}
+author: ""
+#date: "Enero/25/2021"
+
+output: 
+  pdf_document:
+    toc: no
+    toc_depth: 2
+    number_sections: yes
+    fig_width: 5
+    fig_height: 5
+    df_print: kable
+    highlight: zenburn
+    latex_engine: xelatex
+mainfont: Courier
+sansfont: Courier 
+monofont: Courier 
+link-citations: yes
+linkcolor: blue
+---
+
+# Clasificación multiclase
+
+## Introducción
+
+El modelo de regresión logística surge del deseo de modelar las probabilidades posteriores de las _K_ clases a través de una función lineal en _x_, asegurando al mismo tiempo que la suma de las probabilidades sea igual a uno y que caigan en el intervalo [0,1]. El modelo tiene la forma
+
+\begin{equation} \tag{4.1}
+\begin{split}
+\log\frac{\mathbb{P}(G = 1|X = x)}{\mathbb{P}(G = K|X = x)} &= \beta_{10} + \beta_{1}^{T}x \\
+\log\frac{\mathbb{P}(G = 2|X = x)}{\mathbb{P}(G = K|X = x)} &= \beta_{20} + \beta_{2}^{T}x \\
+&\vdots \\
+\log\frac{\mathbb{P}(G = 2|X = x)}{\mathbb{P}(G = K-1|X = x)} &= \beta_{(K-1)0} + \beta_{K-1}^{T}x
+\end{split}
+\end{equation}
+
+El modelo se especifica en términos de _K-1_ _log-odds_ o transformaciones _logit_ (reflejando la restricción de que las probabilidades suman uno).  Aunque el modelo utiliza la última clase como denominador en los odds-ratios, la elección del denominador es arbitraria, ya que las estimaciones son equivalentes bajo esta elección. Un cálculo sencillo muestra que
+
+\begin{equation} \tag{4.2}
+\begin{split}
+\mathbb{P}(G = k|X = x) &= \frac{\exp(\beta_{k0} + \beta_{k}^{T}x)}{1 + \sum \limits_{l=1}^{K-1}\exp(\beta_{l0}+\beta_{l}^{T}x)}, \ k = 1, \ldots, K-1, \\
+\mathbb{P}(G = K|X = x) &= \frac{1}{1 + \sum \limits_{l=1}^{K-1}\exp(\beta_{l0}+\beta_{l}^{T}x)},
+\end{split}
+\end{equation}
+
+
+y claramente suman uno. Para enfatizar la dependencia del conjunto de parámetros $\theta = \{\beta_{10}, \beta_{1}^{T}, \ldots, \beta_{K-1}^{T} \}$, denotamos las probabilidades como $\mathbb{P}(G = k|X = x) = p_{k}(x;\theta)$
+
+Cuando K = 2, este modelo es especialmente sencillo, ya que sólo existe una única función lineal. Se utiliza ampliamente en aplicaciones bioestadísticas en las que se producen respuestas binarias (dos clases) con bastante frecuencia. Por ejemplo, los pacientes sobreviven o mueren, tienen una enfermedad cardíaca o no, o una condición está presente o ausente.
+
+
+**Ejemplo 1**: Imágenes de $2\times2$ (4 pixeles) en escala de grises.
+
+En este caso, podemos considerar que $x \in \mathbb{R}^{4}$ y $y \in \mbox{\{gato, perro, ratón\}}$.
+
+**Pregunta**: ¿Cómo podemos representar las etiquetas que toma $y$ de forma numérica?
+
+La forma más usual y general de hacerlo es haciendo $y \in \mathbb{R}^{K}$, donde $K$ es el número de clases o etiquetas distintas, en nuestro ejemplo $K = 3$, es decir:
+
+
+$$y \in \{(1,0,0), (0,1,0), (0,0,1)\}$$
+
+
+Observemos que, dicho conjunto es la base canónica de $\mathbb{R}^{3}$ visto como un espacio vectorial sobre el campo $\mathbb{R}$.
+
+Después de codificar las entradas y las salidas, nos falta solamente definir nuestro modelo.
+
+## Modelo
+
+Podemos hacer,
+
+\begin{equation} \tag{4.3}
+\begin{split}
+O_{1} &= w_{1}^{T}x + b_{1} \\
+O_{2} &= w_{2}^{T}x + b_{2} \\
+O_{3} &= w_{3}^{T}x + b_{3}
+\end{split} 
+\end{equation}
+
+donde $O_{j} \in \mathbb{R}$, $w_{j} \in \mathbb{R}^{1\times4}$, $x \in \mathbb{R}^{4\times1}$ y $b_{j} \in \mathbb{R}$, con $j \in \{1,2,3\}$
+
+O de manera más compacta,
+
+\begin{equation} \tag{4.4}
+O = Wx + b 
+\end{equation}
+
+donde $O = \begin{bmatrix} O_{1}\\O_{2}\\O_{3} \end{bmatrix} \in \mathbb{R}^{3\times1}$, $W = \begin{bmatrix} w_{1}^{T}\\w_{2}^{T}\\w_{3}^{T} \end{bmatrix} \in \mathbb{R}^{3\times4}$, ya que cada $w_{j}^{T} \in \mathbb{R}^{1\times4}$ y $x = \begin{bmatrix} x_{1}\\x_{2}\\x_{3}\\x_{4} \end{bmatrix} \in \mathbb{R}^{4\times1}$.
+
+En general, se tiene que $W \in \mathbb{R}^{K\times p}$, donde $K$ es el número de clases y $p$ es el número de atributos. 
+
+En este ejemplo, tenemos un modelo con 2 capas, la de atributos y la de salidas, con $\#W\times \#b = 15$ parámetros. 
+
+**Observación**:Es importante notar que, hasta el momento lo único que sabemos es que $O_{j} \in \mathbb{R}$ y no necesariamente $O_{j} \in [0,1]$.
+
+## Operación softmax
+
+Con el método $softmax$ trataremos de resolver la observación hecha en el parrafo anterior, es decir, interpretar las salidas como un modelo de probabilidad. Dicho de otra forma,
+
+\begin{equation} \tag{4.5}
+\hat{y} = \mathbb{P}(i \in \{j\} | x^{(i)})
+\end{equation}
+
+Un ejemplo de lo que nos gustaría ver es lo siguiente:
+\begin{equation}\tag{4.6}
+\hat{y}^{(i)} = (0.8, 0.1, 0.1)
+\end{equation}
+
+es decir, podemos interpretar la salida $\hat{y}^{(i)}$ como un vector de probabilidades, donde la suma de todas las entradas es igual a 1.
+
+En este caso, la probabilidad de que la salida corresponda a la primera clase es de 0.8.
+
+En general, en este ejemplo con $K = 3$ tenemos:
+
+\begin{equation}\tag{4.7}
+\hat{y}^{(i)} = (\hat{y}^{(i)}_{1}, \hat{y}^{(i)}_{2}, \hat{y}^{(i)}_{3})
+\end{equation}
+
+donde, $\hat{y}^{(i)}_{j} \in [0,1]$ y $\sum \limits_{j=1}^{3}\hat{y}^{(i)}_{j} = 1$, con $i \in \{1, \ldots, N \}$, con $N$ el número de observaciones y $\hat{y}^{(i)}_{j}$ corresponde a la probabilidad de que la salida corresponda a la $j$-ésima clase.
+
+Definimos la función $softmax$ de la siguiente manera,
+
+\begin{equation}\tag{4.8}
+\hat{y}_{j} = \frac{\exp(O_{j})}{\sum \limits_{k=1}^{K}\exp(O_{k})}, \ j = 1, \ldots, K.
+\end{equation}
+
+Es fácil ver que, $\sum \limits_{j=1}^{K}\hat{y}_{j} = 1$ (Ejercicio!).
+
+## Función de pérdida
+
+Lo que buscamos es algo  como lo siguiente,
+
+\begin{equation}\tag{4.9}
+\mathbb{P}(Y|X) = \prod \limits_{i=1}^{N}\mathbb{P}(y^{(i)}|x^{(i)})
+\end{equation}
+
+
+Aplicando la función logaritmo, nos queda:
+
+\begin{equation}\tag{4.10}
+-\log(\mathbb{P}(Y|X)) = -\sum_{i=1}^{N}\log(\mathbb{P}(y^{(i)}|x^{(i)}))
+\end{equation}
+
+Ahora, podemos definir la $función\ de\ pérdida$ de la clasificación como,
+
+\begin{equation}\tag{4.11}
+\begin{split}
+\mathcal{l}(y^{(i)}, \hat{y}^{(i)}) &= -\log \mathbb{P}(y^{(i)}, \hat{y}^{(i)}) \\
+&= \sum \limits_{j=1}^{K} y_{j}^{(i)}\log \hat{y}_{j}^{(i)}
+\end{split}
+\end{equation}
+
+Haciendo uso de la ecuación (4.8) y en un total abuso de la notación, tenemos:
+
+\begin{equation}\tag{4.12}
+\begin{split}
+\mathcal{l}(y,\hat{y}) &=  -\sum \limits_{j=1}^{K}y_{j}\log \left(\frac{\exp O_{j}}{\sum \limits_{k=1}^{K}\exp O_{k}} \right) \\
+&= \sum \limits_{j=1}^{K}y_{j}O_{j} + \sum \limits_{j=1}^{K}y_{j}\log \left(\sum \limits_{k=1}^{K}\exp O_{k}\right) \\
+&= \sum \limits_{j=1}^{K}y_{j}O_{j} + \log \left(\sum \limits_{k=1}^{K}\exp O_{k}\right)
+\end{split}
+\end{equation}
+
+De (4.12) tenemos que:
+
+\begin{equation}\tag{4.13}
+\begin{split}
+\frac{\partial}{\partial{O_{j}}}\mathcal{l}(y,\hat{y}) &= -y_{j} + \frac{\exp O_{j}}{\sum \limits_{k=1}^{K}\exp O_{k}} \\
+&= softmax(O_{j}) - y_{j}
+\end{split}
+\end{equation}
+
+
+## Teoría de la información
+
+Definimos la $entropía$ de la forma siguiente,
+
+\begin{equation}\tag{4.14}
+P[H] = \sum \limits_{j=1}^{J}(-P_{j} \log(P_{j}))
+\end{equation}
+
+Por otro lado, la $entropía\ cruzada$ nos permite usar una distribución distinta como compresor, $Q$, y se define de la siguiente manera,
+
+\begin{equation}
+H(P, Q) = -\sum \limits_{j=1}^{J} P_{j}\log(Q_{j})
+\end{equation}
+
+No es difícil de ver, utilizando la desigualdad de Jensen, que:
+
+\begin{equation}\tag{4.15}
+H(P) = H(P,P) \leq H(P,Q)
+\end{equation}
+
+Finalmente, para distribuciones de probabilidad $P$ y $Q$ de una variable aleatoria discreta, su divergencia de Kullback-Leibler (KL) se define como:
+
+
+\begin{equation}\tag{4.16}
+D_{KL}(P||Q) = H(P,Q) - H(P,P)
+\end{equation}
+
+Por lo observado arriba, sabemos que $D_{KL}(P||Q) \geq 0$. Por otro lado, se puede ver que esta divergencia no es una métrica, ya que no satisface la propiedad de simetría, a saber, $D_{KL}(P||Q) \neq D_{KL}(Q||P)$.
+
+
+
+# Referencias
+
+[1]J. Friedman, T. Hastie, and R. Tibshirani,The Elements of Statistical Learning, Springerseries in Statistics New York, Second Edition, 2008.
+
