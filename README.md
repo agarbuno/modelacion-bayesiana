@@ -1,5 +1,5 @@
 # Modelacion Bayesiana
-Notas y contenido del curso en Modelación Bayesiana para la MCD
+Notas y contenido del curso en Modelación Bayesiana para la MCD impartido en Primavera 2021.
 
 ## Ambiente de trabajo
 
