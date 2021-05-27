@@ -16,6 +16,10 @@ renv:restore()
 
 *NOTA:* esta última instrucción puede tarda alrededor de una hora pues tiene que instalar y compilar la mayoría de los paquetes que se utilizan para las notas. 
 
+### Importante
+
+Las notas dependen de diversas librerías de [`Stan`](https://mc-stan.org/). Por el momento, existe un problema muy particular con el sistema [`MacOS`](https://github.com/rstudio/renv/issues/46). Al parecer está relacionado con los espacios en la ruta _default_ del cache de `renv`. Aunque hasta el momento con MacOS 11.4 no he podido resolverlo. Para los que tengan este problema pueden utilizar `docker` como ambiente como se describe abajo. 
+
 ## Ambiente _dockerizado_
 
 Además de las notas, parte del curso utiliza casos de estudio individuales que se encuentran en la carpeta de `casos/` de este mismo repositorio. La idea de esto es poder aislar el _cache_ de `knitr` y de los modelos en `Stan` y garantizar que tanto casos y notas puedan ser compilados de manera independiente. 
