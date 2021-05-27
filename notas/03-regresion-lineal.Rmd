@@ -1,0 +1,798 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+---
+
+# Modelos de regresión lineal
+
+```{r, include=FALSE, message=FALSE}
+library(tidymodels)
+library(tidyverse)
+library(patchwork)
+library(scales)
+library(ISLR)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning=FALSE, 
+                      fig.align = 'center', fig.width = 5, fig.height=3, cache = TRUE)
+comma <- function(x) format(x, digits = 2, big.mark = ",")
+theme_set(theme_linedraw())
+color.blues <- c(NA,"#BDD7E7", "#6BAED6", "#3182BD", "#08519C", "#074789", "#063e77", "#053464")
+color.itam  <- c("#00362b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f")
+
+
+sin_lineas <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+sin_leyenda <- theme(legend.position = "none")
+sin_ejes <- theme(axis.ticks = element_blank(), 
+                  axis.text = element_blank())
+```
+
+```{r}
+
+datos <- read.csv("../datos/Advertising.csv")
+
+datos %>% 
+    pivot_longer(cols = TV:Newspaper, values_to = "Presupuesto") %>% 
+    ggplot(aes( x = Presupuesto, y = Sales)) + 
+        geom_point() + 
+        facet_wrap(~name, scales = "free_x")  + 
+        sin_lineas
+
+```
+
+### Estimación de coeficientes {-}
+
+```{r}
+
+modelo <- lm(Sales ~ TV, data = datos)
+modelo
+
+```
+
+
+```{r}
+
+datos %>% 
+    ggplot(aes(TV, Sales)) + 
+        geom_point() + 
+        stat_smooth(method = 'lm', col = 'salmon') + sin_lineas + 
+        geom_hline(yintercept = mean(datos$Sales), linetype = 'dashed') + 
+        geom_vline(xintercept = mean(datos$TV), linetype = 'dashed')
+
+```
+
+
+```{r}
+
+datos %>% 
+    summarise(Xbar = mean(TV), Ybar = mean(Sales))
+
+
+```
+
+
+### Precisión en estimaciones {-}
+
+Codigo obtenido de
+[tidymodels](https://www.tidymodels.org/learn/statistics/bootstrap/). También
+pueden consultar la sección correspondiente en libro [R for Data
+Science](https://r4ds.had.co.nz/many-models.html).
+
+```{r}
+
+library(rsample)
+set.seed(108727)
+
+boots <- bootstraps(datos %>% dplyr::select(Sales, TV), times = 5000, apparent = TRUE)
+
+```
+
+```{r}
+
+ajusta_modelo <- function(split) {
+    lm(Sales ~ TV, analysis(split))
+}
+
+```
+
+```{r, cache = TRUE}
+
+boot_models <- boots %>%
+    mutate(modelo = map(splits, ajusta_modelo), 
+           coefs  = map(modelo, tidy)) 
+    
+boot_coefs <- boot_models %>% 
+    unnest(coefs)
+
+```
+
+```{r}
+
+boot_models %>% 
+    unnest(coefs) %>% 
+    group_by(term) %>% 
+    summarise(mean = mean(estimate), se = sd(estimate))
+
+```
+
+
+```{r}
+t_intervals <- int_t(boot_models, coefs)
+t_intervals
+
+percentile_intervals <- int_pctl(boot_models, coefs)
+percentile_intervals
+
+```
+
+
+```{r}
+
+ggplot(boot_coefs, aes(estimate)) +
+  geom_histogram(bins = 30) +
+  facet_wrap( ~ term, scales = "free") +
+  geom_vline(aes(xintercept = .lower), data = percentile_intervals, col = "salmon") +
+  geom_vline(aes(xintercept = .upper), data = percentile_intervals, col = "salmon") + 
+    sin_lineas
+
+```
+
+```{r}
+
+boot_aug <- 
+  boot_models %>% 
+  sample_n(200) %>% 
+  mutate(augmented = map(modelo, augment)) %>% 
+  unnest(augmented)
+
+ggplot(boot_aug, aes(TV, Sales)) +
+  geom_line(aes(y = .fitted, group = id), alpha = .2, col = "salmon") +
+  geom_point() + sin_lineas
+
+```
+
+```{r}
+
+summary(modelo)
+
+```
+
+
+### Precisión de las predicciones {-}
+
+```{r}
+
+RSE <- sqrt(sum(residuals(modelo)**2)/198)
+RSE 
+```
+
+
+Error porcentual: 
+
+```{r}
+
+RSE / mean(datos$Sales)
+
+```
+
+
+```{r}
+
+summary(modelo)$r.squared
+
+```
+
+## Regresión lineal múltiple {-}
+
+```{r, warning = FALSE}
+
+datos %>% 
+    pivot_longer(cols = TV:Newspaper, values_to = "Presupuesto") %>% 
+    nest(-name) %>% 
+    mutate(modelo = map(data, ~lm(Sales ~ Presupuesto, data = .x)), 
+           resumen = map(modelo, tidy)) %>% 
+    unnest(resumen) %>% 
+    select(-data, -modelo)
+
+```
+
+
+### Estimación de coefficientes {-}
+
+```{r}
+
+modelo.multiple <- lm(Sales ~ ., data = datos %>% select(-X))
+modelo.multiple
+
+```
+
+
+###  Precisión en las estimaciones {-}
+
+```{r}
+
+X <- as.matrix(datos %>% select(-X, -Sales) %>% mutate( cte = 1))
+sigma <- sqrt(var(residuals(summary(modelo.multiple)))*(199/196))
+sigma * sqrt(diag(solve(t(X) %*% X)))
+
+```
+
+
+```{r}
+
+sqrt(diag(vcov(modelo.multiple)))
+
+```
+
+
+```{r}
+
+summary(modelo.multiple)
+
+```
+
+
+
+```{r}
+
+reshape2::melt(cor(datos %>% select(-X))) %>% 
+  ggplot(aes(Var1, Var2, fill = value)) + 
+    geom_tile() + 
+    geom_text(aes(Var2, Var1, label = round(value, 2)), color = "black", size = 4) + 
+    sin_lineas + xlab("") + ylab("") + 
+    scale_fill_gradient2(low = "blue", high = "salmon", mid = "white", 
+                         midpoint = 0, limit = c(-1,1), space = "Lab",
+                         name="Correlación\n de Pearson\n")
+
+```
+
+
+```{r, cache = TRUE}
+
+n <- 500
+p <- 100
+
+
+simula_modelo <- function(id){
+  dt <- as.tibble(matrix(rnorm(n * p), nrow = n, byrow = TRUE)) %>% 
+  mutate(y = rnorm(n))
+
+  lm(y ~ ., data = dt)
+}
+
+dt <- tibble(id = seq(200)) %>% 
+  mutate(modelo = map(id, simula_modelo), 
+         coefs  = map(modelo, tidy)) %>% 
+  unnest(coefs) %>% 
+  filter(term != "(Intercept)") %>% 
+  group_by(id) %>% 
+  summarise(nump = sum(p.value < 0.05), .groups = "drop") %>% 
+  group_by(nump) %>% 
+  summarise(conteo = n(), .groups = 'drop')
+  
+dt %>% 
+  ggplot(aes(nump, conteo)) +
+    geom_bar(stat = "identity") + 
+    xlab("Número de valores-p significativos") + 
+    ylab("Frecuencia")  + sin_lineas
+
+```
+
+
+
+```{r}
+
+c(summary(lm(Sales ~ ., data = datos %>% select(-X)))$r.squared, 
+  summary(lm(Sales ~ . - Newspaper, data = datos %>% select(-X)))$r.squared, 
+  summary(lm(Sales ~ . - Newspaper - Radio, data = datos %>% select(-X)))$r.squared)
+
+```
+
+
+```{r}
+summary(lm(Sales ~ ., data = datos %>% select(-X)))
+```
+
+
+### Predictores categóricos {-}
+
+Sea $y$ el saldo de una cuenta bancaria y $x$ una variable categórica de dos niveles, t.q.:
+
+\begin{equation}
+    x_i=
+    \begin{cases}
+      1,& \text{si la observación i es un estudiante}, \\
+      0,& \text{si el observación i no es un estudiante}
+    \end{cases}
+\end{equation}
+
+Nuestro modelo lineal sería igual a:
+
+$$y=\beta_0+ \beta_1x + \epsilon,$$
+
+dónde, al tener una variable categórica de dos niveles, el valor de nuestro regresor queda definido de la siguiente manera: 
+
+\begin{equation}
+    y =
+    \begin{cases}
+      \beta_0+\beta_1, & \text{(estudiante)}, \\
+      \beta_0, & \text{(no estudiante)}
+    \end{cases}
+\end{equation}
+
+Ajustando el modelo, obtendríamos los valores de los siguientes coeficientes:
+
++ $\beta_0$: el balance promedio para personas no estudiantes;
++ $\beta_0 + \beta_1$: el balance promedio para personas estudiantes;
+* $\beta_1$: la diferencia promedio entre los balances --el balance de una persona promedio que es estudiante y el balance promedio de una persona que **no** es estudiante. 
+
+**Nota:** Todas estas interpretaciones son en términos de promedios.
+
+Veamos un primer ejemplo, con una base de datos que contiene información general de créditos. Definimos el siguiente modelo simple:
+
+$$Balance = \beta_0+\beta_1Student + \epsilon.$$
+
+```{r}
+
+summary(lm(Balance ~ Student, Credit))
+
+```
+
+Nuestro modelo nos indica que, en promedio, un estudiante tiene un saldo mucho mayor en su tarjeta de crédito que una persona que no es estudiante. De hecho, *la diferencia promedio en saldos*, entre el balance de un estudiante y una persona que no es estudiante, es de 396.46 unidades. 
+
+
+Este tipo de análisis es común cuando queremos contrastar alguna característica particular de nuestro objeto de estudio contra lo que sucede con un grupo de control. Por ejemplo, en el caso anterior, el grupo de control fue definido como el conjunto de personas que no son estudiantes. 
+
+Si nos interesaría cambiar la dirección del contraste, entonces, podemos cambiar el orden de las variables categóricas con la función `fct_relevel`.
+
+Para ejemplificar este reordenamiento en los niveles, a continuación, especificamos que nuestro grupo de control será el conjunto de personas que sí son estudiantes. 
+
+```{r}
+
+summary(lm(Balance~Student, Credit%>% mutate(Student =fct_relevel(Student, "Yes"))))
+
+```
+
+Tras correr la regresión, vemos que el único cambio fue el signo de $\beta_1$; lo cuál tiene sentido porque nuestro grupo de control ahora es el conjunto de personas que sí son estudiantes. 
+
+Ahora, si nos interesaría dimensionar la significancia de la diferencia en los saldos promedios entre estos dos grupos ($\beta_1$), podríamos implementar una prueba de hipótesis de la siguiente manera:
+
+```{r}
+
+t.test(Balance ~ Student, data = Credit)
+
+```
+
+Con este test, estaríamos evaluando si el ser (o no) estudiante tiene algún efecto en los saldos en las tarjetas de crédito. Como tenemos un p-value muy pequeño, ~0, entonces concluimos que hay evidencia suficiente para rechazar la hipótesis nula de que $\beta_1=0$. Otra forma de interpretar este resultado es decir que hay evidencia, al menos marginalmente, a favor de que el ser estudiante tiene algún efecto sobre los saldos en las tarjetas de crédito. **Nota:** Recordar que cuando tenemos pocos datos, los supuestos distribucionales que hacemos son asintóticos.
+
+
+También podemos incorporar predictores con más niveles, como por ejemplo, en el siguiente caso tenemos la variable categórica `Ethnicity`, misma que consta de tres niveles: 
+
+
+```{r}
+Credit %>% 
+  group_by(Ethnicity) %>% 
+  tally()
+```
+
+
+```{r}
+
+summary(lm(Balance ~ Ethnicity, Credit))
+
+```
+
+Al igual que en la especificación anterior, los coeficientes se interpretan como la diferencia (con respecto al grupo de control) en los balances promedios, dependiendo de la etnicidad de los sujetos.
+
+En este caso, de manera similar al ejemplo anterior, podemos cambiar nuestro grupo de control. Por ejemplo, podemos definir que ahora nuestro grupo de control sea el conjunto de sujetos con etnicidad asiática. En ese caso, el intercepto $\beta_0$ tiene la interpretación de ser el balance promedio del grupo de control. El resto de las $\beta$'s hacen referencia a la diferencia en los saldos promedios con respecto al grupo de control: personas con etnicidad asiática.
+
+
+```{r}
+
+summary(lm(Balance ~ Ethnicity, Credit %>% mutate(Ethnicity = fct_relevel(Ethnicity, "Asian"))))
+
+```
+
+**¿Cómo definimos nuestro grupo de control?**
+
+Es importante recordar que estamos pensando en el uso de las regresiones como una herramienta para hacer comparaciones: los efectos de ciertos atributos sobre los individuos promedios que estamos estudiando, respecto a un grupo de control. Así, la definición de nuestro grupo de control estará motivada por el tipo de estudio que estemos realizando.
+
+**Modelos sin intercepto**
+
+Si quisierámos ver reflejado en nuestro modelo el **saldo promedio para cada grupo étnico**, un truco muy común es ajustar un modelo lineal sin incercepto, como se muestra a continuación:
+$$Balance = \beta_1Asian + \beta_2 African American+ \beta_3Caucasian + \epsilon.$$
+
+```{r}
+
+summary(lm(Balance ~ Ethnicity-1, Credit %>% mutate(Ethnicity = fct_relevel(Ethnicity, "Asian"))))
+
+```
+
+
+Cuando quito el intercepto ($\beta_0$) en mi modelo: 
+
++ Obtengo el saldo promedio para cada uno de los grupos: estos vienen definidos por cada uno de los coeficientes existentes en el modelo.
+
++ No hay problemas multicolinealidad.
+
++ Esta decisión dependerá de nuestro interés y objeto de estudio.
+
+
+
+```{r}
+
+summary(lm(Balance ~ Income + Student, Credit))
+
+```
+
+### Interacciones {-}
+
+Otra práctica común es incluir interacciones (producto entre dos o más variables)  como términos explicativos en los modelos. Este tipo de prácticas resultan relevantes cuando es de nuestro interés identificar la contribución conjunta de dos variables sobre nuestra $y$.
+
+
+En la siguiente regresión, por ejemplo, nos interesa conocer el efecto conjunto de una dos variables continuas --gastos en publicidad en `TV` y en `Radio`-- sobre las ventas.
+
+$$Sales = \beta_0 + \beta_1Tv+\beta_2Radio+ \beta_3 Radio*Tv+ \epsilon.$$
+
+```{r}
+
+summary(lm(Sales ~ TV + Radio + TV*Radio, datos))
+
+```
+
+Nuestro término de interacción también podría darse entre una variable categórica y una variable continua.
+
+Pensemos en el siguiente modelo:
+
+$$y =\beta_0 +\beta_1x_1+\beta_2x_2+\beta_3x_1x_2+\epsilon,$$
+
+dónde, $x_i$ es una variable numérica y $x_2$ es una variable categórica de dos niveles.
+
+
+\begin{equation}
+    y=
+    \begin{cases}
+      \beta_0+\beta_1x_1 + \epsilon,& \text{cuando } x_2=0,\\
+      (\beta_0+\beta_2) +(\beta_1+\beta_3)+\epsilon, & \text{cuando } x_2=1.
+    \end{cases}
+\end{equation}
+
+Esto es como si ajustáramos dos rectas o modelos lineales para cada grupo:
+
+\begin{equation}
+    y=
+    \begin{cases}
+      \beta_0+\beta_1x_1+\epsilon,& \text{si } x_2=0,\\
+      \hat{\beta_0}+ +\hat{\beta_1}x_1 +\epsilon, & \text{si } x_2=1.
+    \end{cases}
+\end{equation}
+
+Ejemplifiquemos este último caso empleando la base de datos `Credit`. En este conjunto de datos, cada observación está caracterizada en términos de su ingreso, el saldo que tiene en su tarjeta de crédito y su estatus como estudiante o no. Si incluimos la interacción `Income*Student`, nuestra especificación queda de la siguiente manera:
+
+$$Balance = \beta_0 +\beta_1Income+ \beta_2Student + \beta_3Income*Student + \epsilon.$$
+
+
+```{r}
+
+summary(lm(Balance ~ Income + Student + Income * Student, Credit))
+
+```
+
+Con esta última especificación, notamos que:
+
++ Es equivalente a ajustar una regresión distinta a cada grupo.
++ El grupo con pocas observaciones (el grupo de los estudiantes) tiene mayor incertidumbre en los coeficientes, pues al tener pocos datos no tiene tanta evidencia. 
++ Si la interacción sale significativa para el modelo (es decir, tiene un valor-p cercano a cero), es importante mantener los atributos base en la regresión, aún cuando aparentemente no sean significativos para el modelo. Esto porque puede ser que la interacción está altamente correlacionada con las otras regresoras y, en ese sentido, al ser significativa en el modelo, "absorbe" parte del efecto de las regresoras base o individuales. 
+
+
+```{r, fig.asp = .4}
+
+g1 <- Credit %>% 
+  ggplot(aes(Income, Balance)) + 
+    geom_point() + sin_lineas
+
+g2 <- Credit %>% 
+  ggplot(aes(Income, Balance, group = Student, color = Student)) + 
+    geom_point() + sin_leyenda + sin_lineas
+
+g3 <- Credit %>% 
+  ggplot(aes(Income, Balance, group = Student, color = Student)) + 
+    geom_point(alpha = .3) + 
+    stat_smooth(method = "lm")  + sin_lineas
+
+g1 + g2 + g3
+
+```
+
+### ¿Interpretación de coeficientes? {-}
+
+
+Tras ajustar este tipo de modelos, surge de manera natural la siguiente pregunta: ¿cómo interpretamos los coeficientes asociados a una interacción? Para entender mejor este tema, utilizaremos una base de datos que contiene información relativa a los
+resultados en pruebas de IQ de niños, basados en ciertas características de la madre. 
+
+Comencemos con un modelo muy sencillo: una predicción del IQ del niño en terminos del puntaje de IQ de la madre. 
+
+
+$$kid\_score = \beta_0+\beta_1+ \epsilon.$$
+
+```{r, message = FALSE}
+kidiq <- read_csv("../datos/kidiq.csv")
+summary(lm(kid_score ~ mom_iq, kidiq))
+```
+
+Una interpretación ingenua de este modelo, sería: 
+
++ independientemente del IQ de la madre, todos lo niños tienen al menos un IQ de 
+25.79;
++ en promedio, cada incremento en una unidad del IQ de la madre, está asociado con un incremento de 0.60997 unidades adicionales en el puntaje de IQ del niño. 
+
+¿Cuál es el problema con esta interpretación? Sin conocimiento de dominio, esta interpretación, llevada al extremo, nos estaría indicando que si una madre tiene un IQ igual a cero, entonces el niño tiene un IQ igual a 25.799. ¿Qué hay de raro con esto? Por un lado, está raro que una mamá tenga un IQ de cero; por otro lado, está raro decir que un niño tiene un IQ de 25.799 (cuando el IQ promedio oscila alrededor de 80 puntos).
+
+Extendamos nuestro modelo anterior con la inclusión de una variable indicadora `mom_hs`, que nos señala si la madre acabó o no high school, y una interacción entre `mom_hs`y `mom_iq`.
+
+$$kid\_score =\beta_0+\beta_1mom\_iq+ \beta_2 mom\_hs+ \beta_3 mom\_iq*mom\_hs+\epsilon.$$
+
+```{r}
+summary(lm(kid_score ~ mom_iq + mom_hs + mom_iq * mom_hs, kidiq))
+```
+
+Esta nueva especificación nos indica que, en promedio, cuando una mamá no cuenta con preparatoria y tiene un IQ=0, el IQ del niño promedio es -11.48 puntos. Otra vez, ¡esta interpretación está un poco ruidosa!
+
+```{r, message = FALSE}
+g1 <- ggplot(kidiq, aes(mom_iq, kid_score)) + 
+  geom_point(alpha = .3) + 
+  stat_smooth(method = lm, color ='salmon') + sin_lineas
+
+g2 <- ggplot(kidiq, aes(mom_iq, kid_score, group = mom_hs, color = factor(mom_hs))) + 
+  geom_point(alpha = .3) + 
+  stat_smooth(method = lm) + sin_lineas
+
+g1 + g2
+```
+
+Graficando los dos modelos anteriores, vemos que, a pesar de nuestras interpretaciones ingenuas, ambos modelos se ajustan bastante bien. De hecho, vemos que el IQ de las madres comienza en 80, lo cuál ya suena un poco más razonable.
+
+**Centrando nuestros regresores**
+
+Una forma fácil de interpretar un modelo lineal es especificando como nuestro punto de comparación el promedio: el promedio de nuestros atributos predictivos. Para ello, debemos proceder a centrar nuestras variables regresoras.
+
+Regresemos al modelo dónde el único predictor era el IQ de la madre y comparemos los resultados con su versión centrada.
+
+
+```{r}
+
+kidiq.centered <- kidiq %>% 
+  mutate(mom_iq = mom_iq - mean(mom_iq))
+
+summary(lm(kid_score~mom_iq, kidiq))
+
+summary(lm(kid_score ~ mom_iq,  kidiq.centered))
+
+```
+
+Notamos que al centrar el IQ de la madre, con respecto al puntaje promedio, los coeficientes del modelo son más interpretables:
+
++ $\beta_0$: en promedio, para una mamá con un IQ promedio, el puntaje del niño va a estar en 86.79 puntos.
++ $\beta_1$: al igual que en el modelo original (sin centrar `mom_iq`), sugiere que, en promedio, un aumento en una unidad en el IQ de la madre está asociado con un incremento en 0.60997 unidades en el IQ del niño.
+
+Ahora, retomemos nuestra especificación con interacciones y comparémosla contra un modelo centrado.
+
+```{r}
+summary(lm(kid_score ~ mom_iq + mom_hs + mom_iq * mom_hs, kidiq))
+
+summary(lm(kid_score ~ mom_iq + mom_hs + mom_iq * mom_hs, kidiq.centered))
+```
+
+La interpretación del intercepto tiene más sentido: una mamá, con un IQ promedio y sin tener el high school concluido, refleja un niño con IQ igual a 85.4069. Además, de acuerdo con el modelo, una mamá promedio, que sí terminó la secundaria, refleja, en promedio, un incremento de 2.84 unidades en el IQ del niño. Finalmente, vemos que la interacción `mom_iq*mom_hs` es significativa para el modelo, aunque  el término individual no lo es.
+
+Comparando estos dos ejemplos, en sus versiones centradas y no centradas, concluimos que:
+
++ El efecto marginal es siempre el mismo, sin importar si centramos o no nuestras regresoras;
+
++ Lo que cambia es el punto de comparación.
+
+
+También podría ser de nuestro interés fijar un punto de comparación distinto al promedio. Por ejemplo, podríamos estar interesados en fijar nuestro punto de comparación en una mamá super dotada (con un IQ=130).
+
+
+
+```{r}
+kidiq.centered <- kidiq %>% 
+  mutate(mom_iq = mom_iq - 130)
+
+summary(lm(kid_score ~ mom_iq,  kidiq.centered))
+
+```
+
+El efecto promedio por cada incremento en una unidad en el IQ de la madre sigue siendo 0.60997 puntos en el IQ del niño; lo que cambia es el punto de comparación: una mamá super dotada. Así, nuestra interpretación de $\beta_1$ cambia ligeramente: en promedio, una mamá super dotada (con 130 puntos de IQ), tiene un hijo con un IQ de 105.
+
+**Motivación para centrar nuestras variables**
+
+En nuestros modelos, podemos centrar nuestros:
+
++ regresores;
++ variables respuestas;
++ o, ambas. 
+
+En general, la motivación detras de estos procedimientos es distinta: mientras el centrar los regresores está motivado por cuestiones de interpretabilidad, el centrar la variable de respuesta está asociado a cuestiones de facilidad en el ajuste del modelo. 
+
+
+**Estandarización de las variables**
+
+Si en lugar de centrar nuestros regresores los estandarizamos, entonces tenemos todas las variables en las mismas unidades. Esto facilita la comparabilidad entre los distintos coeficientes.  *Nota: *  Por ejemplo, cuando lleguemos a la versión bayesiana de estos modelos, encontraremos que es recomendable estandarizar nuestras variables porque esto nos permite proponer una única distribución previa para todos los coeficientes.
+
+
+### Relaciones no lineales {-}
+
+Una de las grandes ventajas de la técnica de ajuste de las regresiones es que nos da toda la maquinaria necesaria para incorporar asociaciones más complicadas; por ejemplo, podemos incorporar asociaciones no lineales.
+
+En este caso, tenemos el consumo de un automóvil en función de la potencia de un motor (`horsepower`). Al graficar esta relación, vemos que esta no es lineal. 
+
+
+```{r}
+g0 <- Auto %>% 
+  ggplot(aes(horsepower, mpg)) + 
+  geom_point(alpha = .3) + 
+  sin_lineas
+
+g1 <- Auto %>% 
+  ggplot(aes(horsepower, mpg)) + 
+  geom_point(alpha = .3) + 
+  stat_smooth(method = lm, formula = y ~ x, color = 'salmon') + sin_lineas
+
+g0+g1
+```
+
+
+Una alternativa, podría ser la inclusión de términos polinomiales, como por ejemplo, incluir el término cuadrático de `horsepower`:
+$$mpg = \beta_0+\beta_1*\text{horsepower}+ \beta_2 *\text{horsepower}^2+\epsilon.$$
+
+```{r}
+
+summary(lm(mpg ~ poly(horsepower, 2, raw = TRUE), Auto))
+
+```
+
+Con esta nueva especificación, observamos que nuestro modelo se ajusta bastante bien a los datos.
+
+
+```{r}
+
+g2 <- Auto %>% 
+  ggplot(aes(horsepower, mpg)) + 
+  geom_point(alpha = .3) + 
+  stat_smooth(method = lm, formula = y ~ poly(x, 2, raw = TRUE), color = 'salmon') + 
+  sin_lineas
+
+g2
+
+```
+
+Con esta nueva especificación, observamos que hay in trade-off entre el ajuste de nuestro modelo y la interpretabilidad del mismo:
+
++ Nuestro modelo se ajusta bastante bien a los datos.
++ Aquí ya no podemos interpretar el coeficiente lineal como lo habíamos hecho en nuestras especificaciones previas: es decir, el $\beta_1$ asociado al término individual `horsepower` ya no puede ser interpretado como lo que pasaría si todo lo demás se mantiene constante o en cero (porque también tenemos el $\beta_2$ asociado a `horsepower`$^2$). 
+
+## Extensiones del modelo lineal {-}
+
+
+Incluso podemos hacer más extensiones del modelo. Aquí, en esta figura, claramente una línea no ajusta el modelo.
+
+
+```{r}
+x <- 7*runif(50)
+y <- cos(x) + 0.15 * rnorm(length(x))
+
+newx <- tibble(x = matrix(seq(0,12,.1)))
+dt <- tibble(x = x, y = y)
+
+g1 <- ggplot(dt, aes(x,y)) + geom_point(size=2)
+g1
+```
+
+De hecho, debido a la distribución de nuestros datos, al ajustarle un modelo del siguiente tipo $y=\beta_0 +\beta_1x+\epsilon$, confirmamos que una regresión lineal simple no es la mejor alternativa.
+
+```{r}
+m1 <- lm(y ~ x, data = dt)
+
+newx <- data.frame(x = matrix(seq(0,7,.01)))
+dnew <- tibble(x = newx$x, y = predict(m1, newx))
+pred <- geom_line(data = dnew, aes(x = x, y = y), colour = 'salmon')
+
+g1 + geom_smooth(method = lm, colour = 'salmon') 
+```
+
+A continuación, experaremos algunas alternativas.
+
+**Predictores por zonas**
+
+Quizá, una mejor aproximación puede ser mediante la inclusión de predictores por zonas: haciendo predicciones por grupos, dependiendo de los valores que tome la variable explicativa en distintos intervalos. En el gráfico siguiente, se ajustó una predicción constante en cada uno de los intervalos. 
+
+
+```{r, echo = F}
+eps1 <- 2
+eps2 <- 4
+dt$reg <- cut(dt$x, breaks = c(min(dt$x),eps1,eps2,max(dt$x)), include.lowest = T)
+m4 <- lm(y~reg, data = dt)
+
+newx$reg <- cut(newx$x, breaks = c(min(dt$x),eps1,eps2,max(dt$x)), include.lowest = T)
+dnew$reg <- newx$reg
+dnew$y1 <- predict(m4, newx)
+dnew$s2 <- predict(m4, newx, se.fit = T)$se.fit
+
+pred2 <- geom_line(data = dnew, aes(x = x, y = y1, group = reg), colour = 'salmon')
+
+e1 <-  geom_vline(data = dnew, xintercept = eps1, lty = 2) 
+e2 <-  geom_vline(data = dnew, xintercept = eps2, lty = 2)
+rib2 <- geom_ribbon(data = dnew, aes(x = x, ymin= y1-2*s2, ymax = y1+2*s2, group = reg),
+alpha = 0.3) 
+
+print(g1 + pred2 + e1 + e2 + rib2 + ggtitle("Predicción lineal por regiones"))
+```
+
+También, podríamos incluir predictores que no sean constantes, sino más bien líneas que se ajusten de mejor manera a los datos. 
+```{r}
+eps1 <- 2
+eps2 <- 4
+dt$reg <- cut(dt$x, breaks = c(min(dt$x),eps1,eps2,max(dt$x)), include.lowest = T)
+m4 <- lm(y~reg * x, data = dt)
+
+newx$reg <- cut(newx$x, breaks = c(min(dt$x),eps1,eps2,max(dt$x)), include.lowest = T)
+dnew$reg <- newx$reg
+dnew$y1 <- predict(m4, newx)
+dnew$s2 <- predict(m4, newx, se.fit = T)$se.fit
+
+pred2 <- geom_line(data = dnew, aes(x = x, y = y1, group = reg), colour = 'salmon')
+
+e1 <-  geom_vline(data = dnew, xintercept = eps1, lty = 2) 
+e2 <-  geom_vline(data = dnew, xintercept = eps2, lty = 2)
+rib2 <- geom_ribbon(data = dnew, aes(x = x, ymin= y1-2*s2, ymax = y1+2*s2, group = reg),
+alpha = 0.3) 
+
+print(g1 + pred2 + e1 + e2 + rib2 + ggtitle("Predicción lineal por regiones"))
+```
+
+
+**Splines**
+
+En lugar de la aproximación por zonas, podríamos incluir splines (funciones que se intersectan en ciertos nodos) en nuestros modelos. 
+
+```{r, echo = F}
+library(splines)
+m4 <- lm( y~bs(x, degree = 1, 2), data = dt)
+
+dnew$y1 <- predict(m4, newx)
+dnew$lower <- as_tibble(predict(m4, newx, interval = 'confidence'))$lwr
+dnew$upper <- as_tibble(predict(m4, newx, interval = 'confidence'))$upr
+
+pred2 <- geom_line(data = dnew, aes(x = x, y = y1), colour = 'salmon')
+rib2 <- geom_ribbon(data = dnew, aes(x = x, ymin= lower, ymax = upper),
+alpha = 0.3) 
+
+print(g1 + pred2 + rib2 + ggtitle("Regresión con splines"))
+```
+
+
+```{r, echo = F}
+m4 <- lm( y~bs(x, degree = 1, 3), data = dt)
+
+dnew$y1 <- predict(m4, newx)
+dnew$lower <- as_tibble(predict(m4, newx, interval = 'confidence'))$lwr
+dnew$upper <- as_tibble(predict(m4, newx, interval = 'confidence'))$upr
+
+pred2 <- geom_line(data = dnew, aes(x = x, y = y1), colour = 'salmon')
+rib2 <- geom_ribbon(data = dnew, aes(x = x, ymin= lower, ymax = upper),
+alpha = 0.3) 
+
+
+print(g1 + pred2 + rib2 + ggtitle("Regresión con splines"))
+```
+
+
+
+## Conclusiones {-}
+
++ Las regresiones, por simple que parezcan, nos proporcionan una maquinaria muy potente para ajustar distintos modelos, sea mediante la inclusión de interacciones, polinomios, ajustes por regiones o splines.
+
++ Puede existir un trade-off implícito entre el ajuste de un modelo y su interpretabilidad.
+
++ Contrario a lo que se cree, los problemas de interpretabilidad que normalmente se le atribuyen a modelos más complejos como las redes neuronales están presentes en estos modelos más "sencillos".
