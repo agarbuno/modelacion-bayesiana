@@ -1,0 +1,196 @@
+
+# Modelos de regresión para inferencia causal
+
+
+```{r setup, include=FALSE, message=FALSE}
+library(tidyverse)
+library(cmdstanr)
+library(rstanarm)
+library(arm)
+library(bayesplot)
+library(loo)
+
+library(patchwork)
+library(scales)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning=FALSE, 
+                      fig.align = 'center', fig.width = 5, fig.height=3, cache = TRUE)
+comma <- function(x) format(x, digits = 2, big.mark = ",")
+theme_set(theme_linedraw())
+color.blues <- c(NA,"#BDD7E7", "#6BAED6", "#3182BD", "#08519C", "#074789", "#063e77", "#053464")
+color.itam  <- c("#00362b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f")
+
+
+sin_lineas <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+sin_leyenda <- theme(legend.position = "none")
+sin_ejes <- theme(axis.ticks = element_blank(), 
+                  axis.text = element_blank())
+
+options(mc.cores = 4)
+```
+
+
+## Datos: Educación
+
+```{r}
+electric_wide <- read.table("https://github.com/avehtari/ROS-Examples/raw/master/ElectricCompany/data/electric_wide.txt", 
+           header = TRUE)
+
+electric_wide
+
+```
+
+```{r, fig.asp = .4}
+
+electric_wide %>%
+    pivot_longer(c(control_posttest,treated_posttest)) %>% 
+    ggplot(aes(value)) + 
+        geom_histogram(binwidth = 5) + 
+        facet_grid(grade ~ name) + 
+        sin_lineas + 
+        xlim(0, 130)
+
+```
+
+```{r, fig.asp = .4}
+
+electric.summary <- electric_wide %>%
+    pivot_longer(c(control_posttest,treated_posttest)) %>% 
+    group_by(grade, name) %>% 
+    summarise(average = mean(value))
+
+electric_wide %>%
+    pivot_longer(c(control_posttest,treated_posttest)) %>% 
+    ggplot(aes(value)) + 
+        geom_histogram(binwidth = 5) + 
+        facet_grid( name ~ grade) + 
+        sin_lineas + 
+        geom_vline(data = electric.summary, aes(xintercept = average), 
+                   lty = 2, color = 'salmon', size = 1.) + 
+        xlim(0, 130)
+```
+
+```{r}
+electric <- read_csv("https://github.com/avehtari/ROS-Examples/raw/master/ElectricCompany/data/electric.csv")
+electric
+```
+
+```{r}
+
+model.1 <- stan_glm(post_test ~ treatment, data = electric, refresh = 0)
+summary(model.1)
+
+```
+
+```{r}
+
+electric <- electric %>% mutate(grade = factor(grade))
+
+ajusta_modelo2 <- function(k){
+    stan_glm(post_test ~ treatment, 
+             data = electric, 
+             subset = (grade == k), 
+             refresh = 0)
+}
+
+modelos <- tibble(k = seq(1,4)) %>% 
+    mutate(ajuste.2 = map(k, ajusta_modelo2))
+
+modelos %>% 
+    mutate(coefs.2 = map(ajuste.2, broom.mixed::tidy)) %>% 
+    unnest(coefs.2)
+
+```
+
+```{r}
+
+ajusta_modelo3 <- function(k){
+    stan_glm(post_test ~ treatment + pre_test, 
+             data = electric, 
+             subset = (grade == k), 
+             refresh = 0)
+}
+
+modelos <- modelos %>% 
+    mutate(ajuste.3 = map(k, ajusta_modelo3))
+
+```
+
+```{r}
+modelos %>% 
+    mutate(coefs.3 = map(ajuste.3, broom.mixed::tidy)) %>% 
+    unnest(coefs.3)
+
+
+modelos %>% 
+    mutate(coefs.3 = map(ajuste.2, broom.mixed::tidy)) %>% 
+    unnest(coefs.3)
+```
+
+
+```{r}
+
+extrae_coef <- function(modelo){
+    broom.mixed::tidy(modelo, 
+                      conf.int = TRUE, 
+                      conf.method = "quantile")
+}
+
+extrae_coef(model.1)
+
+```
+
+
+```{r}
+coefs.3 <- modelos %>% 
+    mutate(coefs= map(ajuste.3, broom.mixed::tidy)) %>% 
+    unnest(coefs) %>% 
+    filter(term == "treatment") %>% 
+    mutate(model = "control")
+
+coefs.2 <- modelos %>% 
+    mutate(coefs= map(ajuste.2, broom.mixed::tidy)) %>% 
+    unnest(coefs) %>% 
+    filter(term == "treatment") %>% 
+    mutate(model = "no-control")
+```
+
+
+```{r, fig.asp = .2}
+
+rbind(coefs.2, coefs.3) %>% 
+    mutate(model = fct_inorder(model), 
+           grade = factor(k)) %>% 
+    ggplot(aes(grade, estimate)) + 
+        geom_point(size = 2) + 
+        geom_linerange(aes(x = grade, 
+                            ymin = estimate - 2 * std.error, 
+                            ymax = estimate + 2 * std.error), 
+                       color = 'gray') +
+        geom_linerange(aes(x = grade, 
+                            ymin = estimate - std.error, 
+                            ymax = estimate + std.error), 
+                       size = 1.5) + 
+        facet_grid(~model) + 
+        geom_hline(yintercept = 0, lty = 2)  + 
+        sin_lineas + 
+        coord_flip()
+
+```
+
+## Datos: Incentivos
+
+
+```{r}
+
+incentives <- read_csv("https://github.com/avehtari/ROS-Examples/raw/master/Incentives/data/incentives.csv")
+incentives
+
+```
+
+```{r}
+
+modelo.1 <- stan_glm(rr_diff ~ value + prepay + gift + burden, data=incentives, refresh=0)
+
+summary(modelo.1)
+```
+
