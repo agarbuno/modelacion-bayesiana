@@ -316,6 +316,240 @@ g1_kid / g2_kid
 
 ## Evaluación de modelos {-}
 
+Uno de los objetivos en Estadística Bayesiana es la predicción: considerando una muestra inicial y una nueva observación, deseamos encontrar la distribución condicional de la nueva observación, dada la muestra. Recordemos que, a esa distribución le llamamos distribución posterior predictiva. Por otra parte, al emplear modelos distintos, tenemos interés en compararlos para elegir al mejor en alguna característica que nos interese. En este curso, la característica que nos interesa es la calidad de los pronósticos, por lo que es necesario contar con métricas que nos permitan comparar distintos modelos a través de comparar la calidad de sus pronósticos y entonces tener elementos para elegir al mejor o a los mejores modelos conforme a la métrica empleada. 
+
+Considerando lo anterior, a continuación desarrollamos los siguientes puntos: 
+
++ Motivación,  
++ Log Densidad Predictiva, 
++ Algunos Conceptos de Teoría de la Información,
++ Devianza y Criterio de Información y
++ Lecciones aprendidas.
+
+### Motivación
+
+Hasta el momento hemos visto, en el contexto de estadística Bayesiana, modelos simplificados del tipo:
+
+$$
+y_i = \beta_0 + \beta_1 x_1 + \ldots + \beta_k x_k + \epsilon.
+$$
+En los que asumimos que la relación entre $Y$ y $X$ es lineal y asignamos una distribución a priori sobre los coeficientes $\beta_i$, denotara por por $\pi(\beta_0, \ldots,\beta_k, \sigma^2|X,Y)$, y una distribución para el término de error. A la distribución de $Y$ la denotamos por $Y|\beta, X \sim \pi(Y|\beta, X)$. 
+
+La pregunta que abordamos es: si tuviéramos que usar el modelo para realizar predicciones ¿cómo mediríamos su capacidad predictiva? Una posible respuesta viene dada por el Error Cuadrático Medio:
+
+$$
+\frac{1}{n}\sum_{i=1}^{n}(y_i -\mathop{\mathbb{E}}(y_i|x_i))^2.
+$$
+Que intenta cuantificar, con un solo número, el error cometido. El problema de este enfoque es que estamos ignorando la naturaleza probabilística de nuestras predicciones al describir una distribución de probabilidad con un solo número. Por ejemplo, estamos dejando de cuantificar la incertidumbre asociada a las predicciones y esa es información muy valiosa que no queremos perder, porque nos ayuda a medir la calidad de estas.
+
+#### Ejemplo
+
+Considere la Gráfica de abajo, en la que se muestran dos modelos hipotéticos, el modelo verde con media 0 y el rosa con media 10, y se desea hacer una predicción. Con fines ilustrativos, pensemos que conocemos el valor real, $y=5$ a predecir, resaltado por la línea punteada azul. Si la función resumen que se elige para ambas distribuciones predictivas son sus respectivas medias, entonces la predicción puntual de ambos modelos es 0 es 10. Note que, en ambos modelos, el error absoluto es 5, lo que nos podría llegar a concluir que son igual de buenos. Sin embargo, podemos argumentar que el modelo verde tiene un mejor desempeño: si construimos un intervalo de credibilidad al 95 por ciento para el modelo verde, este contendrá al valor verdadero, cosa que no ocurría con el rosa al construir su respectivo intervalo de credibilidad al 95 por ciento. 
+
+El lector podrá imaginar que estandarizar por la varianza podría ser de ayuda. Sin embargo, esto tiene el inconveniente de no funcionar bien para distribuciones no simétricas, por lo que solo resolveríamos parcialmente el problema. 
+
+Lo anterior, muestra la necesidad de contar con métricas que incorporen la incertidumbre de las predicciones que realizamos, que sean de utilidad de comprar distintos modelos y elegir el mejor o los mejores. Por ello, a continuación, se presentan distintas métricas en este sentido.
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+set.seed(1)
+datos <- data.frame(dens = c(rnorm(10000, 10,2), rnorm(10000, 0, 5))
+                   , lines = rep(c("modelo 1", "modelo 2"), each = 10000))
+ggplot(datos, aes(x = dens, fill = lines)) + 
+  geom_density(alpha = 0.5) +
+  geom_vline(xintercept = 5, linetype="dotted", 
+                color = "blue", size=1.5)+
+  labs(title="Comparación entre dos modelos considerando \n incertidumbre",
+        x ="Predicción", y = "Densidad") +
+  theme(legend.position = "none")
+```
+
+### Log Densidad Predictiva
+
+Las Reglas de Puntuación proporcionan medidas resumidas para la evaluación de pronósticos probabilísticos, mediante la asignación de una puntuación numérica basada en la distribución predictiva y en el evento o valor que se materializa [@scoringRules]. El papel de las reglas de puntuación es animar al evaluador a realizar evaluaciones cuidadosas y ser honesto.Existen varias Reglas de Puntuación, aquí nos concentramos en Logarítmica.
+
+La Log Densidad Predictiva mide la capacidad predictiva de un modelo, entendida como una variable aleatoria, y tiene la ventaja que incorpora la incertidumbre. La Log Densidad Predictiva asociada a la densidad predictiva $\pi(Y|\theta)$ está dada por $\log \pi (Y|\theta)$.
+
+
+#### Ejemplo
+
+Considere que la distribución predictiva para $Y$, es una normal multivarida con vector de medias $\mu$ y matriz de varianza - covarianza $\Sigma^2$, es decir $Y\sim N(\mu, \Sigma^2)$. Entonces la Densidad Predictiva está dada por:
+
+$$
+\pi(Y|\theta) = (2\pi)^{-k/2}|\Sigma|^{-1/2}\text{exp}\Big\{-\frac{1}{2}||Y-\mu||^2_{\Sigma}\Big\}.
+$$
+
+Y la correspondiente Log Densidad Predictiva es:
+$$
+\log \pi(Y|\theta) = -\frac{k}{2}\log(2\pi)-\frac{1}{2}|\Sigma|-\frac{1}{2}||Y-\mu||^2_{\Sigma}
+$$
+con 
+$$
+||Y-\mu||^2_{\Sigma} = (Y-\mu)^T\Sigma^{-1}(Y-\mu).
+$$
+
+Recordemos que, en el contexto de Bayesiano, contamos con todos los elementos para marginalizar sobre los parámetros, por lo que la Log Densidad Predictiva se puede escribir como:
+
+\begin{equation}
+\begin{split}
+\log \pi_{post}(y_{i})&=\log\int\pi(y_{i}|\theta)\pi(\theta)\,\text{d}\theta\\
+&=\log \mathbb{E}_{post }[\pi_{post}(y_{i})|\theta)]\\
+\end{split}
+\end{equation}
+
+Con $\pi_{post}(\theta) = \pi(\theta|\underline{y}_n)$.
+
+A la expresión anterior, le llamamos **Log  Densidad Predictiva Inducida por el Modelo Posterior**. Sin embargo, presenta retos en su cálculo. Recordemos que el objetivo es evaluar la calidad de las predicciones, entonces los retos son:
+
+1. ¿Qué pasa si tenemos nuevos datos, cómo incorporamos la nueva información para comparar los modelos?
+2. ¿Qué pasa si no tenemos nuevos datos, entonces cómo comparamos la capacidad predictiva de los modelos?
+3. ¿Qué pasa si no podemos conocer la Distribución Posterior, debido a que es complicado conocer la constante de normalización?
+
+Abordemos la primera pregunta. Consideremos una nueva muestra $\tilde{y}_{1}, \ldots, \tilde{y}_m$ (una muestra futura o una submuestra que excluimos a propósito en  nuestra muestra inicial), tal que $\tilde{y}_i\sim f$. Entonces, podemos tomar la Log Densidad Predictiva Inducida por el Modelo Posterior y marginalizar respecto a distintas realizaciones de $y_i$, considerando $f$:
+
+\begin{equation}
+\begin{split}
+\text{ELPD} &= \mathbb{E}_{f}[\log \pi_{post}(y_{i})]\\
+&=\int\log \pi_{post}(\tilde{y}_{i})f(\tilde{y_i})\,\text{d}\tilde{y_i}.
+\end{split}
+\end{equation}
+
+Donde ELPPD son las siglas en inglés de **Valor Esperado de la Log Densidad Predictiva**.
+
+El problema es que $f$ es desconocida por lo que no podemos calcular la expresión anterior. Una solución es aproximarla, de esta forma, tenemos el **Valor Esperado de la Log Densidad Predictiva de Manera Puntual (ELLPD)**:
+
+$$
+\text{ELPPD} =\sum_i \mathbb{E}_{f}[\log \pi_{post}(\tilde{y}_{i})].
+$$
+Ahora abordemos la segunda pregunta. La situación es la siguiente: queremos evaluar la capacidad predictiva de nuestros modelos, pero no contamos con nuevas observaciones, esta situación se puede dar por distintas situaciones: resulta muy costoso, requiere mucho tiempo, no es factible repetir el experimento, etc. En ese caso, se puede usar la muestra original $y_1,\ldots, y_n$: 
+
+\begin{equation}
+\begin{split}
+\log \pi_{post}(\underline{y}_n)&=\Pi_{i=1}^{n}\pi_{post}(Y_{i})\\
+\text{LPPD} &=\sum_{i=1}^{n}\log \pi_{post}(y_i).
+\end{split}
+\end{equation}
+
+A la expresión anterior se le llama **Log Densidad Predictiva Puntual**.
+
+Ahora abordemos la tercera pregunta. No olvidemos que muchas veces la integral
+$$
+\pi_{post}(y_i) = \int \pi(y_i|\theta)\pi_{post}(\theta)\,\text{d}\theta
+$$
+resulta muy difícil de calcular. Por lo que la aproximamos con algún método Montecarlo:
+
+$$
+\frac{1}{s}\sum_{i=1}^{s}pi(y_i|\theta^s)
+$$
+con $\theta^s \sim \pi_{post}(\theta)$ y $S$ el número de simulaciones de la Distribución Posterior.
+
+Cuando se emplea la aproximación de Monte Carlo, a la siguiente expresión le llamamos **LPPD - calculada**.
+
+$$
+\text{LPPD - calculada}=\sum_{i=1}^{n}\log\Big(\frac{1}{s}\sum_{s=1}^{S}\pi_{post}(y_i|\theta^s)\Big)
+$$
+
+Y es sobre esta última cantidad, sobre las que se construyen las métricas de evaluación de un modelo Bayesiano.  
+
+### Algunos conceptos de Teoría de la Información 
+
+Hemos hablado intuitivamente de incertidumbre, a continuación, formalizamos este concepto en el contexto de Teoría de la Información y lo usamos para introducir nuevos conceptos que, nos servirán para discutir el concepto de Devianza.
+
+Intuitivamente entendemos la incertidumbre como sorpresa o asombro. Considere un evento cuya probabilidad de ocurrencia sea muy pequeña y que ocurra, en ese caso estaríamos muy sorprendidos. Por el contrario, la ocurrencia de un evento con alta probabilidad no nos sorprendería. Y la ocurrencia de eventos poso probables deberían sorprendernos más que los eventos más probables. A continuación, formalizamos esta idea mediante una función. 
+
+La función que mide la incertidumbre asociada a una variable aleatoria $Y$, cuando toma un valor específico $y_i$, basados en su probabilidad de ocurrencia $P(y_i)=p_i$, debe de cumplir las siguientes características:
+
+1. Incertidumbre alta cuando ocurra un evento con probabilidad muy baja. 
+2. Incertidumbre baja cuando ocurra un evento con probabilidad muy alta.
+3. Que la regla sea monótona, en el sentido que la ocurrencia de eventos con probabilidad baja tenga incertidumbre más alta que los eventos con probabilidad alta.
+
+Las tres características anteriores las podemos obtener con la expresión $\log\frac{1}{p_i}$, que también se puede escribir como $-\log p_i$, que es la definición de incertidumbre para la variable aleatoria $Y$ cuando se observa $y_i$ cuya probabilidad asociada es $p_i$. A partir de este concepto, podemos definir tres conceptos fundamentales en Teoría de la Información. 
+
+Considere dos modelos representados por las distribuciones de probabilidad $P$ y $Q$:
+
+1. **Entropía**, mide el valor esperado de la incertidumbre, la denotamos por $H(P)$, y está dada por: 
+
+\begin{equation}
+\begin{split}
+H(P) &= -\mathbb{E}(\log p_i) \\
+&= -\sum_{i} p_i\log p_i
+\end{split}
+\end{equation}
+
+2. **Entropía Cruzada**: $H(P,Q) = -\sum p_i\log q_i$
+
+Note que:
+$$
+H(P,Q) \geq H(P,P)=H(P)
+$$
+
+3. **Entropía Relativa (Divergencia de Kullback-Leibler)**: $D_{KL} = H(P,Q)-H(p)$ que, en el contexto de Inferencia Bayesiana se conoce como la divergencia de Kullback-Leibler. Y la interpretamos como la similitud entre dos distribuciones de probabilidad $P$ y $Q$. 
+
+
+Considere dos modelos cuyas distribuciones son $R$ y $Q$ que, aproximan el proceso generador de datos $P$. Entonces, podemos emplear la Entropía Cruzada para saber qué modelo tiene la mayor similitud al proceso generador de datos:
+
+\begin{equation}
+\begin{split}
+D_{KL}(P||Q) - D(P||R)& = H(P,Q) - H(P,R)\\
+&= -\mathbb{E}[\log q_i] + \mathbb{E}[\log r_i]
+\end{split}
+\end{equation}
+
+Por lo que:
+
++ si $\mathbb{E}[\log q_i] < \mathbb{E}[\log r_i]$ preferimos el modelo $Q$, 
++ si $\mathbb{E}[\log q_i] > \mathbb{E}[\log r_i]$ preferimos el modelo $R$ y 
++ si $\mathbb{E}[\log q_i] = \mathbb{E}[\log r_i]$ somos indiferentes entre los modelos.
+
+### Devianza y Criterio de Información 
+
+Definimos la Devianza de la distribución $\pi$, y la denotamos por $D(\pi)$, como:
+
+$$
+D(\pi)=-2\log \pi(y | \theta)
+$$
+Dado la Entropía Relativa, la Devianza de un modelo, solo tiene sentido cuando se compara con otro modelo, por sí sola no indica nada. De esta manera, la podemos interpretar como una métrica que evalúa la capacidad de predictiva de una variable aleatoria para predecir eventos que no conocemos.
+
+Una medida relacionada con la Devianza es el Criterio de Akaike, dado por:
+
+$$
+\tilde{D}(\pi)=-2\log(\pi(y|\theta)) + 2k.
+$$
+Donde $k$ es la dimensión en donde vive el vector aleatorio asociado a $\pi$. El criterio de Akaike penaliza a la Devianza de modelos que "son grandes" (k grandes).
+
+#### Ejemplo
+
+La Devianza de una Distribución Gaussiana está dada por:
+
+$$
+D(\pi(y|\mu, \Sigma)) = kc + ||y-\mu||^2_{\sigma}+log|\Sigma|
+$$
+
+### Lecciones Aprendidas
+
+Contar con métricas que nos permitan evaluar las predicciones y que consideren la incertidumbre asociada, es algo sumamente útil para comparar modelos y elegir los mejores. Hasta el momento, respecto a métricas, hemos aprendimos lo siguiente:
+
+1. Conceptos relacionados con la Log Densidad Predictiva
+    i) Log Densidad Predictiva Inducida por el Modelo Posterior que, obtenemos cuando marginalizamos sobre los parámetros.
+    ii) Valor Esperado de la Log Densidad Predictiva (ELPD) que, obtenemos cuando marginalizamos sobre nuevas realizaciones.
+    iii) Valor Esperado de la Log Densidad Predictiva de Manera Puntual (ELPPD) que, es la aproximación de ELPD empleando nuevos datos.
+    iv) Log Densidad Predictiva Puntual, que es la aproximación de ELPD considerando la muestra inicial. 
+    v) LPPD - calculada que resulta de aproximar la LPPD aproximando la integral de la posteriori con algún método Montecarlo.
+
+2. También introducimos conceptos de Teoría de la Información
+
+    i) Entropía
+    ii) Entropía Cruzada
+    iii) Entropía Relativa
+    
+3. Devianza
+
+4. Criterio de Información de Akaike.
+    
+
+Algo sumamente relevante es que, muchas veces tener nuevos datos para evaluar nuestros modelos, es algo que, por cuestiones de recursos, tiempo u otro tipo de costos no es posible. En ese caso, evaluamos las métricas en la  muestra inicial. Para ello, será necesario usar validación cruzada que, es el tema que veremos en a continuación.
+
+
+
 ```{r}
 SEED <- 2141
 set.seed(SEED) 
