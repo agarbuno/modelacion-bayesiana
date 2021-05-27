@@ -1,5 +1,10 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
 
-# Diagnósticos 
+# Diagnósticos
 
 
 ```{r, include=FALSE, message=FALSE}
@@ -12,7 +17,7 @@ library(loo)
 
 library(patchwork)
 library(scales)
-knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning=FALSE, 
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning=FALSE,
                       fig.align = 'center', fig.width = 5, fig.height=3, cache = TRUE)
 comma <- function(x) format(x, digits = 2, big.mark = ",")
 theme_set(theme_linedraw())
@@ -22,7 +27,7 @@ color.itam  <- c("#00362b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f
 
 sin_lineas <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 sin_leyenda <- theme(legend.position = "none")
-sin_ejes <- theme(axis.ticks = element_blank(), 
+sin_ejes <- theme(axis.ticks = element_blank(),
                   axis.text = element_blank())
 ```
 
@@ -42,40 +47,40 @@ print(fit_kid)
 
 ```{r}
 
-kidiq %>% 
-    mutate( residuals = kid_score - predict(fit_kid)) %>% 
-    ggplot(aes(x = mom_iq, y = residuals)) + 
-        geom_point() + sin_lineas + 
-        geom_hline(yintercept = 0, lty = 2, size = 1) + 
-        # geom_hline(yintercept = c(18.3, -18.3), lty = 2) + 
-        geom_ribbon(aes(ymin = -18.3, ymax = 18.3), alpha = .3) + 
-        geom_ribbon(aes(ymin = -2 * 18.3, ymax = 2 * 18.3), alpha = .3) + 
+kidiq %>%
+    mutate( residuals = kid_score - predict(fit_kid)) %>%
+    ggplot(aes(x = mom_iq, y = residuals)) +
+        geom_point() + sin_lineas +
+        geom_hline(yintercept = 0, lty = 2, size = 1) +
+        # geom_hline(yintercept = c(18.3, -18.3), lty = 2) +
+        geom_ribbon(aes(ymin = -18.3, ymax = 18.3), alpha = .3) +
+        geom_ribbon(aes(ymin = -2 * 18.3, ymax = 2 * 18.3), alpha = .3) +
         ggtitle("Residuales contra predictor")
 
 ```
 
 ```{r}
 
-g1 <- kidiq %>% 
-    mutate( residuals  = kid_score - predict(fit_kid), 
-            prediccion = predict(fit_kid)) %>% 
-    ggplot(aes(x = prediccion, y = residuals)) + 
-        geom_point() + sin_lineas + 
-        geom_hline(yintercept = 0, lty = 2, size = 1) + 
-        # geom_hline(yintercept = c(18.3, -18.3), lty = 2) + 
-        geom_ribbon(aes(ymin = -18.3, ymax = 18.3), alpha = .3) + 
-        geom_ribbon(aes(ymin = -2 * 18.3, ymax = 2 * 18.3), alpha = .3) + 
+g1 <- kidiq %>%
+    mutate( residuals  = kid_score - predict(fit_kid),
+            prediccion = predict(fit_kid)) %>%
+    ggplot(aes(x = prediccion, y = residuals)) +
+        geom_point() + sin_lineas +
+        geom_hline(yintercept = 0, lty = 2, size = 1) +
+        # geom_hline(yintercept = c(18.3, -18.3), lty = 2) +
+        geom_ribbon(aes(ymin = -18.3, ymax = 18.3), alpha = .3) +
+        geom_ribbon(aes(ymin = -2 * 18.3, ymax = 2 * 18.3), alpha = .3) +
         ggtitle("Residuales contra prediccion")
-    
-g2 <- kidiq %>% 
-    mutate( residuals  = kid_score - predict(fit_kid), 
-            prediccion = predict(fit_kid)) %>% 
-    ggplot(aes(x = kid_score, y = residuals)) + 
-        geom_point() + sin_lineas + 
-        geom_hline(yintercept = 0, lty = 2, size = 1) + 
-        # geom_hline(yintercept = c(18.3, -18.3), lty = 2) + 
-        geom_ribbon(aes(ymin = -18.3, ymax = 18.3), alpha = .3) + 
-        geom_ribbon(aes(ymin = -2 * 18.3, ymax = 2 * 18.3), alpha = .3) + 
+
+g2 <- kidiq %>%
+    mutate( residuals  = kid_score - predict(fit_kid),
+            prediccion = predict(fit_kid)) %>%
+    ggplot(aes(x = kid_score, y = residuals)) +
+        geom_point() + sin_lineas +
+        geom_hline(yintercept = 0, lty = 2, size = 1) +
+        # geom_hline(yintercept = c(18.3, -18.3), lty = 2) +
+        geom_ribbon(aes(ymin = -18.3, ymax = 18.3), alpha = .3) +
+        geom_ribbon(aes(ymin = -2 * 18.3, ymax = 2 * 18.3), alpha = .3) +
         ggtitle("Residuales contra observación")
 
 g1 + g2
@@ -83,11 +88,11 @@ g1 + g2
 
 ```{r}
 
-a <- 0.6    
+a <- 0.6
 b <- 86.8
 sigma <- 18.3
 
-kidiq_sim <- tibble(mom_iq_c    = kidiq$mom_iq_c, 
+kidiq_sim <- tibble(mom_iq_c    = kidiq$mom_iq_c,
                      kid_score = a * kidiq$mom_iq_c + b + 18.3 * rnorm(nrow(kidiq)))
 
 fit_sim <- stan_glm(kid_score ~ mom_iq_c, data=kidiq_sim, refresh = 0)
@@ -96,26 +101,26 @@ print(fit_sim)
 ```
 
 ```{r}
-g1 <- kidiq_sim %>% 
-    mutate( residuals  = kid_score - predict(fit_sim), 
-            prediccion = predict(fit_sim)) %>% 
-    ggplot(aes(x = prediccion, y = residuals)) + 
-        geom_point() + sin_lineas + 
-        geom_hline(yintercept = 0, lty = 2, size = 1) + 
-        # geom_hline(yintercept = c(18.3, -18.3), lty = 2) + 
-        geom_ribbon(aes(ymin = -18.3, ymax = 18.3), alpha = .3) + 
-        geom_ribbon(aes(ymin = -2 * 18.3, ymax = 2 * 18.3), alpha = .3) + 
+g1 <- kidiq_sim %>%
+    mutate( residuals  = kid_score - predict(fit_sim),
+            prediccion = predict(fit_sim)) %>%
+    ggplot(aes(x = prediccion, y = residuals)) +
+        geom_point() + sin_lineas +
+        geom_hline(yintercept = 0, lty = 2, size = 1) +
+        # geom_hline(yintercept = c(18.3, -18.3), lty = 2) +
+        geom_ribbon(aes(ymin = -18.3, ymax = 18.3), alpha = .3) +
+        geom_ribbon(aes(ymin = -2 * 18.3, ymax = 2 * 18.3), alpha = .3) +
         ggtitle("Residuales contra prediccion")
-    
-g2 <- kidiq_sim %>% 
-    mutate( residuals  = kid_score - predict(fit_sim), 
-            prediccion = predict(fit_sim)) %>% 
-    ggplot(aes(x = kid_score, y = residuals)) + 
-        geom_point() + sin_lineas + 
-        geom_hline(yintercept = 0, lty = 2, size = 1) + 
-        # geom_hline(yintercept = c(18.3, -18.3), lty = 2) + 
-        geom_ribbon(aes(ymin = -18.3, ymax = 18.3), alpha = .3) + 
-        geom_ribbon(aes(ymin = -2 * 18.3, ymax = 2 * 18.3), alpha = .3) + 
+
+g2 <- kidiq_sim %>%
+    mutate( residuals  = kid_score - predict(fit_sim),
+            prediccion = predict(fit_sim)) %>%
+    ggplot(aes(x = kid_score, y = residuals)) +
+        geom_point() + sin_lineas +
+        geom_hline(yintercept = 0, lty = 2, size = 1) +
+        # geom_hline(yintercept = c(18.3, -18.3), lty = 2) +
+        geom_ribbon(aes(ymin = -18.3, ymax = 18.3), alpha = .3) +
+        geom_ribbon(aes(ymin = -2 * 18.3, ymax = 2 * 18.3), alpha = .3) +
         ggtitle("Residuales contra observación")
 
 g1 + g2
@@ -132,8 +137,8 @@ newcomb %>% head()
 
 ```{r}
 
-newcomb %>% 
-    ggplot(aes(x = y)) + 
+newcomb %>%
+    ggplot(aes(x = y)) +
         geom_histogram() + sin_lineas
 
 ```
@@ -178,9 +183,9 @@ unemp %>% head()
 
 ```{r}
 
-unemp %>% 
-    ggplot(aes(year, y)) + 
-        geom_line() + sin_lineas + 
+unemp %>%
+    ggplot(aes(year, y)) +
+        geom_line() + sin_lineas +
         ylab("Unemployment rate (%)")
 
 ```
@@ -199,13 +204,13 @@ n_sims <- nrow(y_rep)
 
 ```{r}
 
-as_tibble(y_rep) %>% 
-    mutate(sim = 1:n_sims) %>% 
-    sample_n(15) %>% 
-    pivot_longer(cols = V1:70) %>% 
-    mutate(year = rep(unemp$year, 15)) %>% 
-    ggplot(aes(x = year, y = value)) + 
-        geom_line() + 
+as_tibble(y_rep) %>%
+    mutate(sim = 1:n_sims) %>%
+    sample_n(15) %>%
+    pivot_longer(cols = V1:70) %>%
+    mutate(year = rep(unemp$year, 15)) %>%
+    ggplot(aes(x = year, y = value)) +
+        geom_line() +
         facet_wrap(~sim, ncol = 5)
 
 ```
@@ -237,7 +242,7 @@ ppc_stat(y=unemp$y, yrep=y_rep, stat=test, binwidth = 1) + sin_lineas
 $$ \hat R = 1 - \frac{\hat \sigma2}{\sigma_y^2} \,.$$
 ```{r}
 
-data <- tibble(x = 1:5 - 3, 
+data <- tibble(x = 1:5 - 3,
                y = c(1.7, 2.6, 2.5, 4.4, 3.8) - 3)
 
 summary(ols <- lm(y ~ x, data))
@@ -254,7 +259,7 @@ fit_bayes <- stan_glm(y ~ x, data = data,
   seed = 108727, refresh = 0
 )
 
-c(OLS   = var(predict(ols))/var(data$y), 
+c(OLS   = var(predict(ols))/var(data$y),
   Bayes = var(predict(fit_bayes))/var(data$y))
 
 ```
@@ -275,7 +280,7 @@ bayesR2 <- bayes_R2(fit_kid)
 
 g1_kid <- mcmc_hist(data.frame(bayesR2), binwidth=0.01)  +
     xlab('Bayesian R2') +
-    geom_vline(xintercept=median(bayesR2)) + sin_lineas + 
+    geom_vline(xintercept=median(bayesR2)) + sin_lineas +
     xlim(0, .35) + ggtitle("Modelo regresión")
 
 g1_kid
@@ -306,22 +311,24 @@ c(median(bayesR2), median(bayesR2n<-bayes_R2(fit_kid_noise)))
 
 g2_kid <- mcmc_hist(data.frame(bayesR2n), binwidth=0.01)  +
     xlab('Bayesian R2') +
-    geom_vline(xintercept=median(bayesR2n)) + sin_lineas + xlim(0, .35) + 
+    geom_vline(xintercept=median(bayesR2n)) + sin_lineas + xlim(0, .35) +
     ggtitle("Modelo con malos predictores")
 
 g1_kid / g2_kid
 
-
 ```
+
+----
+#### Empieza sección de conflicto (**TODO**)
 
 ## Evaluación de modelos {-}
 
-Uno de los objetivos en Estadística Bayesiana es la predicción: considerando una muestra inicial y una nueva observación, deseamos encontrar la distribución condicional de la nueva observación, dada la muestra. Recordemos que, a esa distribución le llamamos distribución posterior predictiva. Por otra parte, al emplear modelos distintos, tenemos interés en compararlos para elegir al mejor en alguna característica que nos interese. En este curso, la característica que nos interesa es la calidad de los pronósticos, por lo que es necesario contar con métricas que nos permitan comparar distintos modelos a través de comparar la calidad de sus pronósticos y entonces tener elementos para elegir al mejor o a los mejores modelos conforme a la métrica empleada. 
+Uno de los objetivos en Estadística Bayesiana es la predicción: considerando una muestra inicial y una nueva observación, deseamos encontrar la distribución condicional de la nueva observación, dada la muestra. Recordemos que, a esa distribución le llamamos distribución posterior predictiva. Por otra parte, al emplear modelos distintos, tenemos interés en compararlos para elegir al mejor en alguna característica que nos interese. En este curso, la característica que nos interesa es la calidad de los pronósticos, por lo que es necesario contar con métricas que nos permitan comparar distintos modelos a través de comparar la calidad de sus pronósticos y entonces tener elementos para elegir al mejor o a los mejores modelos conforme a la métrica empleada.
 
-Considerando lo anterior, a continuación desarrollamos los siguientes puntos: 
+Considerando lo anterior, a continuación desarrollamos los siguientes puntos:
 
-+ Motivación,  
-+ Log Densidad Predictiva, 
++ Motivación,
++ Log Densidad Predictiva,
 + Algunos Conceptos de Teoría de la Información,
 + Devianza y Criterio de Información y
 + Lecciones aprendidas.
@@ -333,7 +340,7 @@ Hasta el momento hemos visto, en el contexto de estadística Bayesiana, modelos 
 $$
 y_i = \beta_0 + \beta_1 x_1 + \ldots + \beta_k x_k + \epsilon.
 $$
-En los que asumimos que la relación entre $Y$ y $X$ es lineal y asignamos una distribución a priori sobre los coeficientes $\beta_i$, denotara por por $\pi(\beta_0, \ldots,\beta_k, \sigma^2|X,Y)$, y una distribución para el término de error. A la distribución de $Y$ la denotamos por $Y|\beta, X \sim \pi(Y|\beta, X)$. 
+En los que asumimos que la relación entre $Y$ y $X$ es lineal y asignamos una distribución a priori sobre los coeficientes $\beta_i$, denotara por por $\pi(\beta_0, \ldots,\beta_k, \sigma^2|X,Y)$, y una distribución para el término de error. A la distribución de $Y$ la denotamos por $Y|\beta, X \sim \pi(Y|\beta, X)$.
 
 La pregunta que abordamos es: si tuviéramos que usar el modelo para realizar predicciones ¿cómo mediríamos su capacidad predictiva? Una posible respuesta viene dada por el Error Cuadrático Medio:
 
@@ -344,9 +351,9 @@ Que intenta cuantificar, con un solo número, el error cometido. El problema de 
 
 #### Ejemplo
 
-Considere la Gráfica de abajo, en la que se muestran dos modelos hipotéticos, el modelo verde con media 0 y el rosa con media 10, y se desea hacer una predicción. Con fines ilustrativos, pensemos que conocemos el valor real, $y=5$ a predecir, resaltado por la línea punteada azul. Si la función resumen que se elige para ambas distribuciones predictivas son sus respectivas medias, entonces la predicción puntual de ambos modelos es 0 es 10. Note que, en ambos modelos, el error absoluto es 5, lo que nos podría llegar a concluir que son igual de buenos. Sin embargo, podemos argumentar que el modelo verde tiene un mejor desempeño: si construimos un intervalo de credibilidad al 95 por ciento para el modelo verde, este contendrá al valor verdadero, cosa que no ocurría con el rosa al construir su respectivo intervalo de credibilidad al 95 por ciento. 
+Considere la Gráfica de abajo, en la que se muestran dos modelos hipotéticos, el modelo verde con media 0 y el rosa con media 10, y se desea hacer una predicción. Con fines ilustrativos, pensemos que conocemos el valor real, $y=5$ a predecir, resaltado por la línea punteada azul. Si la función resumen que se elige para ambas distribuciones predictivas son sus respectivas medias, entonces la predicción puntual de ambos modelos es 0 es 10. Note que, en ambos modelos, el error absoluto es 5, lo que nos podría llegar a concluir que son igual de buenos. Sin embargo, podemos argumentar que el modelo verde tiene un mejor desempeño: si construimos un intervalo de credibilidad al 95 por ciento para el modelo verde, este contendrá al valor verdadero, cosa que no ocurría con el rosa al construir su respectivo intervalo de credibilidad al 95 por ciento.
 
-El lector podrá imaginar que estandarizar por la varianza podría ser de ayuda. Sin embargo, esto tiene el inconveniente de no funcionar bien para distribuciones no simétricas, por lo que solo resolveríamos parcialmente el problema. 
+El lector podrá imaginar que estandarizar por la varianza podría ser de ayuda. Sin embargo, esto tiene el inconveniente de no funcionar bien para distribuciones no simétricas, por lo que solo resolveríamos parcialmente el problema.
 
 Lo anterior, muestra la necesidad de contar con métricas que incorporen la incertidumbre de las predicciones que realizamos, que sean de utilidad de comprar distintos modelos y elegir el mejor o los mejores. Por ello, a continuación, se presentan distintas métricas en este sentido.
 
@@ -354,9 +361,9 @@ Lo anterior, muestra la necesidad de contar con métricas que incorporen la ince
 set.seed(1)
 datos <- data.frame(dens = c(rnorm(10000, 10,2), rnorm(10000, 0, 5))
                    , lines = rep(c("modelo 1", "modelo 2"), each = 10000))
-ggplot(datos, aes(x = dens, fill = lines)) + 
+ggplot(datos, aes(x = dens, fill = lines)) +
   geom_density(alpha = 0.5) +
-  geom_vline(xintercept = 5, linetype="dotted", 
+  geom_vline(xintercept = 5, linetype="dotted",
                 color = "blue", size=1.5)+
   labs(title="Comparación entre dos modelos considerando \n incertidumbre",
         x ="Predicción", y = "Densidad") +
@@ -382,7 +389,7 @@ Y la correspondiente Log Densidad Predictiva es:
 $$
 \log \pi(Y|\theta) = -\frac{k}{2}\log(2\pi)-\frac{1}{2}|\Sigma|-\frac{1}{2}||Y-\mu||^2_{\Sigma}
 $$
-con 
+con
 $$
 ||Y-\mu||^2_{\Sigma} = (Y-\mu)^T\Sigma^{-1}(Y-\mu).
 $$
@@ -420,7 +427,7 @@ El problema es que $f$ es desconocida por lo que no podemos calcular la expresi�
 $$
 \text{ELPPD} =\sum_i \mathbb{E}_{f}[\log \pi_{post}(\tilde{y}_{i})].
 $$
-Ahora abordemos la segunda pregunta. La situación es la siguiente: queremos evaluar la capacidad predictiva de nuestros modelos, pero no contamos con nuevas observaciones, esta situación se puede dar por distintas situaciones: resulta muy costoso, requiere mucho tiempo, no es factible repetir el experimento, etc. En ese caso, se puede usar la muestra original $y_1,\ldots, y_n$: 
+Ahora abordemos la segunda pregunta. La situación es la siguiente: queremos evaluar la capacidad predictiva de nuestros modelos, pero no contamos con nuevas observaciones, esta situación se puede dar por distintas situaciones: resulta muy costoso, requiere mucho tiempo, no es factible repetir el experimento, etc. En ese caso, se puede usar la muestra original $y_1,\ldots, y_n$:
 
 \begin{equation}
 \begin{split}
@@ -448,25 +455,25 @@ $$
 \text{LPPD - calculada}=\sum_{i=1}^{n}\log\Big(\frac{1}{s}\sum_{s=1}^{S}\pi_{post}(y_i|\theta^s)\Big)
 $$
 
-Y es sobre esta última cantidad, sobre las que se construyen las métricas de evaluación de un modelo Bayesiano.  
+Y es sobre esta última cantidad, sobre las que se construyen las métricas de evaluación de un modelo Bayesiano.
 
-### Algunos conceptos de Teoría de la Información 
+### Algunos conceptos de Teoría de la Información
 
 Hemos hablado intuitivamente de incertidumbre, a continuación, formalizamos este concepto en el contexto de Teoría de la Información y lo usamos para introducir nuevos conceptos que, nos servirán para discutir el concepto de Devianza.
 
-Intuitivamente entendemos la incertidumbre como sorpresa o asombro. Considere un evento cuya probabilidad de ocurrencia sea muy pequeña y que ocurra, en ese caso estaríamos muy sorprendidos. Por el contrario, la ocurrencia de un evento con alta probabilidad no nos sorprendería. Y la ocurrencia de eventos poso probables deberían sorprendernos más que los eventos más probables. A continuación, formalizamos esta idea mediante una función. 
+Intuitivamente entendemos la incertidumbre como sorpresa o asombro. Considere un evento cuya probabilidad de ocurrencia sea muy pequeña y que ocurra, en ese caso estaríamos muy sorprendidos. Por el contrario, la ocurrencia de un evento con alta probabilidad no nos sorprendería. Y la ocurrencia de eventos poso probables deberían sorprendernos más que los eventos más probables. A continuación, formalizamos esta idea mediante una función.
 
 La función que mide la incertidumbre asociada a una variable aleatoria $Y$, cuando toma un valor específico $y_i$, basados en su probabilidad de ocurrencia $P(y_i)=p_i$, debe de cumplir las siguientes características:
 
-1. Incertidumbre alta cuando ocurra un evento con probabilidad muy baja. 
+1. Incertidumbre alta cuando ocurra un evento con probabilidad muy baja.
 2. Incertidumbre baja cuando ocurra un evento con probabilidad muy alta.
 3. Que la regla sea monótona, en el sentido que la ocurrencia de eventos con probabilidad baja tenga incertidumbre más alta que los eventos con probabilidad alta.
 
-Las tres características anteriores las podemos obtener con la expresión $\log\frac{1}{p_i}$, que también se puede escribir como $-\log p_i$, que es la definición de incertidumbre para la variable aleatoria $Y$ cuando se observa $y_i$ cuya probabilidad asociada es $p_i$. A partir de este concepto, podemos definir tres conceptos fundamentales en Teoría de la Información. 
+Las tres características anteriores las podemos obtener con la expresión $\log\frac{1}{p_i}$, que también se puede escribir como $-\log p_i$, que es la definición de incertidumbre para la variable aleatoria $Y$ cuando se observa $y_i$ cuya probabilidad asociada es $p_i$. A partir de este concepto, podemos definir tres conceptos fundamentales en Teoría de la Información.
 
 Considere dos modelos representados por las distribuciones de probabilidad $P$ y $Q$:
 
-1. **Entropía**, mide el valor esperado de la incertidumbre, la denotamos por $H(P)$, y está dada por: 
+1. **Entropía**, mide el valor esperado de la incertidumbre, la denotamos por $H(P)$, y está dada por:
 
 \begin{equation}
 \begin{split}
@@ -482,7 +489,7 @@ $$
 H(P,Q) \geq H(P,P)=H(P)
 $$
 
-3. **Entropía Relativa (Divergencia de Kullback-Leibler)**: $D_{KL} = H(P,Q)-H(p)$ que, en el contexto de Inferencia Bayesiana se conoce como la divergencia de Kullback-Leibler. Y la interpretamos como la similitud entre dos distribuciones de probabilidad $P$ y $Q$. 
+3. **Entropía Relativa (Divergencia de Kullback-Leibler)**: $D_{KL} = H(P,Q)-H(p)$ que, en el contexto de Inferencia Bayesiana se conoce como la divergencia de Kullback-Leibler. Y la interpretamos como la similitud entre dos distribuciones de probabilidad $P$ y $Q$.
 
 
 Considere dos modelos cuyas distribuciones son $R$ y $Q$ que, aproximan el proceso generador de datos $P$. Entonces, podemos emplear la Entropía Cruzada para saber qué modelo tiene la mayor similitud al proceso generador de datos:
@@ -496,11 +503,11 @@ D_{KL}(P||Q) - D(P||R)& = H(P,Q) - H(P,R)\\
 
 Por lo que:
 
-+ si $\mathbb{E}[\log q_i] < \mathbb{E}[\log r_i]$ preferimos el modelo $Q$, 
-+ si $\mathbb{E}[\log q_i] > \mathbb{E}[\log r_i]$ preferimos el modelo $R$ y 
++ si $\mathbb{E}[\log q_i] < \mathbb{E}[\log r_i]$ preferimos el modelo $Q$,
++ si $\mathbb{E}[\log q_i] > \mathbb{E}[\log r_i]$ preferimos el modelo $R$ y
 + si $\mathbb{E}[\log q_i] = \mathbb{E}[\log r_i]$ somos indiferentes entre los modelos.
 
-### Devianza y Criterio de Información 
+### Devianza y Criterio de Información
 
 Definimos la Devianza de la distribución $\pi$, y la denotamos por $D(\pi)$, como:
 
@@ -532,7 +539,7 @@ Contar con métricas que nos permitan evaluar las predicciones y que consideren 
     i) Log Densidad Predictiva Inducida por el Modelo Posterior que, obtenemos cuando marginalizamos sobre los parámetros.
     ii) Valor Esperado de la Log Densidad Predictiva (ELPD) que, obtenemos cuando marginalizamos sobre nuevas realizaciones.
     iii) Valor Esperado de la Log Densidad Predictiva de Manera Puntual (ELPPD) que, es la aproximación de ELPD empleando nuevos datos.
-    iv) Log Densidad Predictiva Puntual, que es la aproximación de ELPD considerando la muestra inicial. 
+    iv) Log Densidad Predictiva Puntual, que es la aproximación de ELPD considerando la muestra inicial.
     v) LPPD - calculada que resulta de aproximar la LPPD aproximando la integral de la posteriori con algún método Montecarlo.
 
 2. También introducimos conceptos de Teoría de la Información
@@ -540,19 +547,196 @@ Contar con métricas que nos permitan evaluar las predicciones y que consideren 
     i) Entropía
     ii) Entropía Cruzada
     iii) Entropía Relativa
-    
+
 3. Devianza
 
 4. Criterio de Información de Akaike.
-    
+
 
 Algo sumamente relevante es que, muchas veces tener nuevos datos para evaluar nuestros modelos, es algo que, por cuestiones de recursos, tiempo u otro tipo de costos no es posible. En ese caso, evaluamos las métricas en la  muestra inicial. Para ello, será necesario usar validación cruzada que, es el tema que veremos en a continuación.
 
+#### Segunda aportación (**TODO** unificar)
+
+En esta sección, vamos a conocer algunas métricas para lo siguiente:
+
+1. Evaluar la capacidad predictiva de los modelos Bayesianos.
+2. Comparar los modelos Bayesianos.
+
+Tomando en cuenta que, la predicción es una distribución y no sólo un valor puntual.
+
+### Métricas:
+
+* Log-densidad predictiva posterior:
+
+$$log \ \pi_{post}(y)= log \int \pi(y|\theta)\,\,\pi_{post}(\theta)\,\,\text{d}\theta,$$
+
+  donde: $\pi_{post}(\theta)=\pi(\theta|\underline{y}_{n})$
+
+* Devianza:
+
+$$ D(\pi)=-2\,\,log \ \pi_{post}(y).$$
+
+Es importante recordar que, en la métrica de Log-densidad predictiva posterior, buscamos valores altos por lo que, entre mayor sea su valor, mejor la capacidad predictiva del modelo, mientras que en la devianza buscamos valores bajos.
+
+### ¿Cómo usar estas métricas?
+
+1. Utilizando las muestras de entrenamiento para evaluar la distribución predictiva posterior. La desventaja de esta opción es que estaríamos evaluando el desempeño del modelo empleando los datos que se usaron para su ajuste por lo que pudieramos caer en un problema de sobreajuste del modelo.
+
+2. Utilizando una distribución predictiva ajustada.
+
+3. Utilizando validación cruzada. En esta opción también se usan los datos de entrenamiento para evaluar el desempeño del modelo, sin embargo, se particionan los datos de tal manera que con un subconjunto de ellos se ajusta el modelo y con el subconjunto complementario se evalua. La desventaja de esta opción es que es un proceso computacionalmente costoso.
+
+## Criterios de información y desempeño de modelos {-}
+
+### Criterio de información de Akaike (AIC)
+
+$$\hat{ELPD}_{AIC}= log \ \pi(y|\hat{\theta}_{MLE})-k.$$
+
+En términos de la devianza:
+
+$$AIC= -2 \,\, log \ \pi(y|\hat{\theta}_{MLE})+2k,$$
+
+donde:
+k= número de parámetros estimados.
+
+Este criterio cae en el caso de una distribución predictiva ajustada por el número de parámetros que se están estimando (k), de tal forma que si estamos estimando muchos parámetros, esto afecta el criterio de devianza.
+
+**¿Por qué estamos usando el estimador por máxima verosimilitud?**
+
+Resultado asintótico: la posterior es dominada por la verosimilitud si el número de datos es muy grande.
+
+Esto es porque recordemos que:
+
+$$\pi(\theta|\underline{y}_{n}) \propto \pi(\theta) [\pi(y_{1}|\theta)\pi(y_{2}|\theta)...\pi(y_{n}|\theta)].$$
+
+Es por esto que, entre más datos tengamos, la distribución posterior se va a parecer más al componente de verosimilitud.
+
+Entonces, la marginal la estamos resumiendo con sólo el punto que maximiza a la distribución posterior:
+
+$$\hat\pi_{post}(y)=\pi(y|\hat{\theta}_{MLE}).$$
+
+### Criterio de información con Devianza (DIC)
+
+$$\hat{ELPD}_{DIC}=log \ \pi(y|\hat{\theta}_{Bayes})-P_{DIC},$$
+
+Donde:
+$$P_{DIC}=2\,[log\,\pi(y|\hat\theta_{Bayes})-\mathbb{E}_{post}(log\,\pi(y|\theta))].$$
+$$\hat{\theta}_{Bayes}= \mathbb{E}[\theta|\underline{y}_n]=\mathbb{E}_{post}(\theta).$$
+
+El problema de este criterio es que si la distribución no es simétrica, $P_{DIC}$ podría ser negativa.
+
+En su lugar, podemos tomar:
+$$P_{DIC}=2\,\mathbb{V}_{post}(log\,\pi(y|\theta)).$$
+
+En términos de la devianza:
+
+$$DIC=-2\,log \ \pi(y|\hat{\theta}_{Bayes})+2P_{DIC}.$$
+
+Este criterio se encuentra en un punto intermedio, dado que utiliza un estimador puntual ($\hat{\theta}_{Bayes}$) de la distribución posterior e incorpora la variabilidad de los datos ($\mathbb{V}_{post}(log\,\pi(y|\theta))$).
+
+### Criterio de información con Watanabe-Akaike (WAIC)
+
+$$\hat{ELPD}_{WAIC}=LPPD-P_{WAIC},$$
+Donde:
+$$P_{WAIC}=\sum_{i=1}^{n}\,\mathbb{V}_{post}(log\,\pi(y_{i}|\theta)).$$
+
+$$LPPD=\sum_{i=1}^{n}\,log\,\pi_{post}(y_{i}).$$
+
+En términos de la devianza:
+
+$$WAIC=-2\,LPPD+2P_{WAIC}.$$
+
+Estos criterios, como se había mencionado anteriormente, se basan en la distribución predictiva pero se ajustan por la complejidad del modelo.
+
+## Validación cruzada
+
+Queremos saber cómo se comportan nuestros modelos con datos nuevos pero cuando éstos no los tenemos por falta de recursos, tiempo, etc., podemos ajustarlos con un subconjunto de los datos de entrenamiento y validar con el subconjunto complementario.
+
+En validación cruzada de k bloques se dividen los datos de entrenamiento en k subconjuntos de datos (también conocido como iteraciones). Se entrena un modelo en todos menos uno (k-1) de los subconjuntos y evalua el modelo en el subconjunto que no se ha utilizado para el entrenamiento. Este proceso se repite k veces, con un subconjunto diferente reservado para la evaluación (y excluido del entrenamiento) cada vez.
+
+En términos bayesianos:
+
+$$ log\, \pi_{ent}(\underline{y}_{val})=log \int \pi(\underline{y}_{val}|\theta)\,\,\pi_{ent}(\theta)\,\,\text{d}\theta. $$
+
+Es decir, la log-densidad calculada con los datos de entrenamiento pero utilizando los datos de validación para medir el desempeño del modelo.
+
+Si $k=n$ (Leave One Out -Loo):
+
+$$LPPD_{Loo}=\sum_{i=1}^{n}\log \pi_{-i}(y_{i})=\sum_{i=1}^{n}\log \left(\frac{1}{S}\sum_{s=1}^{S}\pi(y_{i}|\theta_{-i}^s)\right),$$
+
+donde:
+
+S=número de simulaciones de la posterior y
+$\theta_{-i}^s$= muestras de la distribución posterior que **no** utiliza la observación $y_{i}.$
+
+Si el número de datos es pequeño entonces, necesitamos una corrección que nos indique qué tanto habría mejorado la predicción si hubieramos usado todas las observaciones:
+
+$$b= LPPD-\overline{LPPD}_{-i},$$
+
+donde:
+
+$$\overline{LPPD}_{-i}=\frac{1}{n}\sum_{i=1}^{n}\sum_{j=1}^{n}\log \pi_{-i}(y_{j}).$$
+
+Entonces, $LPPD_{Loo}$ corregido, sería:
+
+$$LPPD_{CLoo}=LPPD_{Loo}+b.$$
+
+Con lo anterior podemos estimar el número de parámetros efectivos:
+
+$$P_{Loo}=LPPD-LPPD_{Loo}.$$
+
+Haciendo la corrección:
+
+$$P_{CLoo}=LPPD-LPPD_{CLoo}=\overline{LPPD}_{-i}-LPPD_{Loo}.$$
+
+Necesitamos calcular:
+
+$$\frac{1}{S}\sum_{s=1}^{S}\pi(y_{i}|\theta_{-i}^s),$$
+
+donde:
+
+$$\theta_{-i}^s \sim \pi_{-i}(\theta).$$
+
+Sabemos que:
+
+$$\pi(\theta|\underline{y}_{n}) \propto \pi(\theta) \pi(y_{1}|\theta)...\pi(y_{n}|\theta) = \pi(\theta) [\pi(y_{1}|\theta)...\pi(y_{n-1}|\theta)]\pi(y_{n}|\theta) \propto \pi(\theta|\underline{y}_{n-1})\pi(y_{n}|\theta).$$
+
+**Nota:** Lo anterior se pudo haber realizado con cualquier observación i-ésima.
+
+Con estimación Monte-Carlo teníamos que:
+
+$$\frac{1}{S} \sum h(\theta^s),$$
+
+donde: $\theta^s \sim \pi(\theta)$
+
+Lo que se está diciendo es que, a cada simulación se le asigna un peso $(\theta^s,w^s)=(\theta^s,\frac{1}{S})$
+
+Si se genera una muestra de la posterior junto con su peso y despúes se cambia el peso a $\frac{1/S}{\pi(y_{i}|\theta)}$, lo que estamos haciendo es obtener muestras de la posterior **sin** la observación `i`, es decir, $(\theta_{-i}^s,w_{-i}^s)$ y entonces:
+
+$$\theta_{-i}^s \sim \pi_{-i}(\theta).$$
+
+Este resultado nos indica que podemos **reutilizar las muestras de la distribución posterior calculadas inicialmente**, cambiarles el peso a como se indicó en el párrafo anterior para así pretender tener muestras de la distribución posterior sin utilizar la observación `i`.
+
+Con esto, la estimación Monte-Carlo sería:
+
+$$\frac{1}{S\pi(y_{i}|\theta)} \sum h(\theta_{-i}^s)=\mathbb{E}_{-i}(h(\theta)).$$
+
+**Observaciones:**
+
+1. Este método en papel es computacionalmente costoso.
+2. En la práctica es baráto porque hacemos un cambio sencillo a las muestras de la distribución posterior que ya se tenían.
+3. Tiene diagósticos que nos indican cuando la estimación de devianza es estable.
+
+Veamos un ejemplo con unos datos ficticios.
+
+#### Finaliza Seccion de conflicto (**TODO**)
+
+---
 
 
 ```{r}
 SEED <- 2141
-set.seed(SEED) 
+set.seed(SEED)
 
 x <- 1:20
 n <- length(x)
@@ -582,6 +766,9 @@ fit_minus_18 <- stan_glm(y ~ x, data = fake[-18,], seed=SEED, refresh=0)
 print(fit_minus_18)
 
 ```
+
+No utilizar una observación en el ajuste del modelo nos está dando un modelo relativamente sobreajustado dado que la estimación de sigma pasa de 1 a 0.9 al quitar la observación 18.
+
 Extraemos muestras de la posterior
 
 ```{r}
@@ -597,8 +784,8 @@ Calculamos la distribución predictiva posterior para $x = 18$
 
 ```{r}
 
-predpost <- tibble(y = seq(0,9,length.out=100)) %>% 
-  mutate(x = map(y, ~mean(dnorm(., sims[,1] + sims[,2] * 18, sims[,3])*6+18))) %>% 
+predpost <- tibble(y = seq(0,9,length.out=100)) %>%
+  mutate(x = map(y, ~mean(dnorm(., sims[,1] + sims[,2] * 18, sims[,3])*6+18))) %>%
   unnest(x)
 
 ```
@@ -607,14 +794,14 @@ Calculamos la predictiva posterior (LOO) para $x = 18$
 
 ```{r}
 
-predpost.loo <- tibble(y = seq(0,9,length.out=100)) %>% 
-  mutate(x = map(y, ~mean(dnorm(., sims_minus_18[,1] + sims_minus_18[,2] * 18, 
-                                sims_minus_18[,3])*6+18))) %>% 
+predpost.loo <- tibble(y = seq(0,9,length.out=100)) %>%
+  mutate(x = map(y, ~mean(dnorm(., sims_minus_18[,1] + sims_minus_18[,2] * 18,
+                                sims_minus_18[,3])*6+18))) %>%
   unnest(x)
 
 ```
 
-Graficamos 
+Graficamos
 
 ```{r}
 
@@ -630,7 +817,7 @@ p.modelo <- p.datos +
     color = "black"
   )
 
-p.predpost <- p.modelo + 
+p.predpost <- p.modelo +
   geom_path(data=predpost,aes(x=x,y=y), color="black") +
   geom_vline(xintercept=18, linetype=3, color="grey")
 
@@ -655,8 +842,10 @@ p.predloo
 
 ```
 
-Calculamos los residuales para ambos modelos. La función `loo_predict` calcula 
-de manera agilizada las predicciones para validación utilizando LOO. 
+En la gráfica anterior estamos observando la distribución predictiva posterior de la observación 18.
+
+Calculamos los residuales para ambos modelos. La función `loo_predict` calcula
+de manera agilizada las predicciones para validación utilizando LOO.
 
 ```{r}
 
@@ -677,14 +866,21 @@ p1
 
 ```
 
+Los puntos sólidos de la gráfica anterior son los residuales bajo el modelo que utiliza todos los datos, mientras que los puntos sin relleno son los residuales del modelo que deja fuera cada una de las observaciones, es decir, que así como se hizo de dejar fuera la observación 18, este mismo proceso se realiza para el resto de las observaciones.
+
+Si utilizamos todos los datos del modelo, observamos que en promedio los residuales son menores.
+
+Calculamos la desviación estándar de los residuales
 
 ```{r }
 
-c(posterior = round(sd(fake$residual),2), 
-  loo       = round(sd(fake$looresidual),2), 
+c(posterior = round(sd(fake$residual),2),
+  loo       = round(sd(fake$looresidual),2),
   sigma     = sigma)
 
 ```
+
+Podemos observar que la desviación estándar con Loo es ligeramente mayor porque como se había mencionado, este modelo sobreajusta y por eso da residuales más grandes.
 
 Calculamos la log-densidad predictiva para cada simulación de nuestro modelo
 
@@ -706,14 +902,16 @@ fake$lpd_post <- matrixStats::colLogSumExps(ll_1) - log(nrow(ll_1))
 
 ```
 
-Calculamos de manera puntual cada log-densidad predictiva sin usar la observación 
+Nota que estamos usando `colLogSumExps` para evitar errores numéricos dado que como son densidades, podrían generarse datos muy pequeños y que al aplicarle el logaritmo el cálculo pudiera ser numéricamente inestable.
+
+Calculamos de manera puntual cada log-densidad predictiva sin usar la observación
 $i$-ésima
 
 $$\log \pi(y_i \, |\, x_i) = \log \left(\frac1S \sum_{s = 1}^S \pi( \,y_i \,| x_i, \theta^s_{-i} \, ) \right) \,.$$
 
 ```{r }
 loo_1 <- loo(fit_all)
-fake$lpd_loo <- loo_1$pointwise[,"elpd_loo"] 
+fake$lpd_loo <- loo_1$pointwise[,"elpd_loo"]
 ```
 
 ```{r }
@@ -726,34 +924,55 @@ p1 <- ggplot(fake, aes(x = x, y = lpd_post)) +
 p1
 ```
 
+Lo que se observa en la gráfica anterior es que se tiene un mejor ajuste cuando se incorporan todos los datos en el modelo que cuando dejamos una observación fuera.
+
 ## Criterios de información y desempeño de modelos {-}
+
+Regresemos al ejemplo del IQ de los niños en función de algunas características de la madre.
+
+El primer modelo toma en cuenta si la madre terminó o no la preparatoria y su desempeño en la prueba (centrada).
 
 ```{r }
 fit_kid_m <- stan_glm(kid_score ~ mom_hs + mom_iq_c, data=kidiq,
                   seed=108727, refresh = 0)
 fit_kid_m
 ```
+
+El segundo modelo sólo toma en cuenta si la madre terminó o no la preparatoria.
+
 ```{r }
 fit_kid_hs <- stan_glm(kid_score ~ mom_hs, data=kidiq,
                   seed=108727, refresh = 0)
 fit_kid_hs
 ```
+
+Calculamos los criterios de información
+
 ```{r}
 waic.hs <- waic(fit_kid_hs)
 waic.hs
 ```
-
 
 ```{r}
 waic.m  <- waic(fit_kid_m)
 waic.m
 ```
 
+Y lo que nos da como resultado es la estimación de la log-densidad predictiva posterior, el número efectivo de parámetros y el criterio de información WAIC en términos de la devianza. También no da las desviaciones estándar de estos cálculos.
+
+Comparando bajo este criterio de información ambos modelos, podemos ver que en términos de la devianza, el segundo modelo es mejor (por ser más chica).
+
+También podemos hacer la comparación de la siguiente forma:
+
 ```{r}
 
 loo_compare(waic.hs, waic.m)
 
 ```
+
+Esta función nos ordena los modelos del mejor al peor y nos da una estimación de la diferencia en términos de la log-densidad predictiva posterior. También nos da como resultado el error estándar de esta diferencia calculada.
+
+Usando loo
 
 ```{r}
 
@@ -769,6 +988,8 @@ loo.m
 
 ```
 
+La ventaja de hacerlo con loo, como se había indicado, es que nos da un diagóstico que nos informa cuando la estimación de devianza es estable e igualmente nos da como resultado las mismas métricas con su desviación estándar.
+
 ```{r}
 
 loo_compare(loo.hs, loo.m)
@@ -776,6 +997,8 @@ loo_compare(loo.hs, loo.m)
 ```
 
 ### Considerando un modelo mas complejo {-}
+
+Integrando interacciones entre algunas variables.
 
 ```{r}
 
@@ -785,6 +1008,8 @@ fit_kid_int
 
 ```
 
+Usamos loo
+
 ```{r}
 
 loo.int <- loo(fit_kid_int)
@@ -792,11 +1017,18 @@ loo.int
 
 ```
 
+Comparamos los tres modelos
+
 ```{r}
 
 loo_compare(loo.m, loo.int, loo.hs)
 
 ```
+
+
+Y lo que resulta es que pareciera que el mejor modelo es el que integra la interacción entre variables. Sin embargo, existe poca diferencia con la log-densidad predictiva posterior del modelo que tiene dos predictores.
+
+Viendo el ejemplo donde se integraban variables de ruido:
 
 ```{r}
 fit_kid_noise
@@ -804,6 +1036,11 @@ loo.noise <- loo(fit_kid_noise)
 loo_compare(loo.m, loo.int, loo.hs, loo.noise)
 
 ```
+
+
+**¿Cómo podríamos explicar que la diferencia de las log-densidades predictivas posterior entre el modelo que integra las variables de ruido y el que integra los dos predictores no sea tan diferente?**
+
+Lo que podemos ver en el resultado anterior es que la desviación estándar de las variables de ruido es casi cero mientras que las variables que sí están relacionadas tienen una contribución muy grande, lo que implica que el modelo en promedio se desempeña como el que sólo ocupa las variables relacionadas.
 
 ```{r}
 
@@ -819,6 +1056,8 @@ loo.cnoise <- loo(fit_kid_cnoise)
 loo_compare(loo.m, loo.int, loo.hs, loo.noise, loo.cnoise)
 
 ```
+
+Lo que vemos con este resultado es que un modelo que sólo tiene como predictores las variables de ruido, tiene un desempeño muy malo.
 
 ```{r}
 
@@ -836,11 +1075,17 @@ loo.noise_reg <- loo(fit_noise_reg)
 
 ```
 
+Estamos utilizando la distribución previa `horseshoe (hs)` que regulariza los coeficientes y logra que en promedio sean iguales a cero. Es decir, logra un efecto de selección automática de variables.
+
+Comparando los modelos:
+
 ```{r}
 
 loo_compare(loo.m, loo.int, loo.hs, loo.noise, loo.cnoise, loo.hs_reg, loo.noise_reg)
 
 ```
+
+En general, entre los primeros 5 modelos la capacidad predictiva es similiar. No tenemos evidencia fuerte para descartar alguno de ellos, dado que las diferencias son pequeñas y el error estándar asociado a esta diferencias indica que podría ser que esa diferencia no exista.
 
 ## Validación cruzada {-}
 
@@ -854,9 +1099,10 @@ print(kfold_10)
 
 ```
 
+Como se puede observar este método no estima el número efectivo de parámetros porque no lo incorpora, pero podemos notar que en términos de la devianza loo y validación cruzada son muy similares.
+
 ```{r}
 
 loo(fit_all)
 
 ```
-
