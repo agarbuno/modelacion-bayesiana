@@ -193,11 +193,20 @@ summary(lm(kid_score ~ mom_iq + mom_hs + mom_iq * mom_hs, kidiq))
 
 ```
 
+```{r}
+
+kidiq %>% 
+  group_by(mom_work) %>% 
+  tally()
+
+```
+
+
 **Q2:** La variable `mom_work` es una variable categórica que codifica lo
 siguiente:
 
 - 1, si la madre no trabajó en los primeros tres años de vida. 
-- 2, si la madre en el segundo o tercer año de vida. 
+- 2, si la madre trabajó en el segundo o tercer año de vida. 
 - 3, trabajó de medio tiempo durante el primer año de vida. 
 - 4, trabajó de tiempo completo durante el primer año de vida.
 
@@ -207,7 +216,9 @@ las funciones para recodificar variables categóricas como `fct_collapse` o
 `fct_lump`.
 
 ```{r}
+
 summary(lm(kid_score ~ factor(mom_work), kidiq))
+
 ```
 
 **Q3:** Usando los datos de `Credit` de la librería `ISRL`, ¿cómo explicarías 
@@ -215,17 +226,19 @@ la diferencia entre los siguientes modelos?
 
 ```{r}
 
+library(ISLR)
 m1 <- lm(Balance ~ Student, Credit)
-m2 <- lm(Balance ~ Student - 1, Credit)
+m2 <- lm(Balance ~ Student - 1, Credit)-
 
 ```
+
+$$ y = \beta_0 + \beta_1 \, \text{Estudiante} + \epsilon$$
 
 ```{r}
 summary(m1)
 ```
+$$ y = \beta_0 \, \text{No-Estudiante} + \beta_1 \, \text{Estudiante} + \epsilon$$
 
 ```{r}
 summary(m2)
 ```
-
-
