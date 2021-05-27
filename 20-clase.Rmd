@@ -1,0 +1,223 @@
+---
+title: "20-Clase-Regresión Logística"
+author: "Oscar Perez"
+date: "4/4/2021"
+output: html_document
+---
+
+<!-- RENAME CURRENT FILE TO MATCH LECTURE NUMBER AND A GOOD DESCRIPTOR OF THE CONTENT -->
+<!-- E.g., "01_introduccion.Rmd" -->
+
+<!-- >>>>>>> DO NOT EDIT MACRO LINES -->
+
+
+<!-- >>>>>>> IF NEEDED, ADD A NEW FILE WITH YOUR OWN MACROS -->
+<!-- \input{lecture_01_macro.tex} % Name of supplemental macros should match lecture number -->
+
+<!-- >>>>>>> LECTURE NUMBER AND TITLE -->
+# Regresión Logística
+
+## Introducción.
+
+Anterioremente, en regresión simple y multivariada, se trabajó con la particularidad de que la variable "a predecir" o variable "dependiente" pertenece a los números reales, esto es, $y \in R$. Ahora se considerará el caso en el que la variable dependiente se relaciona con una respuesta binaria, esto es $y \in \{0,1\}$. En este caso, el modelo de regresión explicado hasta este momento como:
+
+
+  \begin{equation}
+      y = X^T\beta \,
+  \end{equation}
+  
+
+debe considerar alguna restricción para permitir la  modelación en el intervalo $(0,1)$. 
+
+
+## El modelo de regresión logística.
+
+Para lograr la modelación en el intervalo $(0,1)$ es indispensable considerar la siguiente transformación:
+\vspace{25mm}
+
+  \begin{equation}
+      logit(x) = log(\frac{x}{1-x})  \hspace{1cm} x \in (0,1)
+  \end{equation}
+  
+\vspace{1cm}
+
+Nótese que ésta es una función con dominio el intervalo $(0,1)$ y rango los números reales, $R$:
+
+  \begin{equation}
+      logit(x): (0,1) \rightarrow R
+  \end{equation}
+
+Por lo tanto, al tomar el inverso de la función $logit(x)$, nos permite la transformación de cualquier número real a otro número en el intervalo $(0,1)$:
+\vspace{25mm}
+
+  \begin{equation}
+      logit^{-1}(x) : R \rightarrow (0,1)
+  \end{equation}
+
+Y su expresión es:
+
+  \begin{equation}
+      logit^{-1}(x) = \frac{exp(x)}{1+exp(x)}
+  \end{equation}
+  
+Una gráfica permite ilustrar esta transformación:
+  
+```{r, echo = FALSE}
+inv_logit <- function(x){
+  exp(x)/(1+exp(x))
+}
+x <- seq(-8,8,0.01)
+plot(x,inv_logit(x), col = 'blue')
+```
+
+Es importante mencionar que al acotar los valores en el intervalo $(0,1)$, la función $logit^{-1}(x)$ puede ser usada como un "mapeo" a probabilidades de un modelo de regresión lineal si se considera de la siguiente forma:
+\medskip
+
+  \begin{equation}
+      P(y_{i}=1) =  logit^{-1}(X^T\beta)
+  \end{equation}
+
+\medskip
+O bien:
+
+  \begin{equation}
+      P(y_{i}=1|x_{i},\beta) =  logit^{-1}(x_{i}^T\beta)
+  \end{equation}
+
+
+Donde $x_{i}^T\beta$ es el predictor lineal. Es importante tener en cuenta que se asume que:
+
+  \begin{equation}
+      y_{i}=1|x_{i},\beta \sim Bernoulli(p_{i})
+  \end{equation}
+  
+Donde:
+
+  \begin{equation}
+      p_{i} = logit^{-1}(x_{i}^T\beta)
+  \end{equation}
+  
+Con:
+
+  \begin{equation}
+      x_{i}^T\beta = \beta_{0} + \beta_{1}x_{1}  + \cdots + \beta_{k}x_{k}
+  \end{equation}
+  
+Con base en lo anterior, recordemos que:
+
+  \begin{equation}
+      E(y_{i}=1|x_{i},\beta) = p_{i}
+  \end{equation}
+  
+Y que:
+
+  \begin{equation}
+      V(y_{i}=1|x_{i},\beta) = p_{i}(1-p_{i})
+  \end{equation}
+  
+Es decir, es posible cuantificar la incertidumbre, aunque puede ser de manera restrictiva.
+
+## Interpretación de coeficientes.
+
+¿Cómo interpretar los coeficientes ($\beta$) del modelo descrito?, esto es:
+
+  \begin{equation}
+      p_{i} = logit^{-1}(x_{i}^T\beta)
+  \end{equation}
+  
+Como se puede observar, debido a la transformación aplicada, los  cambios en el espacio $x_{i}^T\beta$ no serán lineales en las probabilidades. 
+
+
+Una forma de interpretar los coeficientes se puede ilustrar con el siguiente ejemplo:
+
+Sea:
+
+  \begin{equation}
+      \beta_{0} + \beta_{1}x_{1} = logit(p)
+  \end{equation}
+
+
+La "curva logística" alcanza su máxima pendiente en su centro, esto es cuando:
+
+  \begin{equation}
+      \beta_{0} + \beta_{1}x_{1} = 0 \hspace{5mm}tal\hspace{5mm} que\hspace{5mm}  logit^{-1}(\beta_{0} + \beta_{1}x_{1})=0.5
+  \end{equation}
+
+Esto es, obtenemos la derivada de $p$ con respecto a $x_{1}$ e igualamos a cero (0):
+
+  \begin{equation}
+      \frac{dp}{x_{1}} = \beta_{1}\frac{exp(0)}{(1+exp(0))} = \frac{\beta_{1}}{4}
+  \end{equation}
+
+El resultado, esto es el coeficiente dividido  entre 4, representa la  diferencia máxima en la probabilidad de ocurrencia $P(y=1)$ cuando tenemos un cambio de una unidad en el atriibuto $x_{1}$.
+
+Es decir, el coeficiente del atributo divido entre 4 representa la máxima diferencia en la probabilidad por cambios en el correspondiente atributo de una unidad.
+
+Otra forma de interpretación es que los coeficientes nos permiten explicar el cambio en las probabilidades de los grupos que se predicen con el modelo:
+
+  \begin{equation}
+      log(\frac{P(y = 1)}{P(y = 0)}) = logit(P(y = 1)) = \beta_{0} + \beta_{1}x_{1}
+  \end{equation}
+
+O bien:
+
+  \begin{equation}
+      \frac{P(y = 1)}{P(y = 0)} = exp(\beta_{0})exp(\beta_{1}x_{1})
+  \end{equation}
+
+De esta forma, un cambio de 1 en $x_{1}$ equivale a un cambio de $exp(\beta_{1})$ en la razón de probabilidades. 
+
+
+## Versión Bayesiana
+
+Para plantear el modelo de regresión logística con un enfoque bayesiano, iniciaremos planteando la función de verosimilitud:
+
+  \begin{equation}
+      \prod(\underline y_{n} | \underline x_{n}, \beta) = \prod_{i=1}^{n} p_{i}^{y_{i}}(1-p_{i})^{(1-y_{i})}
+  \end{equation}
+  
+Con:
+
+  \begin{equation}
+      p_{i} = logit^{-1}(\beta_{0} + \beta_{1}x_{1}  + \cdots + \beta_{k}x_{k})
+  \end{equation}
+  
+Y consideramos:
+
+  \begin{equation}
+      \beta_{j} \sim \mathsf{N}(0,\frac{2.5}{ds(x_{j})})
+  \end{equation}
+  
+Y como caso especial:
+  
+
+  \begin{equation}
+      \beta_{0} \sim \mathsf{N}(0,2.5)
+  \end{equation}
+  
+Es importante mencionar que el "error" de la parte lineal del modelo no se puede aprender.
+
+## Capacidad Predictiva.
+
+Definimos el score de Brier de la siguiente forma:
+
+  \begin{equation}
+      Score\hspace{5mm} de \hspace{5mm}Bier =  \frac{1}{n}\sum(p_{i}-y_{i})^{2} \approx R^{2} \Rightarrow \frac{1}{n}\sum p_{i}(1-p_{i})
+  \end{equation}
+
+En este caso los resiiduales no son aditivos.
+
+Una medida de rankeo es:
+
+  \begin{equation}
+      log-densidad = log(\prod(y_{i} | x_{i}, \beta)) = y_{i}log(p_{i})+(1-y_{i})log(1-p_{i})
+  \end{equation}
+
+O bien la devianza que se define como:
+
+  \begin{equation}
+      Devianza = -2log(\prod(y_{i} | x_{i}, \beta))
+  \end{equation}
+
+
+
