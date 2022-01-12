@@ -13,10 +13,23 @@ Como herramienta de trabajo tendrán que utilizar ~Rstudio~ para poder trabajar 
 
 * Configuración ~R~
 
+Basta con clonar el repositorio en su máquina (contenedor?) y abrir un proyecto de ~Rstudio~ localizado en el directorio en donde clonaron. Después de esto deberán de configurar el ambiente de trabajo utilizando la siguiente en su consola de ~R~
 
 #+begin_src R
 
-  ## renv::restore()
+  renv::restore()
+
+#+end_src
+
+#+RESULTS:
+: * The library is already synchronized with the lockfile.
+
+Les pedirá confirmación para descargar los paquetes necesarios de las librerías. *Nota*: es posible que tengan que ir actualizando conforme avance el curso. Para esto la receta: =pull + restore= será bastante importante.
+
+Si todo sale bien podrán correr la siguiente línea sin ningún problema.
+
+#+begin_src R
+
   library(tidyverse)
 
 #+end_src
