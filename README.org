@@ -14,7 +14,7 @@ bayesiano que permite validar y evaluar hipótesis. Se introducirán algunos
 modelos modernos utilizados en distintas áreas como: modelos predictivos,
 selección de variables y sistemas de recomendación. El material se complementará
 con lecturas de artículos de divulgación e investigación a lo largo del curso.
-
+ 
 * Temario
 
 El temario para el semestre de primavera 2022 se puede encontrar [[https://github.com/ITAM-DS/modelacion-bayesiana/blob/spring-2022/docs/temario-modelacion-bayesiana.pdf][aqui]]. 
@@ -23,4 +23,12 @@ El temario para el semestre de primavera 2022 se puede encontrar [[https://githu
 
 El contenido actual del curso se encuentra en la rama: [[https://github.com/ITAM-DS/modelacion-bayesiana/tree/spring-2022][spring-2022]].
 
+* Evaluación
 
+La evaluación del curso será por medio de:
+- Participación
+- Tareas
+- Evaluaciones parciales 
+- Proyecto final
+
+La entrega de los trabajos/tareas se realizará por medio de un [[https://github.blog/2021-08-12-teaching-learning-github-classroom-visual-studio-code/][Github Classroom]]. 
