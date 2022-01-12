@@ -1,3 +1,5 @@
+#+PROPERTY: header-args:R :session intro :results output
+
 * Introducción
 
 
@@ -7,5 +9,8 @@ El curso es agnóstico al lenguaje de programación. Sin embargo, utilizaremos ~
 
 Como herramienta de trabajo tendrán que utilizar ~Rstudio~ para poder trabajar en sus proyectos y sus tareas. En particular, el material de clase será editado en ~emacs~ a través de =orgfiles= pero pueden ser visualizados sin ningún problema en ~Github~.
 
-*Nota*: Si van a utilizar ~R~ se recomienda tener instalada la versión ~4.1.1~ para tener la mejor compatibilidad con el código del curso. 
+*Nota*: Si van a utilizar ~R~ se recomienda tener instalada la versión ~4.1.1~ para tener la mejor compatibilidad con el código del curso.
+
+* Configuración ~R~
+
 
