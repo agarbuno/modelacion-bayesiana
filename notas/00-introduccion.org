@@ -5,9 +5,9 @@
 
 * Ambiente de trabajo
 
-El curso es agnóstico al lenguaje de programación. Sin embargo, utilizaremos ~Stan~ como lenguaje para definir y ajustar modelos bayesianos (tanto asintóticamente correctos , como aproximados). En particular utilizaremos la interfase de ~R~ por medio de ~cmdstanr~ pero de igual manera son bienvenidos en utilizar la interfase de ~python~.
+El curso es agnóstico al lenguaje de programación. Sin embargo, utilizaremos [[https://mc-stan.org/][Stan]] como lenguaje para definir y ajustar modelos bayesianos (tanto asintóticamente correctos , como aproximados). En particular utilizaremos la interfase de [[https://www.r-project.org/][R]] por medio de ~cmdstanr~ pero de igual manera son bienvenidos en utilizar la interfase de [[https://www.python.org/][python]]. 
 
-Como herramienta de trabajo tendrán que utilizar ~Rstudio~ para poder trabajar en sus proyectos y sus tareas. En particular, el material de clase será editado en ~emacs~ a través de =orgfiles= (archivos con sufijo ~.org~) pero pueden ser visualizados sin ningún problema en ~Github~.
+Como herramienta de trabajo tendrán que utilizar [[https://www.rstudio.com/products/rstudio/download/][Rstudio]] para poder trabajar en sus proyectos y sus tareas. En particular, el material de clase será editado en [[https://www.gnu.org/software/emacs/][GNU Emacs]] a través de =orgfiles= (archivos con sufijo ~.org~) pero pueden ser visualizados sin ningún problema en ~Github~.
 
 *Nota*: Si van a utilizar ~R~ se recomienda tener instalada la versión ~4.1.1~ para tener la mejor compatibilidad con el código del curso.
 
