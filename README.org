@@ -1,5 +1,22 @@
 * Introducción
 
-Este es el repositorio con el contenido del curso en Modelación Bayesiana de la maestría en ciencia de datos. También ofrecida de manera simultánea para alumnos avanzados en las licenciaturas de matemáticas aplicadas, ciencia de datos y actuaría. 
+Este es el repositorio con el contenido del curso en *Modelación Bayesiana* de la
+*maestría en ciencia de datos*. También ofrecida de manera simultánea para alumnos
+avanzados en las licenciaturas de matemáticas aplicadas, ciencia de datos y
+actuaría.
 
-El contenido actual del curso se encuentra en la rama: [[https://github.com/ITAM-DS/modelacion-bayesiana/tree/spring-2022][spring-2022]]. 
+* Objetivo
+
+En este curso se verán temas avanzados en la visualización, simulación y
+diagnóstico de modelos bayesianos para: inferencia, análisis de potencia y
+calibración de procedimientos estadísticos. Se estudiará, un flujo de trabajo
+bayesiano que permite validar y evaluar hipótesis. Se introducirán algunos
+modelos modernos utilizados en distintas áreas como: modelos predictivos,
+selección de variables y sistemas de recomendación. El material se complementará
+con lecturas de artículos de divulgación e investigación a lo largo del curso.
+
+* Recursos
+
+El contenido actual del curso se encuentra en la rama: [[https://github.com/ITAM-DS/modelacion-bayesiana/tree/spring-2022][spring-2022]].
+
+
