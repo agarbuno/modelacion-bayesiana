@@ -1,0 +1,19 @@
+.reveal pre {
+    font-size: 1em;
+}
+
+/* Org highlights */
+.reveal code{
+    color: #e7ad52;
+    font-family: var(--r-main-font);
+    text-transform: none;
+}
+
+/* Code blocks */
+.reveal pre code{
+    padding: 0.5em;
+    background:#2a2727;
+    color:white;
+    block-size: 120%;
+    border-radius: 10px;
+}
