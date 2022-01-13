@@ -1,3 +1,21 @@
+#+TITLE: Modelación Bayesiana
+#+AUTHOR: Prof. Alfredo Garbuno Iñigo
+#+EMAIL:  agarbuno@itam.mx
+#+DATE: [Primavera, 2022]
+:REVEAL_PROPERTIES:
+#+LANGUAGE: es
+#+OPTIONS: num:nil toc:nil timestamp:nil
+#+REVEAL_REVEAL_JS_VERSION: 4
+#+REVEAL_THEME: night
+#+REVEAL_SLIDE_NUMBER: t
+#+REVEAL_HEAD_PREAMBLE: <meta name="description" content="Modelación Bayesiana">
+#+REVEAL_INIT_OPTIONS: width:1600, height:900, margin:.2
+#+REVEAL_EXTRA_CSS: ./css/mods.css
+#+REVEAL_PLUGINS: (notes)
+:END:
+#+PROPERTY: header-args:R :session misc :exports both :results output org
+
+
 * Introducción
 
 Este es el repositorio con el contenido del curso en *Modelación Bayesiana* de la
@@ -17,18 +35,93 @@ con lecturas de artículos de divulgación e investigación a lo largo del curso
  
 * Temario
 
-El temario para el semestre de primavera 2022 se puede encontrar [[https://github.com/ITAM-DS/modelacion-bayesiana/blob/spring-2022/docs/temario-modelacion-bayesiana.pdf][aqui]]. 
+El temario para el semestre de primavera 2022 se puede encontrar [[https://github.com/ITAM-DS/modelacion-bayesiana/blob/spring-2022/docs/temario-modelacion-bayesiana.pdf][aqui]]. Este es
+un plan preliminar que está sujeto al avance del curso a lo largo del semestre. 
 
 * Recursos
 
 El contenido actual del curso se encuentra en la rama: [[https://github.com/ITAM-DS/modelacion-bayesiana/tree/spring-2022][spring-2022]].
 
+* Horarios
+
+El curso será los días Martes y Jueves en un horario de 13:00 a 14:30.
+
+** Formato
+
+El curso será remoto (vía Zoom) *por el momento*. Si las condiciones sanitarias lo
+permiten el formato de la clase será ~completamente presencial~ a partir del *14 de
+Febrero*. Por otro lado, salvo se indique lo contrario, ~las evaluaciones serán
+presenciales~.
+
+** Canvas
+
+Utilizaremos este LMS para gestionar la comunicación fuera de los horarios de
+clase. Asimismo, ahi tendrán acceso al calendario y las sesiones de zoom que se
+necesiten a lo largo del semestre.
+
+** Fechas importantes
+
+#+ATTR_REVEAL: :frag (appear)
+- La sesión del ~Martes 8 de Febrero~ será una sesión de ~3 horas~. El jueves 10 de Febrero *no habrá clase*.
+- La semana del ~Lunes 11 de Abril~ estaré fuera en una conferencia (SIAM-UQ 2022).
+
+** Grabaciones de clases
+
+La clase se enriquece exponencialmente si existe una conversación entre los
+asistentes. Por lo tanto, las sesiones no se grabarán (si, incluso si hay un cumpleaños!). 
+
 * Evaluación
 
 La evaluación del curso será por medio de:
-- Participación
-- Tareas
-- Evaluaciones parciales 
-- Proyecto final
+#+ATTR_REVEAL: :frag (appear)
+- Participación y tareas (30%)
+- Evaluaciones parciales (30%)
+- Proyecto final (40%)
 
 La entrega de los trabajos/tareas se realizará por medio de un [[https://github.blog/2021-08-12-teaching-learning-github-classroom-visual-studio-code/][Github Classroom]]. 
+
+* Ambiente de trabajo
+
+El curso es agnóstico al lenguaje de programación. Sin embargo, utilizaremos [[https://mc-stan.org/][Stan]] como lenguaje para definir y ajustar modelos bayesianos (tanto asintóticamente correctos , como aproximados). En particular utilizaremos la interfase de [[https://www.r-project.org/][R]] por medio de ~cmdstanr~ pero de igual manera son bienvenidos en utilizar la interfase de [[https://www.python.org/][python]]. 
+
+Como herramienta de trabajo tendrán que utilizar [[https://www.rstudio.com/products/rstudio/download/][Rstudio]] para poder trabajar en sus proyectos y sus tareas. En particular, el material de clase será editado en [[https://www.gnu.org/software/emacs/][GNU Emacs]] a través de =orgfiles= (archivos con sufijo ~.org~) pero pueden ser visualizados sin ningún problema en ~Github~.
+
+*Nota*: Si van a utilizar ~R~ se recomienda tener instalada la versión ~4.1.1~ para tener la mejor compatibilidad con el código del curso.
+
+* Configuración ~R~
+
+Basta con clonar el repositorio en su máquina (contenedor?) y abrir un proyecto de ~Rstudio~ localizado en el directorio en donde clonaron. Después de esto deberán de configurar el ambiente de trabajo utilizando la siguiente en su consola de ~R~
+
+#+begin_src R
+
+  renv::restore()
+
+#+end_src
+
+#+RESULTS:
+: * The library is already synchronized with the lockfile.
+
+#+REVEAL: split
+
+Les pedirá confirmación para descargar los paquetes necesarios de las librerías. *Nota*: es posible que tengan que ir actualizando conforme avance el curso. Para esto la receta: =pull + restore= será bastante importante.
+
+#+REVEAL: split
+
+
+Si todo sale bien podrán correr la siguiente línea sin ningún problema.
+
+#+begin_src R :exports code
+
+  library(tidyverse)
+
+#+end_src
+
+#+RESULTS:
+: ── [1mAttaching packages[22m ───────────────────────────────────────────────── tidyverse 1.3.1 ──
+: [32m✔[39m [34mggplot2[39m 3.3.5     [32m✔[39m [34mpurrr  [39m 0.3.4
+: [32m✔[39m [34mtibble [39m 3.1.6     [32m✔[39m [34mdplyr  [39m 1.0.7
+: [32m✔[39m [34mtidyr  [39m 1.1.4     [32m✔[39m [34mstringr[39m 1.4.0
+: [32m✔[39m [34mreadr  [39m 2.1.1     [32m✔[39m [34mforcats[39m 0.5.1
+: ── [1mConflicts[22m ──────────────────────────────────────────────────── tidyverse_conflicts() ──
+: [31m✖[39m [34mdplyr[39m::[32mfilter()[39m masks [34mstats[39m::filter()
+: [31m✖[39m [34mdplyr[39m::[32mlag()[39m    masks [34mstats[39m::lag()
