@@ -63,7 +63,6 @@ necesiten a lo largo del semestre.
 
 #+ATTR_REVEAL: :frag (appear)
 - La sesión del ~Martes 8 de Febrero~ será una sesión de ~3 horas~. El jueves 10 de Febrero *no habrá clase*.
-- La semana del ~Lunes 11 de Abril~ estaré fuera en una conferencia (SIAM-UQ 2022).
 
 ** Grabaciones de clases
 
