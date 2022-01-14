@@ -38,6 +38,17 @@ con lecturas de artículos de divulgación e investigación a lo largo del curso
 El temario para el semestre de primavera 2022 se puede encontrar [[https://github.com/ITAM-DS/modelacion-bayesiana/blob/spring-2022/docs/temario-modelacion-bayesiana.pdf][aqui]]. Este es
 un plan preliminar que está sujeto al avance del curso a lo largo del semestre. 
 
+** ¿De qué trata el curso?
+
+En esta iteración del curso se estudiarán las bases algorítmicas de la
+inferencia bayesiana (métodos de simulación por cadenas de Markov) así como los
+diagnósticos pertinentes. De igual manera estudiaremos un marco de trabajo
+basado en calibración y simulación para poder identificar rutas potenciales de
+mejora en nuestros modelos y revisaremos principios basados en el método
+científico. El curso continuará con métodos de inferencia aproximada que han
+dado lugar a aplicaciones del estado de arte como sistemas de recomendación o
+análisis de texto.
+
 * Recursos
 
 El contenido actual del curso se encuentra en la rama: [[https://github.com/ITAM-DS/modelacion-bayesiana/tree/spring-2022][spring-2022]].
