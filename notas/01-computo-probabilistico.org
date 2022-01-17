@@ -1,0 +1,77 @@
+#+TITLE: Modelación Bayesiana
+#+AUTHOR: Prof. Alfredo Garbuno Iñigo
+#+EMAIL:  agarbuno@itam.mx
+#+DATE: Cómputo Probabilístico
+:REVEAL_PROPERTIES:
+#+LANGUAGE: es
+#+OPTIONS: num:nil toc:nil timestamp:nil
+#+REVEAL_REVEAL_JS_VERSION: 4
+#+REVEAL_THEME: night
+#+REVEAL_SLIDE_NUMBER: t
+#+REVEAL_HEAD_PREAMBLE: <meta name="description" content="Modelación Bayesiana">
+#+REVEAL_INIT_OPTIONS: width:1600, height:900, margin:.2
+#+REVEAL_EXTRA_CSS: ./mods.css
+#+REVEAL_EXTRA_CSS: https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css
+#+REVEAL_EXTERNAL_PLUGINS: (RevealChalkboard . "/Users/agarbuno/software/plugins.js/chalkboard/plugin.js")  (RevealCustomControls . "/Users/agarbuno/software/plugins.js/customcontrols/plugin.js") (RevealMenu . "/Users/agarbuno/software/menu.js/menu.js")
+#+REVEAL_PLUGINS: (RevealChalkboard RevealMenu notes)
+:END:
+#+PROPERTY: header-args:R :session comp :exports both :results output org
+
+
+* Notación
+
+Usaremos la convención usual en probabilidad. 
+
+** Variables aleatorias
+
+Una variable aleatoria $X$ está definida en un ~espacio de probabilidad~ $(\mathcal{X}, \mathcal{F}, \pi)$. La función $\pi: \mathcal{F}\rightarrow[0,1]$  se llama la ~función de distribución~ de la variable aleatoria $X$. Escribimos $X \sim \pi$.
+
+** Distribución paramétrica 
+
+Decimos que una función de distribución es ~paramétrica~ si se puede identificar completamente la distribución con respecto a un ~vector de parámetros~ $\theta \in \mathbb{R}^p$, Esto lo denotamos de la siguiente manera
+
+\begin{align}
+\pi_\theta(x) \qquad \text{ó} \qquad \pi(x ; \theta)\,.
+\end{align}
+
+** Valores esperados
+
+** Probabilidad condicional
+
+* Introducción
+
+En inferencia bayesiana lo que queremos es poder resolver
+
+\begin{align}
+\mathbb{E}[f] = \int_{\Theta}^{} f(\theta) \, \pi(\theta | y ) \,  \text{d}\theta\,. 
+\end{align}
+
+#+REVEAL: split
+
+Por ejemplo,  si queremos los valores promedio
+
+\begin{align}
+\mathbb{E}[\theta] = \int_{\Theta}^{} \theta \, \pi(\theta | y ) \,  \text{d}\theta\,. 
+\end{align}
+
+Implícitamente hemos utilizado $f(x) = x$.
+
+#+REVEAL: split
+
+O podríamos buscar calcular alguna métrica de dispersión
+
+\begin{align}
+\mathbb{V}[\theta] = \int_{\Theta}^{} \left( \theta - \mathbb{E}[\theta] \right)^2 \, \pi(\theta | y ) \,  \text{d}\theta\,. 
+\end{align}
+
+Qué función utilizamos: $f(x) =$ ?
+
+#+REVEAL: split
+
+Lo que necesitamos es resolver integrales con respecto a la distribución de interés.
+
+#+ATTR_REVEAL: :frag (appear)
+- La pregunta clave (I) es: ¿qué distribución?
+- La pregunta clave (II) es: ¿con qué método numérico resuelvo la integral?
+- La pregunta clave (III) es: ¿y si no hay método numérico? 
+
