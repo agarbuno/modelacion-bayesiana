@@ -74,6 +74,7 @@ necesiten a lo largo del semestre.
 
 #+ATTR_REVEAL: :frag (appear)
 - La sesión del ~Martes 8 de Febrero~ será una sesión de ~3 horas~. El jueves 10 de Febrero *no habrá clase*.
+- La sesión del ~Martes 10 de Mayo~ no habrá clases. 
 
 ** Grabaciones de clases
 
