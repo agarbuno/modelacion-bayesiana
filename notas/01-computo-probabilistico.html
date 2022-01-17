@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<title>Modelación Bayesiana</title>
+<meta name="author" content="(Prof. Alfredo Garbuno Iñigo)"/>
+<style type="text/css">
+.underline { text-decoration: underline; }
+</style>
+<link rel="stylesheet" href="/Users/agarbuno/software/reveal.js/dist/reveal.css"/>
+
+<link rel="stylesheet" href="/Users/agarbuno/software/reveal.js/dist/theme/night.css" id="theme"/>
+
+<link rel="stylesheet" href="./mods.css"/>
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css"/>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<meta name="description" content="Modelación Bayesiana">
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+<section id="sec-title-slide"><h1 class="title">Modelación Bayesiana</h1><h2 class="author">Prof. Alfredo Garbuno Iñigo</h2><h2 class="date">Cómputo Probabilístico</h2>
+</section>
+
+
+<section>
+<section id="slide-orgec27ee6">
+<h2 id="orgec27ee6">Notación</h2>
+<p>
+Usaremos la convención usual en probabilidad. 
+</p>
+
+</section>
+<section id="slide-org21456e7">
+<h3 id="org21456e7">Variables aleatorias</h3>
+<p>
+Una variable aleatoria \(X\) está definida en un <code>espacio de probabilidad</code> \((\mathcal{X}, \mathcal{F}, \pi)\). La función \(\pi: \mathcal{F}\rightarrow[0,1]\)  se llama la <code>función de distribución</code> de la variable aleatoria \(X\). Escribimos \(X \sim \pi\).
+</p>
+
+</section>
+<section id="slide-orgb2f5d49">
+<h3 id="orgb2f5d49">Distribución paramétrica</h3>
+<p>
+Decimos que una función de distribución es <code>paramétrica</code> si se puede identificar completamente la distribución con respecto a un <code>vector de parámetros</code> \(\theta \in \mathbb{R}^p\), Esto lo denotamos de la siguiente manera
+</p>
+
+<div>
+\begin{align}
+\pi_\theta(x) \qquad \text{ó} \qquad \pi(x ; \theta)\,.
+\end{align}
+
+</div>
+
+</section>
+<section id="slide-orgb6fdb60">
+<h3 id="orgb6fdb60">Valores esperados</h3>
+
+</section>
+<section id="slide-org5738752">
+<h3 id="org5738752">Probabilidad condicional</h3>
+
+</section>
+</section>
+<section>
+<section id="slide-orgf01ad5f">
+<h2 id="orgf01ad5f">Introducción</h2>
+<p>
+En inferencia bayesiana lo que queremos es poder resolver
+</p>
+
+<div>
+\begin{align}
+\mathbb{E}[f] = \int_{\Theta}^{} f(\theta) \, \pi(\theta | y ) \,  \text{d}\theta\,. 
+\end{align}
+
+</div>
+
+</section>
+<section id="slide-orgf01ad5f-split">
+
+<p>
+Por ejemplo,  si queremos los valores promedio
+</p>
+
+<div>
+\begin{align}
+\mathbb{E}[\theta] = \int_{\Theta}^{} \theta \, \pi(\theta | y ) \,  \text{d}\theta\,. 
+\end{align}
+
+</div>
+
+<p>
+Implícitamente hemos utilizado \(f(x) = x\).
+</p>
+
+</section>
+<section id="slide-orgf01ad5f-split">
+
+<p>
+O podríamos buscar calcular alguna métrica de dispersión
+</p>
+
+<div>
+\begin{align}
+\mathbb{V}[\theta] = \int_{\Theta}^{} \left( \theta - \mathbb{E}[\theta] \right)^2 \, \pi(\theta | y ) \,  \text{d}\theta\,. 
+\end{align}
+
+</div>
+
+<p>
+Qué función utilizamos: \(f(x) =\) ?
+</p>
+
+</section>
+<section id="slide-orgf01ad5f-split">
+
+<p>
+Lo que necesitamos es resolver integrales con respecto a la distribución de interés.
+</p>
+
+<ul>
+<li class="fragment appear">La pregunta clave (I) es: ¿qué distribución?</li>
+<li class="fragment appear">La pregunta clave (II) es: ¿con qué método numérico resuelvo la integral?</li>
+<li class="fragment appear">La pregunta clave (III) es: ¿y si no hay método numérico?</li>
+
+</ul>
+</section>
+</section>
+</div>
+</div>
+<script src="/Users/agarbuno/software/reveal.js/dist/reveal.js"></script>
+<script src="/Users/agarbuno/software/plugins.js/chalkboard/plugin.js"></script>
+<script src="/Users/agarbuno/software/menu.js/menu.js"></script>
+<script src="/Users/agarbuno/software/reveal.js/plugin/notes/notes.js"></script>
+
+
+<script>
+// Full list of configuration options available here:
+// https://github.com/hakimel/reveal.js#configuration
+Reveal.initialize({
+plugins: [RevealChalkboard, RevealMenu, RevealNotes],
+width:1600, height:900, margin:.2
+});
+
+</script>
+</body>
+</html>
