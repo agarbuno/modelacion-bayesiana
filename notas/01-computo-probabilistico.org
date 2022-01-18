@@ -17,7 +17,6 @@
 :END:
 #+PROPERTY: header-args:R :session comp :exports both :results output org
 
-
 * Notación
 
 Usaremos la convención usual en probabilidad. 
@@ -31,7 +30,7 @@ Una variable aleatoria $X$ está definida en un ~espacio de probabilidad~ $(\mat
 Decimos que una función de distribución es ~paramétrica~ si se puede identificar completamente la distribución con respecto a un ~vector de parámetros~ $\theta \in \mathbb{R}^p$, Esto lo denotamos de la siguiente manera
 
 \begin{align}
-\pi_\theta(x) \qquad \text{ó} \qquad \pi(x ; \theta)\,.
+\pi_\theta(x) \qquad \text{} \pi(x ; \theta)\,.
 \end{align}
 
 ** Valores esperados
@@ -74,4 +73,72 @@ Lo que necesitamos es resolver integrales con respecto a la distribución de int
 - La pregunta clave (I) es: ¿qué distribución?
 - La pregunta clave (II) es: ¿con qué método numérico resuelvo la integral?
 - La pregunta clave (III) es: ¿y si no hay método numérico? 
+
+
+** Integración
+
+#+begin_src R
+
+  library(tidyverse)
+  library(patchwork)
+  library(scales)
+
+  sin_lineas <- theme(panel.grid.major = element_blank(),
+                      panel.grid.minor = element_blank())
+
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+#+end_src
+
+
+#+begin_src R
+
+  grid.n          <- 11                 # Número de celdas 
+  grid.size       <- 6/(grid.n+1)       # Tamaño de celdas en el intervalo [-3, 3]
+  norm.cuadrature <- tibble(x = seq(-3, 3, by = grid.size), y = dnorm(x) )
+
+
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+#+end_src
+
+#+begin_src R
+
+  norm.density <- tibble(x = seq(-5, 5, by = .01), 
+         y = dnorm(x) ) 
+
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+#+end_src
+
+
+#+REVEAL: split
+
+#+HEADER: :width 7 :height 3.5 :R-dev-args bg="transparent"
+#+begin_src R :file ./img/quadrature.svg :results output graphics file
+
+  norm.cuadrature |>
+    ggplot(aes(x=x + grid.size/2, y=y)) + 
+    geom_area(data = norm.density, aes(x = x, y = y), fill = 'lightblue') + 
+    geom_bar(stat="identity", alpha = .3) + 
+    geom_bar(aes(x = x + grid.size/2, y = -0.01), fill = 'black', stat="identity") + 
+    sin_lineas + xlab('x') + 
+    annotate('text', label = expression(Delta~u[n]),
+             x = .01 + 5 * grid.size/2, y = -.02) + 
+    annotate('text', label = expression(f(u[n]) * p(u[n]) ),
+             x = .01 + 9 * grid.size/2, y = dnorm(.01 + 4 * grid.size/2)) + 
+    annotate('text', label = expression(f(u[n]) * p(u[n]) * Delta~u[n]), 
+             x = .01 + 5 * grid.size/2, y = dnorm(.01 + 4 * grid.size/2)/2, 
+             angle = -90, alpha = .7)
+
+#+end_src
+
+#+RESULTS:
+[[file:../img/quadrature.svg]]
 
