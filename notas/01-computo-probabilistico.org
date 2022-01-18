@@ -2,7 +2,7 @@
 #+AUTHOR: Prof. Alfredo Garbuno Iñigo
 #+EMAIL:  agarbuno@itam.mx
 #+DATE: Cómputo Probabilístico
-:REVEAL_PROPERTIES:
+:PROPERTIES:
 #+LANGUAGE: es
 #+OPTIONS: num:nil toc:nil timestamp:nil
 #+REVEAL_REVEAL_JS_VERSION: 4
@@ -14,8 +14,8 @@
 #+REVEAL_EXTRA_CSS: https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css
 #+REVEAL_EXTERNAL_PLUGINS: (RevealChalkboard . "/Users/agarbuno/software/plugins.js/chalkboard/plugin.js")  (RevealCustomControls . "/Users/agarbuno/software/plugins.js/customcontrols/plugin.js") (RevealMenu . "/Users/agarbuno/software/menu.js/menu.js")
 #+REVEAL_PLUGINS: (RevealChalkboard RevealMenu notes)
-:END:
 #+PROPERTY: header-args:R :session comp :exports both :results output org
+:END:
 
 * Notación
 
@@ -25,17 +25,61 @@ Usaremos la convención usual en probabilidad.
 
 Una variable aleatoria $X$ está definida en un ~espacio de probabilidad~ $(\mathcal{X}, \mathcal{F}, \pi)$. La función $\pi: \mathcal{F}\rightarrow[0,1]$  se llama la ~función de distribución~ de la variable aleatoria $X$. Escribimos $X \sim \pi$.
 
+
 ** Distribución paramétrica 
 
-Decimos que una función de distribución es ~paramétrica~ si se puede identificar completamente la distribución con respecto a un ~vector de parámetros~ $\theta \in \mathbb{R}^p$, Esto lo denotamos de la siguiente manera
+Decimos que una función de distribución es ~paramétrica~ si se puede identificar completamente la distribución con respecto a un ~vector de parámetros~ $\theta \in \mathbb{R}^p$. Esto lo denotamos de la siguiente manera
 
 \begin{align}
-\pi_\theta(x) \qquad \text{} \pi(x ; \theta)\,.
+\pi_\theta(x) \qquad \text{} \pi(x ; \theta)\,,
 \end{align}
+
+y si  $\theta \neq\theta'$ entonces $\pi_\theta(x) \neq \pi_{\theta'}(x)$ para cualquier $x$ en el soporte.
 
 ** Valores esperados
 
+El ~valor esperado~ de una variable aleatoria $X \sim \pi$ se define como
+\begin{align}
+\mathbb{E}[X] = \int_{\mathcal{X}} x \, \pi(x) \text{d}x\,.
+\end{align}
+
+*** Abuso de notación
+:PROPERTIES:
+:reveal_background: #00468b
+:END:
+
+La ~función de densidad~ está definida como $\text{d}\pi/\text{d}x$. En la definición de valor esperado deberíamos de haber escrito $\text{d}\pi(x)$  o bien $\pi(\text{d}x)$ (integrales de Lebesgue). Pero para no ofuscar notación lo obviamos...
+
+** Estadísticas de interés
+La definición se puede extender con $f: \mathcal{X} \rightarrow \mathbb{R}$ y se calcula como
+\begin{align}
+\mathbb{E}[f(X)] = \int_{\mathcal{X}} f(x) \pi(x) \text{d}x\,.
+\end{align}
+#+REVEAL: split
+Denotaremos de la siguiente manera
+\begin{align}
+\pi(f) := \mathbb{E}[f(X)]\,.
+\end{align}
+
 ** Probabilidad condicional
+
+La ~probabilidad condicional~ de $A$ dado el evento $B$ se denota $\pi(A|B)$ y está definida como
+\begin{align}
+\pi(A|B) = \frac{\pi(A \cap B)}{\pi(B)}
+\end{align}
+
+** Regla de Bayes
+
+La ~regla de Bayes~ utiliza la definición de probabilidad condicional para hacer inferencia a través de 
+\begin{align}
+\pi(A|B) = \frac{\pi(B|A) \pi(A)}{\pi(B)}\,.
+\end{align}
+
+** Ejemplos
+
+#+ATTR_REVEAL: :frag (appear)
+- Verosimilitud: $x |\theta \sim \mathsf{Binomial}(n, \theta)$ + Previa: $\theta \sim \mathsf{Beta}(\alpha, \beta)$ = Posterior: ?
+- Verosimilitud: $x |\theta \sim \mathsf{Uniforme}(0, \theta)$ + Previa: $\theta \sim \mathsf{Pareto}(\theta_0)$ = Posterior: ?
 
 * Introducción
 
@@ -74,7 +118,6 @@ Lo que necesitamos es resolver integrales con respecto a la distribución de int
 - La pregunta clave (II) es: ¿con qué método numérico resuelvo la integral?
 - La pregunta clave (III) es: ¿y si no hay método numérico? 
 
-
 ** Integración
 
 #+begin_src R :exports none
@@ -110,7 +153,7 @@ Lo que necesitamos es resolver integrales con respecto a la distribución de int
     geom_area(data = norm.density, aes(x = x, y = y), fill = 'lightblue') + 
     geom_bar(stat="identity", alpha = .3) + 
     geom_bar(aes(x = x + grid.size/2, y = -0.01), fill = 'black', stat="identity") + 
-    sin_lineas + xlab('x') + 
+    sin_lineas + xlab('x') + ylab("density") + 
     annotate('text', label = expression(Delta~u[n]),
              x = .01 + 5 * grid.size/2, y = -.02) + 
     annotate('text', label = expression(f(u[n]) * p(u[n]) ),
