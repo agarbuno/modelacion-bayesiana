@@ -77,7 +77,7 @@ Lo que necesitamos es resolver integrales con respecto a la distribución de int
 
 ** Integración
 
-#+begin_src R
+#+begin_src R :exports none
 
   library(tidyverse)
   library(patchwork)
@@ -86,27 +86,10 @@ Lo que necesitamos es resolver integrales con respecto a la distribución de int
   sin_lineas <- theme(panel.grid.major = element_blank(),
                       panel.grid.minor = element_blank())
 
-#+end_src
-
-#+RESULTS:
-#+begin_src org
-#+end_src
-
-
-#+begin_src R
-
   grid.n          <- 11                 # Número de celdas 
   grid.size       <- 6/(grid.n+1)       # Tamaño de celdas en el intervalo [-3, 3]
   norm.cuadrature <- tibble(x = seq(-3, 3, by = grid.size), y = dnorm(x) )
 
-
-#+end_src
-
-#+RESULTS:
-#+begin_src org
-#+end_src
-
-#+begin_src R
 
   norm.density <- tibble(x = seq(-5, 5, by = .01), 
          y = dnorm(x) ) 
@@ -118,11 +101,10 @@ Lo que necesitamos es resolver integrales con respecto a la distribución de int
 #+end_src
 
 
-#+REVEAL: split
+  #+REVEAL: split
 
-#+HEADER: :width 7 :height 3.5 :R-dev-args bg="transparent"
-#+begin_src R :file ./img/quadrature.svg :results output graphics file
-
+#+HEADER: :width 10 :height 5 :R-dev-args bg="transparent"
+#+begin_src R :file ./img/quadrature.svg :exports results :results output graphics file
   norm.cuadrature |>
     ggplot(aes(x=x + grid.size/2, y=y)) + 
     geom_area(data = norm.density, aes(x = x, y = y), fill = 'lightblue') + 
@@ -136,9 +118,8 @@ Lo que necesitamos es resolver integrales con respecto a la distribución de int
     annotate('text', label = expression(f(u[n]) * p(u[n]) * Delta~u[n]), 
              x = .01 + 5 * grid.size/2, y = dnorm(.01 + 4 * grid.size/2)/2, 
              angle = -90, alpha = .7)
-
 #+end_src
 
 #+RESULTS:
-[[file:../img/quadrature.svg]]
+[[file:./img/quadrature.svg]]
 
