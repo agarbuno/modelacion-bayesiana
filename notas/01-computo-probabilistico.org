@@ -14,8 +14,10 @@
 #+REVEAL_EXTRA_CSS: https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css
 #+REVEAL_EXTERNAL_PLUGINS: (RevealChalkboard . "/Users/agarbuno/software/plugins.js/chalkboard/plugin.js")  (RevealCustomControls . "/Users/agarbuno/software/plugins.js/customcontrols/plugin.js") (RevealMenu . "/Users/agarbuno/software/menu.js/menu.js")
 #+REVEAL_PLUGINS: (RevealChalkboard RevealMenu notes)
-#+PROPERTY: header-args:R :session comp :exports both :results output org
 :END:
+#+STARTUP: showall
+#+PROPERTY: header-args:R :session comp :exports both :results output org
+#+PROPERTY: header-args:R :tangle ../rscripts/00-introduction.R :mkdirp yes
 
 * Introducción
 

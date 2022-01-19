@@ -15,7 +15,9 @@
 #+REVEAL_EXTERNAL_PLUGINS: (RevealChalkboard . "/Users/agarbuno/software/plugins.js/chalkboard/plugin.js")  (RevealCustomControls . "/Users/agarbuno/software/plugins.js/customcontrols/plugin.js") (RevealMenu . "/Users/agarbuno/software/menu.js/menu.js")
 #+REVEAL_PLUGINS: (RevealChalkboard RevealMenu notes)
 :END:
+#+STARTUP: showall
 #+PROPERTY: header-args:R :session intro :results output
+#+PROPERTY: header-args:R :tangle rscripts/00-introduction.R :mkdirp yes
 
 * Notación
 
