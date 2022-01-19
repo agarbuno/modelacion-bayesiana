@@ -14,8 +14,9 @@
 #+REVEAL_PLUGINS: (notes)
 :END:
 #+STARTUP: showall
+#+EXCLUDE_TAGS: toc
 
-* Contenido
+* Contenido                                                             :toc:
 :PROPERTIES:
 :TOC:      :include all  :ignore this :depth 3
 :END:
