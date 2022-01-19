@@ -81,5 +81,7 @@ La ~regla de Bayes~ utiliza la definición de probabilidad condicional para hace
 - Verosimilitud: $x |\theta \sim \mathsf{Binomial}(n, \theta)$ + Previa: $\theta \sim \mathsf{Beta}(\alpha, \beta)$ = Posterior: ?
 - Verosimilitud: $x |\theta \sim \mathsf{Uniforme}(0, \theta)$ + Previa: $\theta \sim \mathsf{Pareto}(\theta_0)$ = Posterior: ?
 
+* Bibliografia
+
 bibliographystyle:abbrvnat 
-bibliography:./references.bib
+bibliography:references.bib
