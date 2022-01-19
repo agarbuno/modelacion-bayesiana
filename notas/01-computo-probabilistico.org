@@ -16,8 +16,7 @@
 #+REVEAL_PLUGINS: (RevealChalkboard RevealMenu notes)
 :END:
 #+STARTUP: showall
-#+PROPERTY: header-args:R :session comp :exports both :results output org
-#+PROPERTY: header-args:R :tangle ../rscripts/00-introduction.R :mkdirp yes
+#+PROPERTY: header-args:R :session comp :exports both :results output :tangle ../rscripts/00-introduction.R :mkdirp yes
 
 * Introducción
 
@@ -78,11 +77,6 @@ Lo que necesitamos es resolver integrales con respecto a la distribución de int
 #+end_src
 
 #+RESULTS:
-#+begin_src org
-#+end_src
-
-
-  #+REVEAL: split
 
 #+HEADER: :width 10 :height 5 :R-dev-args bg="transparent"
 #+begin_src R :file ./img/quadrature.svg :exports results :results output graphics file
@@ -103,4 +97,3 @@ Lo que necesitamos es resolver integrales con respecto a la distribución de int
 
 #+RESULTS:
 [[file:./img/quadrature.svg]]
-
