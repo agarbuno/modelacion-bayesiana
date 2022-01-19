@@ -15,6 +15,28 @@
 :END:
 #+STARTUP: showall
 
+* COMMENT Contenido
+:PROPERTIES:
+:TOC:      :include all  :ignore this :depth 3
+:END:
+:CONTENTS:
+- [[#introducción][Introducción]]
+- [[#objetivo][Objetivo]]
+- [[#temario][Temario]]
+  - [[#de-qué-trata-el-curso][¿De qué trata el curso?]]
+- [[#recursos][Recursos]]
+- [[#horarios][Horarios]]
+  - [[#formato][Formato]]
+  - [[#canvas][Canvas]]
+  - [[#fechas-importantes][Fechas importantes]]
+  - [[#grabaciones-de-clases][Grabaciones de clases]]
+- [[#evaluación][Evaluación]]
+- [[#ambiente-de-trabajo][Ambiente de trabajo]]
+  - [[#configuración-r][Configuración R]]
+  - [[#configuración-renv][Configuración renv]]
+  - [[#configuración-de-docker][Configuración de Docker]]
+:END:
+
 * Introducción
 
 Este es el repositorio con el contenido del curso en *Modelación Bayesiana* de la
@@ -126,9 +148,7 @@ Utilizaremos ~renv~ para mantener actualizada las herramientas de ~R~ junto con 
 Se recomienda escribir en el archivo ~~/.Renviron~ la siguiente línea lo cual mantendrá el cache de ~renv~ en un lugar centralizado 
 
 #+begin_src conf :tangle ~/.Renviron :mkdirp yes
-
   RENV_PATHS_ROOT=~/.renv
-
 #+end_src
 
 ** Configuración de ~Docker~
