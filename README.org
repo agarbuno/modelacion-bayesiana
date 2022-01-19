@@ -15,7 +15,7 @@
 :END:
 #+STARTUP: showall
 
-* COMMENT Contenido
+* Contenido
 :PROPERTIES:
 :TOC:      :include all  :ignore this :depth 3
 :END:
