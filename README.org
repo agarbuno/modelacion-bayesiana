@@ -86,13 +86,15 @@ tree -L 1 -d
 #+end_src
 
 #+RESULTS:
-| .   |             |
-| ├── | css         |
-| ├── | docs        |
-| ├── | notas       |
-| └── | rscripts    |
-|     |             |
-| 4   | directories |
+#+begin_src org
+.
+├── css
+├── docs
+├── notas
+└── rscripts
+
+4 directories
+#+end_src
 
 
 
