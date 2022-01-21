@@ -11,12 +11,21 @@
 #+REVEAL_HEAD_PREAMBLE: <meta name="description" content="Modelación Bayesiana">
 #+REVEAL_INIT_OPTIONS: width:1600, height:900, margin:.2
 #+REVEAL_EXTRA_CSS: ./mods.css
-#+REVEAL_EXTRA_CSS: https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css
-#+REVEAL_EXTERNAL_PLUGINS: (RevealChalkboard . "/Users/agarbuno/software/plugins.js/chalkboard/plugin.js")  (RevealCustomControls . "/Users/agarbuno/software/plugins.js/customcontrols/plugin.js") (RevealMenu . "/Users/agarbuno/software/menu.js/menu.js")
-#+REVEAL_PLUGINS: (RevealChalkboard RevealMenu notes)
+#+REVEAL_PLUGINS: (notes)
 :END:
 #+STARTUP: showall
 #+PROPERTY: header-args:R :session intro :exports both :results output org :tangle ../rscripts/01-comp.R :mkdirp yes :dir ../
+#+EXCLUDE_TAGS: toc
+
+* Contenido                                                             :toc:
+:PROPERTIES:
+:TOC:      :include all  :ignore this :depth 3
+:END:
+:CONTENTS:
+- [[#introducción][Introducción]]
+  - [[#integración][Integración]]
+:END:
+
 
 
 * Introducción
@@ -80,7 +89,7 @@ Lo que necesitamos es resolver integrales con respecto a la distribución de int
 #+RESULTS:
 
 #+HEADER: :width 10 :height 5 :R-dev-args bg="transparent"
-#+begin_src R :file ./img/quadrature.svg :exports results :results output graphics file
+#+begin_src R :file img/quadrature.svg :exports results :results output graphics file
   norm.cuadrature |>
     ggplot(aes(x=x + grid.size/2, y=y)) + 
     geom_area(data = norm.density, aes(x = x, y = y), fill = 'lightblue') + 

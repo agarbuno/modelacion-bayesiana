@@ -11,12 +11,29 @@
 #+REVEAL_HEAD_PREAMBLE: <meta name="description" content="Modelación Bayesiana">
 #+REVEAL_INIT_OPTIONS: width:1600, height:900, margin:.2
 #+REVEAL_EXTRA_CSS: ./mods.css
-#+REVEAL_EXTRA_CSS: https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css
-#+REVEAL_EXTERNAL_PLUGINS: (RevealChalkboard . "/Users/agarbuno/software/plugins.js/chalkboard/plugin.js")  (RevealCustomControls . "/Users/agarbuno/software/plugins.js/customcontrols/plugin.js") (RevealMenu . "/Users/agarbuno/software/menu.js/menu.js")
-#+REVEAL_PLUGINS: (RevealChalkboard RevealMenu notes)
+#+REVEAL_PLUGINS: (notes)
 :END:
 #+STARTUP: showall
 #+PROPERTY: header-args:R :session intro :exports both :results output org :tangle ../rscripts/intro.R :mkdirp yes :dir ../
+#+EXCLUDE_TAGS: toc
+
+* Contenido                                                             :toc:
+:PROPERTIES:
+:TOC:      :include all  :ignore this :depth 3
+:END:
+:CONTENTS:
+- [[#notación][Notación]]
+  - [[#variables-aleatorias][Variables aleatorias]]
+  - [[#distribución-paramétrica][Distribución paramétrica]]
+  - [[#valores-esperados][Valores esperados]]
+    - [[#abuso-de-notación][Abuso de notación]]
+  - [[#estadísticas-de-interés][Estadísticas de interés]]
+  - [[#probabilidad-condicional][Probabilidad condicional]]
+  - [[#regla-de-bayes][Regla de Bayes]]
+  - [[#ejemplos][Ejemplos]]
+- [[#bibliografia][Bibliografia]]
+:END:
+
 
 
 * Notación

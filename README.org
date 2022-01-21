@@ -11,9 +11,7 @@
 #+REVEAL_HEAD_PREAMBLE: <meta name="description" content="Modelación Bayesiana">
 #+REVEAL_INIT_OPTIONS: width:1600, height:900, margin:.2
 #+REVEAL_EXTRA_CSS: ./mods.css
-#+REVEAL_EXTRA_CSS: https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css
-#+REVEAL_EXTERNAL_PLUGINS: (RevealChalkboard . "/Users/agarbuno/software/plugins.js/chalkboard/plugin.js")  (RevealCustomControls . "/Users/agarbuno/software/plugins.js/customcontrols/plugin.js") (RevealMenu . "/Users/agarbuno/software/menu.js/menu.js")
-#+REVEAL_PLUGINS: (RevealChalkboard RevealMenu notes)
+#+REVEAL_PLUGINS: (notes)
 :END:
 #+STARTUP: showall
 #+EXCLUDE_TAGS: toc
@@ -90,12 +88,13 @@ tree -L 1 -d
 .
 ├── css
 ├── docs
+├── img
 ├── notas
+├── renv
 └── rscripts
 
-4 directories
+6 directories
 #+end_src
-
 
 
 * Horarios
