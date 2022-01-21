@@ -16,7 +16,8 @@
 #+REVEAL_PLUGINS: (RevealChalkboard RevealMenu notes)
 :END:
 #+STARTUP: showall
-#+PROPERTY: header-args:R :session comp :exports both :results output :tangle ../rscripts/00-introduction.R :mkdirp yes
+#+PROPERTY: header-args:R :session intro :exports both :results output org :tangle ../rscripts/01-comp.R :mkdirp yes :dir ../
+
 
 * Introducción
 
