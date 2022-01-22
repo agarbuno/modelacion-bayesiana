@@ -22,6 +22,10 @@
 :TOC:      :include all  :ignore this :depth 3
 :END:
 :CONTENTS:
+- [[#motivación][Motivación]]
+  - [[#distinción-importante][Distinción importante]]
+  - [[#por-qué-necesitamos-un-flujo-de-trabajo][¿Por qué necesitamos un flujo de trabajo?]]
+    - [[#la-gente-de-ml-sabe-que-el-proceso-de-construcción-de-un-modelo-es-iterativo-por-qué-no-utilizarlo][La gente de ML sabe que el proceso de construcción de un modelo es iterativo, ¿por qué no utilizarlo?]]
 - [[#notación][Notación]]
   - [[#variables-aleatorias][Variables aleatorias]]
   - [[#distribución-paramétrica][Distribución paramétrica]]
@@ -34,6 +38,60 @@
 - [[#bibliografia][Bibliografia]]
 :END:
 
+* Motivación
+
+Por medio de metodología Bayesiana podemos cuantificar incertidumbre en:
+#+ATTR_REVEAL: :frag (appear)
+- Observaciones. 
+- Parámetros. 
+- Estructura. 
+
+#+REVEAL: split
+  Es fácil especificar y ajustar modelos. Pero hay preguntas cuyas respuestas no han quedado claras:
+#+ATTR_REVEAL: :frag (appear)
+  1. Construcción. 
+  2. Evaluación. 
+  3. Uso.
+
+  #+BEGIN_NOTES
+
+  Programación probabilística. 
+  
+  #+END_NOTES
+
+
+#+REVEAL: split
+Los aspectos del flujo de trabajo Bayesiano consideran (citep:Gelman2020):
+#+ATTR_REVEAL: :frag (appear)
+1. Construcción iterativa de modelos. 
+2. Validación de modelo (computacional).
+3. Entendimiento de modelo. 
+4. Evaluación de modelo.   
+
+** Distinción importante
+
+~Inferencia~ no es lo mismo que ~análisis de datos~ o que un ~flujo de trabajo~. 
+
+#+BEGIN_NOTES
+
+Inferencia es formular y calcular con probabilidades condicionales. 
+
+#+END_NOTES
+
+** ¿Por qué necesitamos un flujo de trabajo?
+
+#+ATTR_REVEAL: :frag (appear)
+- El cómputo puede ser complejo.
+- Expandir nuestro entendimiento en aplicaciones.
+- Entender la relación entre modelos.
+- Distintos modelos pueden llegar a distintas conclusiones.
+
+*** La gente de ML sabe que el proceso de construcción de un modelo es iterativo, ¿por qué no utilizarlo?
+
+#+DOWNLOADED: screenshot @ 2022-01-21 23:09:51
+#+attr_html: :width 800 :align center
+[[file:images/20220121-230951_screenshot.png]]
+
 
 
 * Notación
@@ -42,8 +100,7 @@ Usaremos la convención usual en probabilidad.
 
 ** Variables aleatorias
 
-Una variable aleatoria $X$ está definida en un ~espacio de probabilidad~ $(\mathcal{X}, \mathcal{F}, \pi)$. La función $\pi: \mathcal{F}\rightarrow[0,1]$  se llama la ~función de distribución~ de la variable aleatoria $X$. Escribimos $X \sim \pi$.
-
+Una variable aleatoria $X$ está definida a través de un ~espacio de probabilidad~ $(\mathcal{X}, \mathcal{F}, \pi)$. La función $\pi: \mathcal{F}\rightarrow[0,1]$  se llama la ~función de distribución~ de la variable aleatoria $X$. Escribimos $X \sim \pi$.
 
 ** Distribución paramétrica 
 
@@ -59,7 +116,7 @@ y si  $\theta \neq\theta'$ entonces $\pi_\theta(x) \neq \pi_{\theta'}(x)$ para c
 
 El ~valor esperado~ de una variable aleatoria $X \sim \pi$ se define como
 \begin{align}
-\mathbb{E}[X] = \int_{\mathcal{X}} x \, \pi(x) \text{d}x\,.
+\mathbb{E}[X] = \int_{\mathcal{X}} x \, \pi(x) \, \text{d}x\,.
 \end{align}
 
 *** Abuso de notación
@@ -93,6 +150,12 @@ La ~regla de Bayes~ utiliza la definición de probabilidad condicional para hace
 \begin{align}
 \pi(A|B) = \frac{\pi(B|A) \pi(A)}{\pi(B)}\,.
 \end{align}
+#+REVEAL: split
+
+#+DOWNLOADED: screenshot @ 2022-01-21 20:44:26
+#+attr_html: :width 1200 :align center
+[[file:images/20220121-204426_screenshot.png]]
+
 
 ** Ejemplos
 
@@ -102,5 +165,5 @@ La ~regla de Bayes~ utiliza la definición de probabilidad condicional para hace
 
 * Bibliografia
 
-bibliographystyle:abbrvnat 
-bibliography:references.bib
+# bibliographystyle:abbrvnat 
+# bibliography:references.bib
