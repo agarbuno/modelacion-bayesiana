@@ -10,11 +10,11 @@
 #+REVEAL_SLIDE_NUMBER: t
 #+REVEAL_HEAD_PREAMBLE: <meta name="description" content="Modelación Bayesiana">
 #+REVEAL_INIT_OPTIONS: width:1600, height:900, margin:.2
-#+REVEAL_EXTRA_CSS: ./mods.css
+#+REVEAL_EXTRA_CSS: ./notas/mods.css
 #+REVEAL_PLUGINS: (notes)
 :END:
 #+STARTUP: showall
-#+EXCLUDE_TAGS: toc
+#+EXCLUDE_TAGS: toc github
 
 * Contenido                                                             :toc:
 :PROPERTIES:
@@ -25,6 +25,9 @@
 - [[#objetivo][Objetivo]]
 - [[#temario][Temario]]
   - [[#de-qué-trata-el-curso][¿De qué trata el curso?]]
+  - [[#estructura-del-curso][Estructura del curso]]
+  - [[#existe-un-libro-de-texto][¿Existe un libro de texto?]]
+  - [[#lo-lograremos][¿Lo lograremos?]]
 - [[#recursos][Recursos]]
 - [[#horarios][Horarios]]
   - [[#formato][Formato]]
@@ -38,13 +41,26 @@
   - [[#configuración-de-docker][Configuración de Docker]]
 :END:
 
-* Introducción
+* Introducción                                                       :github:
 
 Este es el repositorio con el contenido del curso en *Modelación Bayesiana* de la
 *maestría en ciencia de datos*. También ofrecida de manera simultánea para alumnos
 avanzados en las licenciaturas de matemáticas aplicadas, ciencia de datos y
 actuaría.
 
+* 
+
+#+caption: 
+#+begin_quote
+Our goal is ~not to eliminate uncertainty~, but to understand and quantify the
+uncertainty in order to make sound decisions. ---Netflix Tech Blog
+#+end_quote
+
+#+REVEAL: split
+
+#+DOWNLOADED: screenshot @ 2022-01-23 01:22:55
+#+attr_html: :width 1200 :align center
+[[file:images/20220123-012255_screenshot.png]]
 * Objetivo
 
 En este curso se verán temas avanzados en la visualización, simulación y
@@ -62,14 +78,32 @@ un plan preliminar que está sujeto al avance del curso a lo largo del semestre.
 
 ** ¿De qué trata el curso?
 
-En esta iteración del curso se estudiarán las bases algorítmicas de la
+En esta iteración del curso se estudiarán las ~bases algorítmicas~ de la
 inferencia bayesiana (métodos de simulación por cadenas de Markov) así como los
-diagnósticos pertinentes. De igual manera estudiaremos un marco de trabajo
+~diagnósticos~ pertinentes. De igual manera estudiaremos un ~flujo de trabajo~
 basado en calibración y simulación para poder identificar rutas potenciales de
 mejora en nuestros modelos y revisaremos principios basados en el método
-científico. El curso continuará con métodos de inferencia aproximada que han
+científico. El curso continuará con métodos de ~inferencia aproximada~ que han
 dado lugar a aplicaciones del estado de arte como sistemas de recomendación o
 análisis de texto.
+
+** Estructura del curso
+
+El curso está planeado alrededor de tres temas centrales:
+#+ATTR_REVEAL: :frag (appear)
+1. Cómputo probabilístico.
+2. Flujo de trabajo Bayesiano.
+3. Modelación predictiva probabilística. 
+
+** ¿Existe un libro de texto?
+
+#+DOWNLOADED: screenshot @ 2022-01-23 01:11:36
+#+attr_html: :width 1200 :align center
+[[file:images/20220123-011136_screenshot.png]]
+
+** ¿Lo lograremos?
+
+Seguramente no, pero el camino y el final pueden resultar súper divertidos!
 
 * Recursos
 
@@ -88,14 +122,14 @@ tree -L 1 -d
 .
 ├── css
 ├── docs
+├── images
 ├── img
 ├── notas
 ├── renv
 └── rscripts
 
-6 directories
+7 directories
 #+end_src
-
 
 * Horarios
 
@@ -135,11 +169,23 @@ La evaluación del curso será por medio de:
 
 La entrega de los trabajos/tareas se realizará por medio de un [[https://github.blog/2021-08-12-teaching-learning-github-classroom-visual-studio-code/][Github Classroom]]. 
 
+** Proyecto final
+
+Trabajo basado en un /paper/, método, modelo, aplicación relacionado con la temática de la clase.
+Entregables: 
+1. Seguimiento (10%),
+2. Reporte escrito (20%)
+3. Presentación (10%). 
+
 * Ambiente de trabajo
 
 El curso es agnóstico al lenguaje de programación. Sin embargo, utilizaremos [[https://mc-stan.org/][Stan]] como lenguaje para definir y ajustar modelos bayesianos (tanto asintóticamente correctos , como aproximados). En particular utilizaremos la interfase de [[https://www.r-project.org/][R]] por medio de ~cmdstanr~ pero de igual manera son bienvenidos en utilizar la interfase de [[https://www.python.org/][python]]. 
 
+#+REVEAL: split
+
 Como herramienta de trabajo tendrán que utilizar [[https://www.rstudio.com/products/rstudio/download/][Rstudio]] para poder trabajar en sus proyectos y sus tareas. En particular, el material de clase será editado en [[https://www.gnu.org/software/emacs/][GNU Emacs]] a través de =orgfiles= (archivos con sufijo ~.org~) pero pueden ser visualizados  en ~Github~.
+
+#+REVEAL: split
 
 *Nota*: Si van a utilizar ~R~ se recomienda tener instalada la versión ~4.1.1~ para tener la mejor compatibilidad con el código del curso.
 
@@ -158,3 +204,5 @@ Se recomienda escribir en el archivo ~~/.Renviron~ la siguiente línea lo cual m
 ** Configuración de ~Docker~
 
 Deseable, y próximo en anunciarse. 
+
+* ¿Dudas? 
