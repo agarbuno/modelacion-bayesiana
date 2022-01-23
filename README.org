@@ -50,7 +50,6 @@ actuaría.
 
 * 
 
-#+caption: 
 #+begin_quote
 Our goal is ~not to eliminate uncertainty~, but to understand and quantify the
 uncertainty in order to make sound decisions. ---Netflix Tech Blog
