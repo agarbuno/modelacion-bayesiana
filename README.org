@@ -205,4 +205,9 @@ Se recomienda escribir en el archivo ~~/.Renviron~ la siguiente línea lo cual m
 
 Deseable, y próximo en anunciarse. 
 
+* Tarea 
+
+Las primeras tareas del semestre son básicamente configuración y es recomendable
+hacerlas si no cuentan con experiencia en: ~Git~, ~Github~, ~R~ y el ~tidyverse~.
+
 * ¿Dudas? 
