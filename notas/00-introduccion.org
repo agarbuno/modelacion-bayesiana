@@ -17,6 +17,12 @@
 #+PROPERTY: header-args:R :session intro :exports both :results output org :tangle ../rscripts/intro.R :mkdirp yes :dir ../
 #+EXCLUDE_TAGS: toc
 
+#+BEGIN_NOTES
+
+*Objetivo*. Repasar notación que utilizaremos a lo largo del curso. Establecer la motivación de los temas que trataremos en la materia. 
+
+#+END_NOTES
+
 * Contenido                                                             :toc:
 :PROPERTIES:
 :TOC:      :include all  :ignore this :depth 3
@@ -35,9 +41,11 @@
 - [[#motivación][Motivación]]
   - [[#distinción-importante][Distinción importante]]
   - [[#por-qué-necesitamos-un-flujo-de-trabajo][¿Por qué necesitamos un flujo de trabajo?]]
-    - [[#la-gente-de-ml-sabe-que-el-proceso-de-construcción-de-un-modelo-es-iterativo-por-qué-no-utilizarlo][La gente de ML sabe que el proceso de construcción de un modelo es iterativo, ¿por qué no utilizarlo?]]
-- [[#bibliografia][Bibliografia]]
+  - [[#proceso-iterativo][Proceso iterativo]]
 :END:
+
+
+
 
 * Notación
 
@@ -161,16 +169,23 @@ Inferencia es formular y calcular con probabilidades condicionales.
 - Entender la relación entre modelos.
 - Distintos modelos pueden llegar a distintas conclusiones.
 
-*** La gente de ML sabe que el proceso de construcción de un modelo es iterativo, ¿por qué no utilizarlo?
+** Proceso iterativo
+
+- La gente de ML sabe que el proceso de construcción de un modelo es iterativo, ¿por qué no utilizarlo?
+
+#+BEGIN_NOTES
+
+Una posible explicación puede encontrarse en citep:Gelman2021. El argumento es formal en cuanto a actualizar nuestras creencias como bayesianos. Sin embargo, con cuidado y un procedimiento científico puede resolver el asunto. 
+
+#+END_NOTES
+
 
 #+DOWNLOADED: screenshot @ 2022-01-21 23:09:51
 #+caption: Tomado de citep:Gelman2020.
 #+attr_html: :width 800 :align center
-[[file:images/20220121-230951_screenshot.png]]
+[[file:../images/20220121-230951_screenshot.png]]
 
-
-
-* Bibliografia
+# * Bibliografia                                                        :latex:
 
 # bibliographystyle:abbrvnat 
 # bibliography:references.bib
