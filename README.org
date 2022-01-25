@@ -14,7 +14,7 @@
 #+REVEAL_PLUGINS: (notes)
 :END:
 #+STARTUP: showall
-#+EXCLUDE_TAGS: toc github
+#+EXCLUDE_TAGS: toc github latex
 
 * Contenido                                                             :toc:
 :PROPERTIES:
@@ -85,7 +85,7 @@ mejora en nuestros modelos y revisaremos principios basados en el método
 científico. El curso continuará con métodos de ~inferencia aproximada~ que han
 dado lugar a aplicaciones del estado de arte como sistemas de recomendación o
 análisis de texto.
-
+# \newpage
 ** Estructura del curso
 
 El curso está planeado alrededor de tres temas centrales:
@@ -209,4 +209,10 @@ Deseable, y próximo en anunciarse.
 Las primeras tareas del semestre son básicamente configuración y es recomendable
 hacerlas si no cuentan con experiencia en: ~Git~, ~Github~, ~R~ y el ~tidyverse~.
 
-* ¿Dudas? 
+* ¿Dudas?
+
+* Bibliografía                                                        :latex:
+\nocite{*}
+bibliographystyle:abbrvnat
+bibliography:references.bib
+
