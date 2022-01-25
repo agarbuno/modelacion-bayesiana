@@ -13,14 +13,27 @@
 #+REVEAL_EXTRA_CSS: ./mods.css
 #+REVEAL_PLUGINS: (notes)
 :END:
+:LATEX_PROPERTIES:
+#+OPTIONS: toc:nil date:nil author:nil tasks:nil
+#+LANGUAGE: sp
+#+LATEX_CLASS: handout
+#+LATEX_HEADER: \usepackage[spanish]{babel}
+#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
+#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
+#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
+#+LATEX_HEADER: \decimalpoint
+#+LATEX_HEADER:\usepackage{framed}
+#+LATEX_HEADER:\usepackage{xcolor}
+#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
+#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.9\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
+#+EXPORT_FILE_NAME: ../docs/00-introduccion.pdf
+:END:
 #+STARTUP: showall
 #+PROPERTY: header-args:R :session intro :exports both :results output org :tangle ../rscripts/intro.R :mkdirp yes :dir ../
 #+EXCLUDE_TAGS: toc
-
 #+BEGIN_NOTES
-
+*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022.\\
 *Objetivo*. Repasar notación que utilizaremos a lo largo del curso. Establecer la motivación de los temas que trataremos en la materia. 
-
 #+END_NOTES
 
 * Contenido                                                             :toc:
@@ -187,5 +200,5 @@ Una posible explicación puede encontrarse en citep:Gelman2021. El argumento es 
 
 # * Bibliografia                                                        :latex:
 
-# bibliographystyle:abbrvnat 
-# bibliography:references.bib
+bibliographystyle:abbrvnat 
+bibliography:references.bib
