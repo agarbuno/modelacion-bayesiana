@@ -15,10 +15,11 @@
 :END:
 #+STARTUP: showall
 #+PROPERTY: header-args:R :session intro :exports both :results output org :tangle ../rscripts/intro.R :mkdirp yes :dir ../
-#+EXCLUDE_TAGS: toc
+#+EXCLUDE_TAGS: toc latex
 #+BEGIN_NOTES
-*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022.\\
-*Objetivo*. Repasar notación que utilizaremos a lo largo del curso. Establecer la motivación de los temas que trataremos en la materia. 
+*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2021.\\
+*Objetivo*. Repasar notación que utilizaremos a lo largo del curso. Y a la vez, establecer la motivación de los temas que trataremos en la materia.\\
+*Lecturas recomendas*: Notas del [[https://fundamentos-est-2021.netlify.app/][curso de fundamentos]] (2022) y sección 1 de citep:Gelman2020. 
 #+END_NOTES
 
 * Contenido                                                             :toc:
@@ -33,16 +34,16 @@
     - [[#abuso-de-notación][Abuso de notación]]
   - [[#estadísticas-de-interés][Estadísticas de interés]]
   - [[#probabilidad-condicional][Probabilidad condicional]]
-- [[#repaso][Repaso]]
+- [[#repaso-inferencia][Repaso Inferencia]]
   - [[#regla-de-bayes][Regla de Bayes]]
   - [[#ejemplos][Ejemplos]]
+- [[#repaso-inferencia][Repaso inferencia]]
 - [[#motivación][Motivación]]
   - [[#distinción-importante][Distinción importante]]
   - [[#por-qué-necesitamos-un-flujo-de-trabajo][¿Por qué necesitamos un flujo de trabajo?]]
   - [[#proceso-iterativo][Proceso iterativo]]
+- [[#bibliografia][Bibliografia]]
 :END:
-
-
 
 
 * Notación
@@ -58,10 +59,10 @@ Una variable aleatoria $X$ está definida a través de un ~espacio de probabilid
 Decimos que una función de distribución es ~paramétrica~ si se puede identificar completamente la distribución con respecto a un ~vector de parámetros~ $\theta \in \mathbb{R}^p$. Esto lo denotamos de la siguiente manera
 
 \begin{align}
-\pi_\theta(x) \qquad \text{} \pi(x ; \theta)\,,
+\pi_\theta(x) \qquad \text{ ó } \qquad \pi(x ; \theta)\,,
 \end{align}
 
-y si  $\theta \neq\theta'$ entonces $\pi_\theta(x) \neq \pi_{\theta'}(x)$ para cualquier $x$ en el soporte.
+y si  $\theta \neq\theta'$ entonces $\pi_\theta(x) \neq \pi_{\theta'}(x)$ para cualquier $x$ en el ~soporte~.
 
 ** Valores esperados
 
@@ -75,7 +76,7 @@ El ~valor esperado~ de una variable aleatoria $X \sim \pi$ se define como
 :reveal_background: #00468b
 :END:
 
-La ~función de densidad~ está definida como $\text{d}\pi/\text{d}x$. En la definición de valor esperado deberíamos de haber escrito $\text{d}\pi(x)$  o bien $\pi(\text{d}x)$ (integrales de Lebesgue). Pero para no ofuscar notación lo obviamos...
+La ~función de densidad~ está definida como $\text{d}\pi/\text{d}x$. En la definición de valor esperado deberíamos de haber escrito $\text{d}\pi(x)$  o bien $\pi(\text{d}x)$ (integrales de Lebesgue). Pero para no ofuscar notación, y dado que no veremos cosas exóticas en el curso, lo obviamos...
 
 ** Estadísticas de interés
 La definición se puede extender con $f: \mathcal{X} \rightarrow \mathbb{R}$ y se calcula como
@@ -95,7 +96,12 @@ La ~probabilidad condicional~ de $A$ dado el evento $B$ se denota $\pi(A|B)$ y e
 \pi(A|B) = \frac{\pi(A \cap B)}{\pi(B)}
 \end{align}
 
-* Repaso
+* Repaso Inferencia 
+
+#+BEGIN_NOTES
+Repaso de inferencia bajo un enfoque frecuentista. 
+#+END_NOTES
+
 
 #+REVEAL: split
 
@@ -109,7 +115,7 @@ La ~regla de Bayes~ utiliza la definición de probabilidad condicional para hace
 #+REVEAL: split
 
 #+DOWNLOADED: screenshot @ 2022-01-21 20:44:26
-#+caption: Portada de citep:Kruschke2014.
+#+caption: Tomado de cite:Kruschke2014 .
 #+attr_html: :width 1200 :align center
 [[file:images/20220121-204426_screenshot.png]]
 
@@ -118,6 +124,13 @@ La ~regla de Bayes~ utiliza la definición de probabilidad condicional para hace
 #+ATTR_REVEAL: :frag (appear)
 - Verosimilitud: $x |\theta \sim \mathsf{Binomial}(n, \theta)$ + Previa: $\theta \sim \mathsf{Beta}(\alpha, \beta)$ = Posterior: ?
 - Verosimilitud: $x |\theta \sim \mathsf{Uniforme}(0, \theta)$ + Previa: $\theta \sim \mathsf{Pareto}(\theta_0)$ = Posterior: ?
+
+* Repaso inferencia
+
+#+BEGIN_NOTES
+Repaso de inferencia bajo un enfoque bayesiano.
+#+END_NOTES
+
 
 * Motivación
 
@@ -135,9 +148,7 @@ Por medio de metodología Bayesiana podemos cuantificar incertidumbre en:
   3. Uso.
 
   #+BEGIN_NOTES
-
   Programación probabilística. 
-  
   #+END_NOTES
 
 
@@ -155,7 +166,8 @@ Los aspectos del flujo de trabajo Bayesiano consideran (citep:Gelman2020):
 
 #+BEGIN_NOTES
 
-Inferencia es formular y calcular con probabilidades condicionales. 
+Inferencia (en el contexto bayesiano) es formular y calcular con probabilidades
+condicionales.
 
 #+END_NOTES
 
@@ -183,7 +195,7 @@ Una posible explicación puede encontrarse en citep:Gelman2021. El argumento es 
 #+attr_html: :width 800 :align center
 [[file:../images/20220121-230951_screenshot.png]]
 
-# * Bibliografia                                                        :latex:
+* Bibliografia                                                        :latex:
 
-# bibliographystyle:abbrvnat 
-# bibliography:references.bib
+bibliographystyle:abbrvnat 
+bibliography:references.bib
