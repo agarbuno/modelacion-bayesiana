@@ -65,6 +65,7 @@
   - [[#distinción-importante][Distinción importante]]
   - [[#por-qué-necesitamos-un-flujo-de-trabajo][¿Por qué necesitamos un flujo de trabajo?]]
   - [[#proceso-iterativo][Proceso iterativo]]
+- [[#bibliografia][Bibliografia]]
 :END:
 
 
@@ -209,9 +210,25 @@ Este ejemplo fue tomado de citep:Dogucu2021.
     geom_histogram(binwidth = .05) +
     facet_wrap(.~analista, scales = "free_y", ncol = 4)
 #+end_src
-
+#+caption: Muestras de $\theta \sim \mathsf{Previa}$ . 
 #+RESULTS:
 [[file:../images/peliculas.jpeg]]
+
+
+#+REVEAL: split
+#+HEADER: :width 1200 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/peliculas_predictiva.jpeg :exports results :results output graphics file
+  escenarios |>
+    unnest(muestras.previa) |>
+    mutate(peliculas = map_dbl(muestras.previa,
+                           function(theta) rbinom(1, 33, theta))) |>
+    ggplot(aes(peliculas)) +
+    geom_histogram(binwidth = 3) +
+    facet_wrap(.~analista, scales = "free_y", ncol = 4)
+#+end_src
+#+caption: Distribución predictiva previa
+#+RESULTS:
+[[file:../images/peliculas_predictiva.jpeg]]
 
 #+REVEAL: split
 #+begin_src R  :exports none :results none
@@ -257,6 +274,21 @@ Este ejemplo fue tomado de citep:Dogucu2021.
 
 #+RESULTS:
 [[file:../images/peliculas_posterior.jpeg]]
+
+#+REVEAL: split
+#+HEADER: :width 1200 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/peliculas-predictiva-posterior.jpeg :exports results :results output graphics file
+  escenarios |>
+   unnest(muestras.posterior) |>
+      mutate(peliculas = map_dbl(muestras.posterior,
+                             function(theta) rbinom(1, 33, theta))) |>
+      ggplot(aes(peliculas)) +
+      geom_histogram(binwidth = 3) +
+      facet_wrap(.~analista, scales = "free_y", ncol = 4)
+#+end_src
+#+caption: Predictiva posterior. 
+#+RESULTS:
+[[file:../images/peliculas-predictiva-posterior.jpeg]]
 
 ** Diferentes datos, diferentes posteriores
 
@@ -375,7 +407,7 @@ Una posible explicación puede encontrarse en citep:Gelman2021. El argumento es 
 #+attr_html: :width 800 :align center
 [[file:../images/20220121-230951_screenshot.png]]
 
-# * Bibliografia                                                        :latex:
+* Bibliografia                                                        :latex:
 
 bibliographystyle:abbrvnat 
 bibliography:references.bib
