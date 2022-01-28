@@ -28,6 +28,15 @@ escenarios |>
   unnest(muestras.previa) |>
   ggplot(aes(muestras.previa)) +
   geom_histogram(binwidth = .05) +
+  facet_wrap(.~analista, scales = "free_y", ncol = 4) +
+  xlab("Proporción de películas")
+
+escenarios |>
+  unnest(muestras.previa) |>
+  mutate(peliculas = map_dbl(muestras.previa,
+                         function(theta) rbinom(1, 33, theta))) |>
+  ggplot(aes(peliculas)) +
+  geom_histogram(binwidth = 3) +
   facet_wrap(.~analista, scales = "free_y", ncol = 4)
 
 library(bayesrules)
@@ -56,7 +65,16 @@ escenarios |>
   ggplot(aes(value, group = name, fill = name)) +
   geom_histogram(position = "identity", alpha = .7) +
   facet_wrap(.~analista, ncol = 4, scales = "free_y") +
-  geom_vline(xintercept = data$PASS / 20, lty = 2)
+  geom_vline(xintercept = data$PASS / 20, lty = 2) +
+  xlab("Proporción de películas")
+
+escenarios |>
+ unnest(muestras.posterior) |>
+    mutate(peliculas = map_dbl(muestras.posterior,
+                           function(theta) rbinom(1, 33, theta))) |>
+    ggplot(aes(peliculas)) +
+    geom_histogram(binwidth = 3) +
+    facet_wrap(.~analista, scales = "free_y", ncol = 4)
 
 ## Diferentes datos, diferentes posteriores -------------------
 
@@ -91,4 +109,45 @@ escenarios |>
    unnest(value) |>
    ggplot(aes(value, group = name, fill = name)) +
    geom_histogram(aes(y = ..density..), position = "identity", alpha = .7) +
-   facet_wrap(.~n, ncol = 4)
+   facet_wrap(.~n, ncol = 4) +
+  xlab("Proporción de películas")
+
+bechdel |>
+  group_by(year, binary) |>
+  tally() |>
+  pivot_wider(values_from = n,
+              names_from = binary,
+              values_fill = 0) |>
+  mutate(rate = PASS/(PASS+FAIL)) |>
+  ggplot(aes(year, rate)) +
+  geom_line() + geom_point()
+
+## Analisis secuencial ------------------------------
+library(ggridges)
+
+tibble(period = "previa", FAIL = 0, PASS = 0) |>
+  rbind(bechdel |>
+        mutate(period = cut(year, breaks = 5)) |>
+        group_by(period) |>
+        sample_frac(.3) |>
+        ungroup() |>
+        group_by(period, binary) |>
+        tally() |>
+        ungroup() |>
+        pivot_wider(values_from = n,
+                    names_from = binary,
+                    values_fill = 0)) |>
+  summarise(period = fct_inorder(period),
+            pass = cumsum(PASS),
+            fail = cumsum(FAIL),
+            rate = pass/(pass + fail),
+            alpha = 5 + pass,
+            beta  = 11 + fail) |>
+  nest(params = c(alpha, beta)) |>
+  mutate(muestras = map(params, modelo_beta)) |>
+  unnest(muestras, params) |>
+  ggplot(aes(muestras, period)) +
+  geom_density_ridges(stat = "binline", bins = 40) +
+  geom_point(aes(x = pass/(pass + fail), y = period), fill = 'lightblue', shape = 23, size = 5) +
+  ## geom_point(aes(x = alpha/(alpha + beta), y = period), fill = 'red', shape = 23, size = 5) + 
+  xlim(0,1) + xlab("Tasa de éxito")

@@ -13,28 +13,8 @@
 #+REVEAL_EXTRA_CSS: ./mods.css
 #+REVEAL_PLUGINS: (notes)
 :END:
-:LATEX_PROPERTIES:
-#+OPTIONS: toc:nil date:nil author:nil tasks:nil
-#+LANGUAGE: sp
-#+LATEX_CLASS: handout
-#+LATEX_HEADER: \usepackage[spanish]{babel}
-#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
-#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
-#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
-#+LATEX_HEADER: \decimalpoint
-#+LATEX_HEADER:\usepackage{framed}
-#+LaTeX_HEADER: \usepackage{listings}
-#+LATEX_HEADER: \usepackage{xcolor}
-#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
-#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
-#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
-#+LaTeX_HEADER: {}
-#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
-#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.9\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
-#+EXPORT_FILE_NAME: ../docs/00-introduccion.pdf
-:END:
 #+STARTUP: showall
-#+PROPERTY: header-args:R :session intro :exports both :results output org :tangle ../rscripts/introduccion.R :mkdirp yes :dir ../
+#+PROPERTY: header-args:R :session intro :exports both :results output org :tangle ../rscripts/00-introduccion.R :mkdirp yes :dir ../
 #+EXCLUDE_TAGS: toc latex
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2021.\\
@@ -61,6 +41,8 @@
   - [[#ejemplo][Ejemplo]]
   - [[#diferentes-previas-diferentes-posteriores][Diferentes previas, diferentes posteriores]]
   - [[#diferentes-datos-diferentes-posteriores][Diferentes datos, diferentes posteriores]]
+  - [[#análisis-secuencial][Análisis secuencial]]
+  - [[#tarea][Tarea]]
 - [[#motivación][Motivación]]
   - [[#distinción-importante][Distinción importante]]
   - [[#por-qué-necesitamos-un-flujo-de-trabajo][¿Por qué necesitamos un flujo de trabajo?]]
@@ -208,7 +190,8 @@ Este ejemplo fue tomado de citep:Dogucu2021.
     unnest(muestras.previa) |>
     ggplot(aes(muestras.previa)) +
     geom_histogram(binwidth = .05) +
-    facet_wrap(.~analista, scales = "free_y", ncol = 4)
+    facet_wrap(.~analista, scales = "free_y", ncol = 4) +
+    xlab("Proporción de películas")
 #+end_src
 #+caption: Muestras de $\theta \sim \mathsf{Previa}$ . 
 #+RESULTS:
@@ -261,7 +244,7 @@ Este ejemplo fue tomado de citep:Dogucu2021.
 #+begin_src org
 #+end_src
 
-#+HEADER: :width 1200 :height 300 :R-dev-args bg="transparent"
+#+HEADER: :width 1400 :height 300 :R-dev-args bg="transparent"
 #+begin_src R :file images/peliculas_posterior.jpeg :exports results :results output graphics file
   escenarios |>
     pivot_longer(cols = c(muestras.previa, muestras.posterior)) |>
@@ -269,7 +252,8 @@ Este ejemplo fue tomado de citep:Dogucu2021.
     ggplot(aes(value, group = name, fill = name)) +
     geom_histogram(position = "identity", alpha = .7) +
     facet_wrap(.~analista, ncol = 4, scales = "free_y") +
-    geom_vline(xintercept = data$PASS / 20, lty = 2)
+    geom_vline(xintercept = data$PASS / 20, lty = 2) +
+    xlab("Proporción de películas")
 #+end_src
 
 #+RESULTS:
@@ -337,12 +321,72 @@ Este ejemplo fue tomado de citep:Dogucu2021.
      unnest(value) |>
      ggplot(aes(value, group = name, fill = name)) +
      geom_histogram(aes(y = ..density..), position = "identity", alpha = .7) +
-     facet_wrap(.~n, ncol = 4)
-
+     facet_wrap(.~n, ncol = 4) +
+    xlab("Proporción de películas")
 #+end_src
 
 #+RESULTS:
 [[file:../images/peliculas_datos.jpeg]]
+
+** Análisis secuencial 
+
+#+HEADER: :width 1200 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/peliculas_historico.jpeg :exports results :results output graphics file
+  bechdel |>
+    group_by(year, binary) |>
+    tally() |>
+    pivot_wider(values_from = n,
+                names_from = binary,
+                values_fill = 0) |>
+    mutate(rate = PASS/(PASS+FAIL)) |>
+    ggplot(aes(year, rate)) +
+    geom_line() + geom_point()
+#+end_src
+#+caption: Histórico de la proporción de peliculas que pasan la prueba de Bechdel por año. 
+#+RESULTS:
+[[file:../images/peliculas_historico.jpeg]]
+
+#+REVEAL: split
+#+HEADER: :width 700 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/peliculas_secuencial.jpeg :exports results :results output graphics file
+  ## Analisis secuencial ------------------------------
+  library(ggridges)
+
+  tibble(period = "previa", FAIL = 0, PASS = 0) |>
+    rbind(bechdel |>
+          mutate(period = cut(year, breaks = 5)) |>
+          group_by(period) |>
+          sample_frac(.3) |>
+          ungroup() |>
+          group_by(period, binary) |>
+          tally() |>
+          ungroup() |>
+          pivot_wider(values_from = n,
+                      names_from = binary,
+                      values_fill = 0)) |>
+    summarise(period = fct_inorder(period),
+              pass = cumsum(PASS),
+              fail = cumsum(FAIL),
+              rate = pass/(pass + fail),
+              alpha = 5 + pass,
+              beta  = 11 + fail) |>
+    nest(params = c(alpha, beta)) |>
+    mutate(muestras = map(params, modelo_beta)) |>
+    unnest(muestras, params) |>
+    ggplot(aes(muestras, period)) +
+    geom_density_ridges(stat = "binline", bins = 40) +
+    geom_point(aes(x = pass/(pass + fail), y = period), fill = 'lightblue', shape = 23, size = 5) +
+    ## geom_point(aes(x = alpha/(alpha + beta), y = period), fill = 'red', shape = 23, size = 5) + 
+    xlim(0,1) + xlab("Tasa de éxito")
+#+end_src
+#+caption: La posterior de hoy puede ser la previa de mañana. 
+#+RESULTS:
+[[file:../images/peliculas_secuencial.jpeg]]
+
+** Tarea
+
+Echenle un ojo a la sección 5.2 de [[https://www.bayesrulesbook.com/][Bayes rules!]] donde se expone a detalle un modelo más del análisis conjugado. ¿Puedes identificar la distribución predictiva?
+
 
 * Motivación
 
