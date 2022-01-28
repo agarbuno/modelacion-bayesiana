@@ -1,4 +1,4 @@
-#+TITLE: Modelación Bayesiana
+#+TITLE: EST-46115: Modelación Bayesiana
 #+AUTHOR: Prof. Alfredo Garbuno Iñigo
 #+EMAIL:  agarbuno@itam.mx
 #+DATE: Primavera, 2022
@@ -13,8 +13,28 @@
 #+REVEAL_EXTRA_CSS: ./mods.css
 #+REVEAL_PLUGINS: (notes)
 :END:
+:LATEX_PROPERTIES:
+#+OPTIONS: toc:nil date:nil author:nil tasks:nil
+#+LANGUAGE: sp
+#+LATEX_CLASS: handout
+#+LATEX_HEADER: \usepackage[spanish]{babel}
+#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
+#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
+#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
+#+LATEX_HEADER: \decimalpoint
+#+LATEX_HEADER:\usepackage{framed}
+#+LaTeX_HEADER: \usepackage{listings}
+#+LATEX_HEADER: \usepackage{xcolor}
+#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
+#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
+#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
+#+LaTeX_HEADER: {}
+#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
+#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.9\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
+#+EXPORT_FILE_NAME: ../docs/00-introduccion.pdf
+:END:
 #+STARTUP: showall
-#+PROPERTY: header-args:R :session intro :exports both :results output org :tangle ../rscripts/intro.R :mkdirp yes :dir ../
+#+PROPERTY: header-args:R :session intro :exports both :results output org :tangle ../rscripts/introduccion.R :mkdirp yes :dir ../
 #+EXCLUDE_TAGS: toc latex
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2021.\\
@@ -38,11 +58,13 @@
   - [[#regla-de-bayes][Regla de Bayes]]
   - [[#ejemplos][Ejemplos]]
 - [[#repaso-inferencia][Repaso inferencia]]
+  - [[#ejemplo][Ejemplo]]
+  - [[#diferentes-previas-diferentes-posteriores][Diferentes previas, diferentes posteriores]]
+  - [[#diferentes-datos-diferentes-posteriores][Diferentes datos, diferentes posteriores]]
 - [[#motivación][Motivación]]
   - [[#distinción-importante][Distinción importante]]
   - [[#por-qué-necesitamos-un-flujo-de-trabajo][¿Por qué necesitamos un flujo de trabajo?]]
   - [[#proceso-iterativo][Proceso iterativo]]
-- [[#bibliografia][Bibliografia]]
 :END:
 
 
@@ -131,6 +153,164 @@ La ~regla de Bayes~ utiliza la definición de probabilidad condicional para hace
 Repaso de inferencia bajo un enfoque bayesiano.
 #+END_NOTES
 
+** Ejemplo
+
+Este ejemplo fue tomado de citep:Dogucu2021.
+
+#+begin_src R :exports none :results none
+
+  ## Setup ----------------------------------------
+  library(tidyverse)
+  library(patchwork)
+  set.seed(108727)
+  ## Cambia el default del tamaño de fuente 
+  theme_set(theme_grey(base_size = 18))
+
+  ## Cambia el número de decimales para mostrar
+  options(digits = 2)
+
+  ## Ejemplo peliculas
+
+#+end_src
+
+** Diferentes previas, diferentes posteriores
+
+#+begin_src R :exports none :results none
+  ## Diferentes previas, diferentes posteriores --------------------
+#+end_src
+
+#+begin_src R :exports code 
+  modelo_beta <- function(params, n = 5000){
+    rbeta(n, params$alpha, params$beta)
+  }
+#+end_src
+
+
+#+REVEAL: split
+#+begin_src R :exports code 
+    escenarios <-
+      tibble(analista = fct_inorder(c("Ignorante", "Indiferente",
+                                      "Feminista", "Ingenuo")),
+             alpha = c(1, .5, 5, 14),
+             beta  = c(1, .5, 11, 1)) |>
+      nest(params.previa = c(alpha, beta)) |>
+      mutate(muestras.previa = map(params.previa, modelo_beta))
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+#+end_src
+
+#+HEADER: :width 1200 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/peliculas.jpeg :exports results :results output graphics file
+  escenarios |>
+    unnest(muestras.previa) |>
+    ggplot(aes(muestras.previa)) +
+    geom_histogram(binwidth = .05) +
+    facet_wrap(.~analista, scales = "free_y", ncol = 4)
+#+end_src
+
+#+RESULTS:
+[[file:../images/peliculas.jpeg]]
+
+#+REVEAL: split
+#+begin_src R  :exports none :results none
+  library(bayesrules)
+  set.seed(108727)
+  data <- bechdel |>
+    sample_n(20)
+#+end_src
+
+#+begin_src R :exports none :results none
+  data <- data |>
+    group_by(binary) |>
+    tally() |>
+    pivot_wider(names_from = binary,
+                values_from = n) |>
+    as.data.frame()
+#+end_src
+
+#+begin_src R :exports code
+  update_rule <- function(params){
+    tibble(alpha = params$alpha + data$PASS,
+           beta  = params$beta  + data$FAIL)
+  }
+  escenarios <- escenarios |>
+    mutate(params.posterior = map(params.previa, update_rule),
+           muestras.posterior = map(params.posterior, modelo_beta))
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+#+end_src
+
+#+HEADER: :width 1200 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/peliculas_posterior.jpeg :exports results :results output graphics file
+  escenarios |>
+    pivot_longer(cols = c(muestras.previa, muestras.posterior)) |>
+    unnest(value) |>
+    ggplot(aes(value, group = name, fill = name)) +
+    geom_histogram(position = "identity", alpha = .7) +
+    facet_wrap(.~analista, ncol = 4, scales = "free_y") +
+    geom_vline(xintercept = data$PASS / 20, lty = 2)
+#+end_src
+
+#+RESULTS:
+[[file:../images/peliculas_posterior.jpeg]]
+
+** Diferentes datos, diferentes posteriores
+
+
+#+begin_src R :exports none :results none
+  ## Diferentes datos, diferentes posteriores -------------------
+#+end_src
+
+#+begin_src R  :exports none :results none
+  extrae_datos <- function(n){
+    bechdel |>
+      sample_n(n) |>
+      group_by(binary) |>
+      tally() |>
+      pivot_wider(names_from = binary,
+                  values_from = n) |>
+      as.data.frame()
+  }
+
+  update_rule <- function(data){
+      tibble(alpha = params.fem$alpha + data$PASS,
+             beta  = params.fem$beta  + data$FAIL)
+  }
+
+  params.fem <- list(alpha = 5, beta = 11)
+
+  escenarios <- tibble(id = seq(1, 4),
+         n = c(5, 20, 100, 500),
+         datos = map(n, extrae_datos))
+
+  escenarios <- escenarios |>
+    mutate(params.posterior = map(datos, update_rule),
+           muestras.posterior = map(params.posterior, modelo_beta),
+           muestras.previa    = list(modelo_beta(params.fem)))
+
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+#+end_src
+
+#+HEADER: :width 1200 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/peliculas_datos.jpeg :exports results :results output graphics file
+  escenarios |>
+     pivot_longer(cols = c(muestras.previa, muestras.posterior)) |>
+     unnest(value) |>
+     ggplot(aes(value, group = name, fill = name)) +
+     geom_histogram(aes(y = ..density..), position = "identity", alpha = .7) +
+     facet_wrap(.~n, ncol = 4)
+
+#+end_src
+
+#+RESULTS:
+[[file:../images/peliculas_datos.jpeg]]
 
 * Motivación
 
@@ -195,7 +375,9 @@ Una posible explicación puede encontrarse en citep:Gelman2021. El argumento es 
 #+attr_html: :width 800 :align center
 [[file:../images/20220121-230951_screenshot.png]]
 
-* Bibliografia                                                        :latex:
+# * Bibliografia                                                        :latex:
 
 bibliographystyle:abbrvnat 
 bibliography:references.bib
+
+
