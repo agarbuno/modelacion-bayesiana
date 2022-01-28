@@ -128,7 +128,7 @@ La ~regla de Bayes~ utiliza la definición de probabilidad condicional para hace
 
 #+ATTR_REVEAL: :frag (appear)
 - Verosimilitud: $x |\theta \sim \mathsf{Binomial}(n, \theta)$ + Previa: $\theta \sim \mathsf{Beta}(\alpha, \beta)$ = Posterior: ?
-- Verosimilitud: $x |\theta \sim \mathsf{Uniforme}(0, \theta)$ + Previa: $\theta \sim \mathsf{Pareto}(\theta_0)$ = Posterior: ?
+- Verosimilitud: $x |\theta \sim \mathsf{Uniforme}(0, \theta)$ + Previa: $\theta \sim \mathsf{Pareto}(\alpha, \theta_0)$ = Posterior: ?
 
 * Repaso inferencia
 
@@ -385,7 +385,7 @@ Este ejemplo fue tomado de citep:Dogucu2021.
 
 ** Tarea
 
-Echenle un ojo a la sección 5.2 de [[https://www.bayesrulesbook.com/][Bayes rules!]] donde se expone a detalle un modelo más del análisis conjugado. ¿Puedes identificar la distribución predictiva?
+Echenle un ojo a la sección 5.2 de [[https://www.bayesrulesbook.com/][Bayes rules!]] donde se expone a detalle un modelo más del análisis conjugado. ¿Puedes identificar/derivar la distribución predictiva?
 
 
 * Motivación
