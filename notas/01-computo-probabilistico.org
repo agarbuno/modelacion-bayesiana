@@ -1,7 +1,7 @@
-#+TITLE: Modelación Bayesiana
+#+TITLE: EST-46115: Modelación Bayesiana
 #+AUTHOR: Prof. Alfredo Garbuno Iñigo
 #+EMAIL:  agarbuno@itam.mx
-#+DATE: Cómputo Probabilístico
+#+DATE: Primavera, 2022
 :REVEAL_PROPERTIES:
 #+LANGUAGE: es
 #+OPTIONS: num:nil toc:nil timestamp:nil
@@ -14,7 +14,7 @@
 #+REVEAL_PLUGINS: (notes)
 :END:
 #+STARTUP: showall
-#+PROPERTY: header-args:R :session intro :exports both :results output org :tangle ../rscripts/01-comp.R :mkdirp yes :dir ../
+#+PROPERTY: header-args:R :session intro :exports both :results output org :tangle ../rscripts/01-computo.R :mkdirp yes :dir ../
 #+EXCLUDE_TAGS: toc
 
 * Contenido                                                             :toc:
@@ -23,7 +23,12 @@
 :END:
 :CONTENTS:
 - [[#introducción][Introducción]]
-  - [[#integración][Integración]]
+  - [[#integración-numérica][Integración numérica]]
+- [[#ejemplo-proporción][Ejemplo: Proporción]]
+- [[#más-de-un-parámetro][Más de un parámetro]]
+- [[#integración-monte-carlo][Integración Monte Carlo]]
+  - [[#ejemplo-dardos][Ejemplo: Dardos]]
+  - [[#propiedades][Propiedades]]
 :END:
 
 
@@ -36,45 +41,57 @@ En inferencia bayesiana lo que queremos es poder resolver
 \mathbb{E}[f] = \int_{\Theta}^{} f(\theta) \, \pi(\theta | y ) \,  \text{d}\theta\,. 
 \end{align}
 
-#+REVEAL: split
-
-Por ejemplo,  si queremos los valores promedio
-
-\begin{align}
-\mathbb{E}[\theta] = \int_{\Theta}^{} \theta \, \pi(\theta | y ) \,  \text{d}\theta\,. 
-\end{align}
-
-Implícitamente hemos utilizado $f(x) = x$.
-
-#+REVEAL: split
-
-O podríamos buscar calcular alguna métrica de dispersión
-
-\begin{align}
-\mathbb{V}[\theta] = \int_{\Theta}^{} \left( \theta - \mathbb{E}[\theta] \right)^2 \, \pi(\theta | y ) \,  \text{d}\theta\,. 
-\end{align}
-
-Qué función utilizamos: $f(x) =$ ?
-
-#+REVEAL: split
+#+BEGIN_NOTES
 
 Lo que necesitamos es resolver integrales con respecto a la distribución de interés.
 
+#+END_NOTES
+
+#+REVEAL: split
 #+ATTR_REVEAL: :frag (appear)
 - La pregunta clave (I) es: ¿qué distribución?
 - La pregunta clave (II) es: ¿con qué método numérico resuelvo la integral?
 - La pregunta clave (III) es: ¿y si no hay método numérico? 
 
-** Integración
+** Integración numérica
+
+Recordemos la definición de integrales Riemann:
+
+$$\int f(x) \text{d} x\,.$$
+
+#+BEGIN_NOTES
+La aproximación utilizando una malla de $N$ puntos sería: 
+$$\sum_{n=1}^N f(u_n) \Delta u_n.$$
+
+El método útil cuando las integrales se realizan cuando tenemos pocos parámetros. Es decir, $\theta \in \mathbb{R}^p$ con $p$ pequeña. 
+#+END_NOTES
+
+
+#+begin_src R :exports none :results none
+  ## Setup --------------------------------------------------
+#+end_src
 
 #+begin_src R :exports none
 
   library(tidyverse)
   library(patchwork)
   library(scales)
+  ## Cambia el default del tamaño de fuente 
+  theme_set(theme_linedraw(base_size = 25))
+
+  ## Cambia el número de decimales para mostrar
+  options(digits = 2)
 
   sin_lineas <- theme(panel.grid.major = element_blank(),
                       panel.grid.minor = element_blank())
+  color.itam  <- c("#00362b","#004a3b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f", NA)
+
+  sin_lineas <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+  sin_leyenda <- theme(legend.position = "none")
+  sin_ejes <- theme(axis.ticks = element_blank(), 
+        axis.text = element_blank())
+
+  ## Ejemplo de integracion numerica -----------------------
 
   grid.n          <- 11                 # Número de celdas 
   grid.size       <- 6/(grid.n+1)       # Tamaño de celdas en el intervalo [-3, 3]
@@ -87,9 +104,11 @@ Lo que necesitamos es resolver integrales con respecto a la distribución de int
 #+end_src
 
 #+RESULTS:
+#+begin_src org
+#+end_src
 
-#+HEADER: :width 10 :height 5 :R-dev-args bg="transparent"
-#+begin_src R :file img/quadrature.svg :exports results :results output graphics file
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/quadrature.jpeg :exports results :results output graphics file
   norm.cuadrature |>
     ggplot(aes(x=x + grid.size/2, y=y)) + 
     geom_area(data = norm.density, aes(x = x, y = y), fill = 'lightblue') + 
@@ -97,13 +116,236 @@ Lo que necesitamos es resolver integrales con respecto a la distribución de int
     geom_bar(aes(x = x + grid.size/2, y = -0.01), fill = 'black', stat="identity") + 
     sin_lineas + xlab('x') + ylab("density") + 
     annotate('text', label = expression(Delta~u[n]),
-             x = .01 + 5 * grid.size/2, y = -.02) + 
-    annotate('text', label = expression(f(u[n]) * p(u[n]) ),
-             x = .01 + 9 * grid.size/2, y = dnorm(.01 + 4 * grid.size/2)) + 
-    annotate('text', label = expression(f(u[n]) * p(u[n]) * Delta~u[n]), 
+             x = .01 + 5 * grid.size/2, y = -.02, size = 12) + 
+    annotate('text', label = expression(f(u[n]) ),
+             x = .01 + 9 * grid.size/2, y = dnorm(.01 + 4 * grid.size/2), size = 12) + 
+    annotate('text', label = expression(f(u[n]) * Delta~u[n]), 
              x = .01 + 5 * grid.size/2, y = dnorm(.01 + 4 * grid.size/2)/2, 
-             angle = -90, alpha = .7)
+             angle = -90, alpha = .7, size = 12)
+#+end_src
+#+caption: Integral por medio de discretización.
+#+RESULTS:
+[[file:../images/quadrature.jpeg]]
+
+#+REVEAL: split
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/quadrature-hi.jpeg :exports results :results output graphics file
+  grid.n          <- 101                 # Número de celdas 
+  grid.size       <- 6/(grid.n+1)       # Tamaño de celdas en el intervalo [-3, 3]
+  norm.cuadrature <- tibble(x = seq(-3, 3, by = grid.size), y = dnorm(x) )
+
+  norm.cuadrature |>
+      ggplot(aes(x=x + grid.size/2, y=y)) + 
+      geom_area(data = norm.density, aes(x = x, y = y), fill = 'lightblue') + 
+      geom_bar(stat="identity", alpha = .3) + 
+      geom_bar(aes(x = x + grid.size/2, y = -0.01), fill = 'black', stat="identity") + 
+      sin_lineas + xlab('x') + ylab("density") + 
+      annotate('text', label = expression(Delta~u[n]),
+               x = .01 + 5 * grid.size/2, y = -.02, size = 12) + 
+      annotate('text', label = expression(f(u[n]) ),
+               x = .01 + 9 * grid.size/2, y = dnorm(.01 + 4 * grid.size/2), size = 12) + 
+      annotate('text', label = expression(f(u[n]) * Delta~u[n]), 
+               x = .01 + 5 * grid.size/2, y = dnorm(.01 + 4 * grid.size/2)/2, 
+               angle = -90, alpha = .7, size = 12)
+#+end_src
+#+caption: Integral por medio de una malla fina. 
+#+RESULTS:
+[[file:../images/quadrature-hi.jpeg]]
+
+* Ejemplo: Proporción
+
+Supongamos que $p(S_n = k|\theta) \propto \theta^k(1-\theta)^{n-k}$ cuando
+observamos $k$ éxitos en $n$ pruebas independientes. Supongamos que nuestra
+inicial es $p(\theta) = 2\theta$ (~checa que es una densidad~).
+
+#+REVEAL: split
+#+begin_src R :exports code :results none
+  crear_log_post <- function(n, k){
+    function(theta){
+      verosim <- k * log(theta) + (n - k) * log(1 - theta)
+      inicial <- log(theta)
+      verosim + inicial
+    }
+  }
+#+end_src
+
+#+REVEAL: split
+#+begin_src R
+  # observamos 3 éxitos en 4 pruebas:
+  log_post <- crear_log_post(4, 3)
+  prob_post <- function(x) { exp(log_post(x))}
+  # integramos numéricamente
+  p_x <- integrate(prob_post, lower = 0, upper = 1, subdivisions = 100L)
+  p_x
 #+end_src
 
 #+RESULTS:
-[[file:./img/quadrature.svg]]
+#+begin_src org
+0.033 with absolute error < 3.7e-16
+#+end_src
+
+#+REVEAL: split
+Y ahora podemos calcular la media posterior:
+\begin{align}
+\mathbb{E}[\theta] = \int \theta \, \pi(\theta | S_n)\, \text{d}\theta\,.
+\end{align}
+
+#+begin_src R
+      media_funcion <- function(theta){
+        theta * prob_post(theta) / p_x$value
+      }
+      integral_media <- integrate(media_funcion,
+                                  lower = 0, upper = 1,
+                                  subdivisions = 100L)
+      media_post <- integral_media$value 
+      c(Numerico = media_post, Analitico = 5/(2+5))
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+ Numerico Analitico 
+     0.71      0.71
+#+end_src
+
+* Más de un parámetro
+
+#+BEGIN_NOTES
+Consideramos ahora un espacio con $\theta \in \mathbb{R}^p$. Si conservamos $N$
+puntos por cada dimensión, ¿cuántos puntos en la malla necesitaríamos?  Lo que
+tenemos son recursos computacionales limitados y hay que buscar hacer el mejor
+uso de ellos. En el ejemplo, hay zonas donde no habrá contribución en la
+integral.
+#+END_NOTES
+
+
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/eruption-quadrature.jpeg :exports results :results output graphics file
+    canvas <- ggplot(faithful, aes(x = eruptions, y = waiting)) +
+     xlim(0.5, 6) +
+     ylim(40, 110)
+
+    grid.size <- 10 - 1
+
+    mesh <- expand.grid(x = seq(0.5, 6, by = (6-.5)/grid.size),
+                        y = seq(40, 110, by = (110-40)/grid.size))
+
+    canvas + geom_density_2d_filled(aes(alpha = ..level..), bins = 8) + 
+      scale_fill_manual(values = rev(color.itam)) + 
+      sin_lineas + theme(legend.position = "none") +
+      geom_point(data = mesh, aes(x = x, y = y)) + 
+      annotate("rect", xmin = .5 + 5 * (6-.5)/grid.size, 
+                xmax = .5 + 6 * (6-.5)/grid.size, 
+                ymin = 40 + 3 * (110-40)/grid.size, 
+                ymax = 40 + 4 * (110-40)/grid.size,
+                linestyle = 'dashed', 
+               fill = 'salmon', alpha = .4) + ylab("") + xlab("") + 
+      annotate('text', x = .5 + 5.5 * (6-.5)/grid.size, 
+                       y = 40 + 3.5 * (110-40)/grid.size, 
+               label = expression(u[n]), color = 'red', size = 20) +
+        theme(axis.ticks = element_blank(), 
+            axis.text = element_blank())
+#+end_src
+#+caption: Integral por método de malla. 
+#+RESULTS:
+[[file:../images/eruption-quadrature.jpeg]]
+
+* Integración Monte Carlo
+
+\begin{gather*}
+\pi(f) = \mathbb{E}_\pi[f] = \int f(x) \pi(x) \text{d}x\,,\\
+\pi_N^{\textsf{MC}}(f) = \frac1N \sum_{n = 1}^N f( x^{(n)}), \qquad \text{ donde }  x^{(n)} \overset{\mathsf{iid}}{\sim} \pi, \qquad \text{ con } n = 1, \ldots, N \,, \\
+ \pi(f) \approx \pi_N^{\textsf{MC}}(f)\,.
+\end{gather*} 
+
+
+** Ejemplo: Dardos
+
+Consideremos el experimento de lanzar dardos uniformemente en un cuadrado de
+tamaño 2, el cual contiene un circulo de radio 1.
+
+#+HEADER: :width 1100 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/dardos-montecarlo.jpeg :exports results :results output graphics file
+  ## Integración Monte Carlo ----------------------------------- 
+  genera_dardos <- function(n = 100){
+      tibble(x1 = runif(n, min = -1, max = 1), 
+             x2 = runif(n, min = -1, max = 1)) %>% 
+        mutate(resultado = ifelse(x1**2 + x2**2 <= 1., 1., 0.))
+    }
+
+    dardos <- tibble(n = seq(2,5)) %>% 
+      mutate(datos = map(10**n, genera_dardos)) %>% 
+      unnest() 
+
+    dardos %>% 
+      ggplot(aes(x = x1, y = x2)) + 
+        geom_point(aes(color = factor(resultado))) + 
+        facet_wrap(~n, nrow = 1) +  
+      sin_lineas + sin_ejes + sin_leyenda
+#+end_src
+#+caption: Integración Monte Carlo para aproximar $\pi$. 
+#+RESULTS:
+[[file:../images/dardos-montecarlo.jpeg]]
+
+#+begin_src R :exports none :results none
+  dardos |>
+    group_by(n) |>
+    summarise(aprox = 4 * mean(resultado)) |>
+    as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+  n aprox
+1 2   3.1
+2 3   3.2
+3 4   3.1
+4 5   3.1
+#+end_src
+
+#+REVEAL: split
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/dardos-consistencia.jpeg :exports results :results output graphics file
+
+  set.seed(1087)
+
+  genera_dardos(n = 2**16) %>% 
+    mutate(n = seq(1, 2**16), 
+           approx = cummean(resultado) * 4) %>% 
+    ggplot(aes(x = n, y = approx)) + 
+      geom_line() + 
+      geom_hline(yintercept = pi, linetype = 'dashed') + 
+      scale_x_continuous(trans='log10', 
+                         labels = trans_format("log10", math_format(10^.x))) + 
+    ylab('Aproximación') + xlab("Muestras") + sin_lineas
+
+#+end_src
+#+caption: Estimación $\pi_N^{\textsf{MC}}(f)$ con $N \rightarrow \infty$. 
+#+RESULTS:
+[[file:../images/dardos-consistencia.jpeg]]
+
+** Propiedades
+
+*Teorema (~Error Monte Carlo~).* Sea $f : \mathbb{R}^p \rightarrow \mathbb{R}$
+cualquier función bien comportada$^\dagger$.  Entonces, el estimador Monte Carlo es
+*insesgado*. Es decir, se satisface 
+
+$$\mathbb{E}\left[ \pi_N^{\textsf{MC}}(f) - \pi(f)\right] = 0,$$
+
+para cualquier $N$. Además tiene *error cuadrático medio acotado*
+
+\begin{align*}
+\sup_{f \in \mathcal{F}} \, \,  \mathbb{E}\left[ \left(\pi_N^{\textsf{MC}}(f) - \pi(f) \right)^2 \right] \leq \frac1N.
+\end{align*}
+
+#+REVEAL: split
+En particular, la varianza del estimador (*error estándar*) satisface la igualdad
+
+$$ \textsf{ee}^2\left(\pi_N^{\textsf{MC}}(f)\right) = \frac{\mathbb{V}_\pi( f )}{N}.$$
+
+#+REVEAL: split
+*Teorema (~TLC para estimadores Monte Carlo~).* Sea $f$ una función *bien comportada*
+$^{\dagger\dagger}$, entonces bajo una $N$ suficientemente grande tenemos
+\begin{align}
+\sqrt{N} \left(\pi_N^{\textsf{MC}} (f) - \pi(f) \right) \sim \mathsf{N}\left(0, \mathbb{V}_\pi(f)\right)\,.
+\end{align}
+
