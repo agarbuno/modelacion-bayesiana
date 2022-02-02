@@ -14,8 +14,15 @@
 #+REVEAL_PLUGINS: (notes)
 :END:
 #+STARTUP: showall
-#+PROPERTY: header-args:R :session intro :exports both :results output org :tangle ../rscripts/01-computo.R :mkdirp yes :dir ../
-#+EXCLUDE_TAGS: toc
+#+PROPERTY: header-args:R :session intro :exports both :results output org :tangle ../rscripts/01-montecarlo.R :mkdirp yes :dir ../
+#+EXCLUDE_TAGS: toc latex
+
+#+BEGIN_NOTES
+*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022.\\
+*Objetivo*. Estudiar integración en el contexto probabilistico. Estudiar el método Monte Carlo y entender sus bondades y limitaciones en el contexto de inferencia Bayesiana. \\
+*Lectura recomendada*: Sección 6.1 de citep:Dogucu2021. 
+#+END_NOTES
+
 
 * Contenido                                                             :toc:
 :PROPERTIES:
@@ -23,12 +30,16 @@
 :END:
 :CONTENTS:
 - [[#introducción][Introducción]]
-  - [[#integración-numérica][Integración numérica]]
-- [[#ejemplo-proporción][Ejemplo: Proporción]]
-- [[#más-de-un-parámetro][Más de un parámetro]]
+- [[#integración-numérica][Integración numérica]]
+  - [[#ejemplo-proporción][Ejemplo: Proporción]]
+  - [[#más-de-un-parámetro][Más de un parámetro]]
 - [[#integración-monte-carlo][Integración Monte Carlo]]
   - [[#ejemplo-dardos][Ejemplo: Dardos]]
   - [[#propiedades][Propiedades]]
+  - [[#ejemplo-proporciones][Ejemplo: Proporciones]]
+  - [[#ejemplo-sabores-de-helados][Ejemplo: Sabores de helados]]
+  - [[#tarea-sabores-de-helados][Tarea: Sabores de helados]]
+- [[#referencias][Referencias]]
 :END:
 
 
@@ -53,7 +64,7 @@ Lo que necesitamos es resolver integrales con respecto a la distribución de int
 - La pregunta clave (II) es: ¿con qué método numérico resuelvo la integral?
 - La pregunta clave (III) es: ¿y si no hay método numérico? 
 
-** Integración numérica
+* Integración numérica
 
 Recordemos la definición de integrales Riemann:
 
@@ -152,7 +163,7 @@ El método útil cuando las integrales se realizan cuando tenemos pocos parámet
 #+RESULTS:
 [[file:../images/quadrature-hi.jpeg]]
 
-* Ejemplo: Proporción
+** Ejemplo: Proporción
 
 Supongamos que $p(S_n = k|\theta) \propto \theta^k(1-\theta)^{n-k}$ cuando
 observamos $k$ éxitos en $n$ pruebas independientes. Supongamos que nuestra
@@ -207,7 +218,7 @@ Y ahora podemos calcular la media posterior:
      0.71      0.71
 #+end_src
 
-* Más de un parámetro
+** Más de un parámetro
 
 #+BEGIN_NOTES
 Consideramos ahora un espacio con $\theta \in \mathbb{R}^p$. Si conservamos $N$
@@ -218,32 +229,45 @@ integral.
 #+END_NOTES
 
 
-#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+HEADER: :width 1200 :height 600 :R-dev-args bg="transparent"
 #+begin_src R :file images/eruption-quadrature.jpeg :exports results :results output graphics file
-    canvas <- ggplot(faithful, aes(x = eruptions, y = waiting)) +
-     xlim(0.5, 6) +
-     ylim(40, 110)
+      canvas <- ggplot(faithful, aes(x = eruptions, y = waiting)) +
+       xlim(0.5, 6) +
+       ylim(40, 110)
 
-    grid.size <- 10 - 1
+      grid.size <- 10 - 1
 
-    mesh <- expand.grid(x = seq(0.5, 6, by = (6-.5)/grid.size),
-                        y = seq(40, 110, by = (110-40)/grid.size))
+      mesh <- expand.grid(x = seq(0.5, 6, by = (6-.5)/grid.size),
+                          y = seq(40, 110, by = (110-40)/grid.size))
 
-    canvas + geom_density_2d_filled(aes(alpha = ..level..), bins = 8) + 
-      scale_fill_manual(values = rev(color.itam)) + 
-      sin_lineas + theme(legend.position = "none") +
-      geom_point(data = mesh, aes(x = x, y = y)) + 
-      annotate("rect", xmin = .5 + 5 * (6-.5)/grid.size, 
-                xmax = .5 + 6 * (6-.5)/grid.size, 
-                ymin = 40 + 3 * (110-40)/grid.size, 
-                ymax = 40 + 4 * (110-40)/grid.size,
-                linestyle = 'dashed', 
-               fill = 'salmon', alpha = .4) + ylab("") + xlab("") + 
-      annotate('text', x = .5 + 5.5 * (6-.5)/grid.size, 
-                       y = 40 + 3.5 * (110-40)/grid.size, 
-               label = expression(u[n]), color = 'red', size = 20) +
+    g1 <- canvas +
+        geom_density_2d_filled(aes(alpha = ..level..), bins = 8) +
+        scale_fill_manual(values = rev(color.itam)) + 
+        sin_lineas + theme(legend.position = "none") +
+        geom_point(data = mesh, aes(x = x, y = y)) + 
+        annotate("rect", xmin = .5 + 5 * (6-.5)/grid.size, 
+                  xmax = .5 + 6 * (6-.5)/grid.size, 
+                  ymin = 40 + 3 * (110-40)/grid.size, 
+                  ymax = 40 + 4 * (110-40)/grid.size,
+                  linestyle = 'dashed', 
+                 fill = 'salmon', alpha = .4) + ylab("") + xlab("") + 
+        annotate('text', x = .5 + 5.5 * (6-.5)/grid.size, 
+                         y = 40 + 3.5 * (110-40)/grid.size, 
+                 label = expression(u[n]), color = 'red', size = 20) +
+          theme(axis.ticks = element_blank(), 
+              axis.text = element_blank())
+
+
+    g2 <- canvas + 
+        stat_bin2d(aes(fill = after_stat(density)), binwidth = c((6-.5)/grid.size, (110-40)/grid.size)) +
+        sin_lineas + theme(legend.position = "none") +
         theme(axis.ticks = element_blank(), 
-            axis.text = element_blank())
+                axis.text = element_blank()) +
+        scale_fill_distiller(palette = "Greens", direction = 1) + 
+        sin_lineas + theme(legend.position = "none") +
+        ylab("") + xlab("")
+
+  g1 + g2
 #+end_src
 #+caption: Integral por método de malla. 
 #+RESULTS:
@@ -349,3 +373,188 @@ $^{\dagger\dagger}$, entonces bajo una $N$ suficientemente grande tenemos
 \sqrt{N} \left(\pi_N^{\textsf{MC}} (f) - \pi(f) \right) \sim \mathsf{N}\left(0, \mathbb{V}_\pi(f)\right)\,.
 \end{align}
 
+** Ejemplo: Proporciones
+
+Consideramos la estimación de una proporción $\theta$, tenemos como inicial
+$p(\theta) \propto \theta$, que es una $\mathsf{Beta}(2,1)$. Si observamos 3
+éxitos en 4 pruebas, entonces sabemos que la posterior es $p(\theta|x)\propto
+\theta^4(1-\theta)$, que es una $\mathsf{Beta}(5, 2)$. Si queremos calcular la
+media y el segundo momento posterior para $\theta$, en teoría necesitamos
+calcular
+
+\begin{align}
+\mu_1 = \int_0^1 \theta \,\, p(\theta|X = 3)\, \text{d}\theta,\qquad  \mu_2=\int_0^1 \theta^2 \,\, p(\theta|X = 3)\, \text{d}\theta.
+\end{align}
+
+#+REVEAL: split
+#+begin_src R :exports none :results none
+  ### Ejemplo proporciones ------------------ 
+#+end_src
+
+Utilizando el ~método Monte Carlo~: 
+#+begin_src R
+theta <- rbeta(10000, 5, 2)
+media_post <- mean(theta)
+momento_2_post <- mean(theta^2)
+c(mu_1 = media_post, mu_2 = momento_2_post)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+mu_1 mu_2 
+0.71 0.54
+#+end_src
+
+#+REVEAL: split
+Incluso, podemos calcular cosas mas /exóticas/ como
+\begin{align}
+P(e^{\theta}> 2|x)\,.
+\end{align}
+
+#+begin_src R
+mean(exp(theta) > 2)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+[1] 0.61
+#+end_src
+
+** Ejemplo: Sabores de helados
+
+Supongamos que probamos el nivel de gusto para 4 sabores distintos de una
+paleta. Usamos 4 muestras de aproximadamente 50 personas diferentes para cada
+sabor, y cada uno evalúa si le gustó mucho o no. Obtenemos los siguientes
+resultados:
+#+begin_src R :exports none :results none
+  ### Ejemplo helados ------------------------- 
+#+end_src
+
+#+begin_src R :exports results
+  datos <- tibble(
+    sabor = c("fresa", "limon", "mango", "guanabana"),
+    n = c(50, 45, 51, 50), gusto = c(36, 35, 42, 29)) %>% 
+    mutate(prop_gust = gusto / n)
+
+  datos |>
+  as.data.frame()
+#+end_src
+
+#+caption: Resultados de las encuestas.
+#+RESULTS:
+#+begin_src org
+      sabor  n gusto prop_gust
+1     fresa 50    36      0.72
+2     limón 45    35      0.78
+3     mango 51    42      0.82
+4 guanábana 50    29      0.58
+#+end_src
+
+#+REVEAL: split
+Usaremos como inicial $\mathsf{Beta}(2, 1)$ (pues hemos obervado cierto sesgo de
+cortesía en la calificación de sabores, y no es tan probable tener valores muy
+bajos) para todos los sabores, es decir $p(\theta_i)$ es la funcion de densidad
+de una $\mathsf{Beta}(2, 1)$. La inicial conjunta la definimos entonces, usando
+~independencia inicial~, como
+
+$$p(\theta_1,\theta_2, \theta_3,\theta_4) = p(\theta_1)p(\theta_2)p(\theta_3)p(\theta_4)\,.$$
+
+#+REVEAL: split
+Pues inicialmente establecemos que ningún parámetro da información sobre otro:
+saber que mango es muy gustado no nos dice nada acerca del gusto por fresa. Bajo
+este supuesto, y el supuesto adicional de que las muestras de cada sabor son
+independientes, podemos mostrar que las ~posteriores son independientes~:
+
+$$p(\theta_1,\theta_2,\theta_3, \theta_4|k_1,k_2,k_3,k_4) = p(\theta_4|k_1)p(\theta_4|k_2)p(\theta_4|k_3)p(\theta_4|k_4)$$
+
+#+REVEAL: split
+#+begin_src R :exports results
+  datos <- datos |>
+    mutate(a_post = gusto + 2,
+           b_post = n - gusto + 1,
+           media_post = a_post/(a_post + b_post))
+  datos |>
+    as.data.frame()
+#+end_src
+
+#+caption: Resultado de inferencia Bayesiana. 
+#+RESULTS:
+#+begin_src org
+      sabor  n gusto prop_gust a_post b_post media_post
+1     fresa 50    36      0.72     38     15       0.72
+2     limón 45    35      0.78     37     11       0.77
+3     mango 51    42      0.82     44     10       0.81
+4 guanábana 50    29      0.58     31     22       0.58
+#+end_src
+
+#+REVEAL: split
+Podemos hacer preguntas interesantes como: ¿cuál es la probabilidad de que mango
+sea el sabor preferido?  Para contestar esta pregunta podemos utilizar
+simulación y responder por medio de un procedimiento Monte Carlo.
+
+#+begin_src R :exports none :results none
+  modelo_beta <- function(params, n = 5000){
+    rbeta(n, params$alpha, params$beta)
+  }
+#+end_src
+
+#+begin_src R :exports code :results none
+  ## Generamos muestras de la posterior
+  paletas <- datos |>
+    mutate(alpha = a_post, beta = b_post) |>
+    nest(params.posterior = c(alpha, beta)) |>
+    mutate(muestras.posterior = map(params.posterior, modelo_beta)) |>
+    select(sabor, muestras.posterior)
+#+end_src
+
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/paletas-hist.jpeg :exports results :results output graphics file
+  paletas |>
+    unnest(muestras.posterior) |>
+    ggplot(aes(muestras.posterior)) +
+    geom_histogram(aes(fill = sabor), position = "identity" ) +
+    sin_lineas
+#+end_src
+#+caption: Histogramas de la distribución predictiva marginal para cada $\theta_j$. 
+#+RESULTS:
+[[file:../images/paletas-hist.jpeg]]
+
+#+REVEAL: split
+#+begin_src R
+  ## Utilizamos el metodo Monte Carlo para aproximar la integral. 
+  paletas |>
+    unnest(muestras.posterior) |>
+    mutate(id = rep(seq(1, 5000), 4)) |> group_by(id) |>
+    summarise(favorito = sabor[which.max(muestras.posterior)]) |>
+    group_by(favorito) |> tally() |>
+    mutate(prop = n/sum(n)) |>
+    as.data.frame()
+#+end_src
+#+caption: Aproximación Monte Carlo.
+#+RESULTS:
+#+begin_src org
+   favorito    n   prop
+1     fresa  308 0.0616
+2 guanábana    1 0.0002
+3     limón 1319 0.2638
+4     mango 3372 0.6744
+#+end_src
+
+#+BEGIN_NOTES
+Escencialmente estamos preguntándonos sobre calcular la integral:
+\begin{align}
+\mathbb{P}(\text{mango sea preferido}) = \int_\Theta f(\theta_1, \ldots, \theta_4) \, p(\theta_1, \ldots, \theta_4 | X_1, \ldots, X_n) d\theta\,,
+\end{align}
+donde $f(\theta_1, \ldots, \theta_4) = \mathbb{I}_{[\theta_4 \geq \theta_j, j \neq 4]}(\theta_1, \ldots, \theta_4)$. 
+#+END_NOTES
+
+** Tarea: Sabores de helados
+
+- ¿Cuál es la probabilidad a priori de que cada sabor sea el preferido?
+- Con los datos de arriba, calcula la probabilidad de que la gente prefiera el sabor de mango sobre limón.
+
+
+* Referencias                                                         :latex: 
+
+bibliographystyle:abbrvnat
+bibliography:./references.bib

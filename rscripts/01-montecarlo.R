@@ -85,29 +85,42 @@ media_post <- integral_media$value
 c(Numerico = media_post, Analitico = 5/(2+5))
 
 canvas <- ggplot(faithful, aes(x = eruptions, y = waiting)) +
- xlim(0.5, 6) +
- ylim(40, 110)
+     xlim(0.5, 6) +
+     ylim(40, 110)
 
-grid.size <- 10 - 1
+    grid.size <- 10 - 1
 
-mesh <- expand.grid(x = seq(0.5, 6, by = (6-.5)/grid.size),
-                    y = seq(40, 110, by = (110-40)/grid.size))
+    mesh <- expand.grid(x = seq(0.5, 6, by = (6-.5)/grid.size),
+                        y = seq(40, 110, by = (110-40)/grid.size))
 
-canvas + geom_density_2d_filled(aes(alpha = ..level..), bins = 8) + 
-  scale_fill_manual(values = rev(color.itam)) + 
-  sin_lineas + theme(legend.position = "none") +
-  geom_point(data = mesh, aes(x = x, y = y)) + 
-  annotate("rect", xmin = .5 + 5 * (6-.5)/grid.size, 
-            xmax = .5 + 6 * (6-.5)/grid.size, 
-            ymin = 40 + 3 * (110-40)/grid.size, 
-            ymax = 40 + 4 * (110-40)/grid.size,
-            linestyle = 'dashed', 
-           fill = 'salmon', alpha = .4) + ylab("") + xlab("") + 
-  annotate('text', x = .5 + 5.5 * (6-.5)/grid.size, 
-                   y = 40 + 3.5 * (110-40)/grid.size, 
-           label = expression(u[n]), color = 'red', size = 20) +
-    theme(axis.ticks = element_blank(), 
-        axis.text = element_blank())
+  g1 <- canvas +
+      geom_density_2d_filled(aes(alpha = ..level..), bins = 8) +
+      scale_fill_manual(values = rev(color.itam)) + 
+      sin_lineas + theme(legend.position = "none") +
+      geom_point(data = mesh, aes(x = x, y = y)) + 
+      annotate("rect", xmin = .5 + 5 * (6-.5)/grid.size, 
+                xmax = .5 + 6 * (6-.5)/grid.size, 
+                ymin = 40 + 3 * (110-40)/grid.size, 
+                ymax = 40 + 4 * (110-40)/grid.size,
+                linestyle = 'dashed', 
+               fill = 'salmon', alpha = .4) + ylab("") + xlab("") + 
+      annotate('text', x = .5 + 5.5 * (6-.5)/grid.size, 
+                       y = 40 + 3.5 * (110-40)/grid.size, 
+               label = expression(u[n]), color = 'red', size = 20) +
+        theme(axis.ticks = element_blank(), 
+            axis.text = element_blank())
+
+
+  g2 <- canvas + 
+      stat_bin2d(aes(fill = after_stat(density)), binwidth = c((6-.5)/grid.size, (110-40)/grid.size)) +
+      sin_lineas + theme(legend.position = "none") +
+      theme(axis.ticks = element_blank(), 
+              axis.text = element_blank()) +
+      scale_fill_distiller(palette = "Greens", direction = 1) + 
+      sin_lineas + theme(legend.position = "none") +
+      ylab("") + xlab("")
+
+g1 + g2
 
 ## Integración Monte Carlo ----------------------------------- 
 genera_dardos <- function(n = 100){
@@ -142,3 +155,55 @@ genera_dardos(n = 2**16) %>%
     scale_x_continuous(trans='log10', 
                        labels = trans_format("log10", math_format(10^.x))) + 
   ylab('Aproximación') + xlab("Muestras") + sin_lineas
+
+### Ejemplo proporciones ------------------
+
+theta <- rbeta(10000, 5, 2)
+media_post <- mean(theta)
+momento_2_post <- mean(theta^2)
+c(mu_1 = media_post, mu_2 = momento_2_post)
+
+mean(exp(theta) > 2)
+
+### Ejemplo helados -------------------------
+
+datos <- tibble(
+  sabor = c("fresa", "limon", "mango", "guanabana"),
+  n = c(50, 45, 51, 50), gusto = c(36, 35, 42, 29)) %>% 
+  mutate(prop_gust = gusto / n)
+
+datos |>
+as.data.frame()
+
+datos <- datos |>
+  mutate(a_post = gusto + 2,
+         b_post = n - gusto + 1,
+         media_post = a_post/(a_post + b_post))
+datos |>
+  as.data.frame()
+
+modelo_beta <- function(params, n = 5000){
+  rbeta(n, params$alpha, params$beta)
+}
+
+## Generamos muestras de la posterior
+paletas <- datos |>
+  mutate(alpha = a_post, beta = b_post) |>
+  nest(params.posterior = c(alpha, beta)) |>
+  mutate(muestras.posterior = map(params.posterior, modelo_beta)) |>
+  select(sabor, muestras.posterior)
+
+paletas |>
+  unnest(muestras.posterior) |>
+  ggplot(aes(muestras.posterior)) +
+  geom_histogram(aes(fill = sabor), position = "identity" ) +
+  sin_lineas
+
+## Utilizamos el metodo Monte Carlo para aproximar la integral. 
+paletas |>
+  unnest(muestras.posterior) |>
+  mutate(id = rep(seq(1, 5000), 4)) |> group_by(id) |>
+  summarise(favorito = sabor[which.max(muestras.posterior)]) |>
+  group_by(favorito) |> tally() |>
+  mutate(prop = n/sum(n)) |>
+  as.data.frame()
