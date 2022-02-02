@@ -13,14 +13,39 @@
 #+REVEAL_EXTRA_CSS: ./mods.css
 #+REVEAL_PLUGINS: (notes)
 :END:
+:LATEX_PROPERTIES:
+#+OPTIONS: toc:nil date:nil author:nil tasks:nil
+#+LANGUAGE: sp
+#+LATEX_CLASS: handout
+#+LATEX_HEADER: \usepackage[spanish]{babel}
+#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
+#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
+#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
+#+LATEX_HEADER: \decimalpoint
+#+LATEX_HEADER:\usepackage{framed}
+#+LaTeX_HEADER: \usepackage{listings}
+#+LATEX_HEADER: \usepackage{xcolor}
+#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
+#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
+#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
+#+LaTeX_HEADER: {}
+#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
+#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
+#+EXPORT_FILE_NAME: ../docs/01-montecarlo.pdf
+:END:
 #+STARTUP: showall
 #+PROPERTY: header-args:R :session intro :exports both :results output org :tangle ../rscripts/01-montecarlo.R :mkdirp yes :dir ../
 #+EXCLUDE_TAGS: toc latex
 
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022.\\
-*Objetivo*. Estudiar integración en el contexto probabilistico. Estudiar el método Monte Carlo y entender sus bondades y limitaciones en el contexto de inferencia Bayesiana. \\
-*Lectura recomendada*: Sección 6.1 de citet:Dogucu2021. Una lectura mas técnica sobre reglas de cuadratura se puede encontrar en la sección 3.1 de citet:Reich2015. Y una buena referencia (técnica) sobre el método Monte Carlo lo encuentran en citet:Sanz-Alonso2019. 
+*Objetivo*. Estudiar integración numérica en el contexto probabilistico. Estudiar,
+ en particular, el método Monte Carlo y entender sus bondades y limitaciones en
+ el contexto de inferencia Bayesiana. \\
+*Lectura recomendada*: Sección 6.1 de citet:Dogucu2021. Una lectura mas técnica
+ sobre reglas de cuadratura se puede encontrar en la sección 3.1 de
+ citet:Reich2015. Y una buena referencia (técnica) sobre el método Monte Carlo
+ lo encuentran en citet:Sanz-Alonso2019.
 #+END_NOTES
 
 
@@ -42,7 +67,6 @@
   - [[#tarea-sabores-de-helados][Tarea: Sabores de helados]]
 - [[#extensiones-muestreo-por-importancia][Extensiones: Muestreo por importancia]]
   - [[#propiedades-muestreo-por-importancia][Propiedades: muestreo por importancia]]
-- [[#referencias][Referencias]]
 :END:
 
 
@@ -233,7 +257,7 @@ integral.
 #+END_NOTES
 
 
-#+HEADER: :width 1200 :height 600 :R-dev-args bg="transparent"
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/eruption-quadrature.jpeg :exports results :results output graphics file
       canvas <- ggplot(faithful, aes(x = eruptions, y = waiting)) +
        xlim(0.5, 6) +
@@ -257,7 +281,7 @@ integral.
                  fill = 'salmon', alpha = .4) + ylab("") + xlab("") + 
         annotate('text', x = .5 + 5.5 * (6-.5)/grid.size, 
                          y = 40 + 3.5 * (110-40)/grid.size, 
-                 label = expression(u[n]), color = 'red', size = 20) +
+                 label = expression(u[n]), color = 'red', size = 15) +
           theme(axis.ticks = element_blank(), 
               axis.text = element_blank())
 
@@ -271,7 +295,16 @@ integral.
         sin_lineas + theme(legend.position = "none") +
         ylab("") + xlab("")
 
-  g1 + g2
+    g3 <- canvas + 
+        stat_bin2d(aes(fill = after_stat(density)), binwidth = c((6-.5)/25, (110-40)/25)) +
+        sin_lineas + theme(legend.position = "none") +
+        theme(axis.ticks = element_blank(), 
+                axis.text = element_blank()) +
+        scale_fill_distiller(palette = "Greens", direction = 1) + 
+        sin_lineas + theme(legend.position = "none") +
+        ylab("") + xlab("")
+
+  g1 + g2 + g3
 #+end_src
 #+caption: Integral por método de malla. 
 #+RESULTS:
@@ -574,7 +607,6 @@ donde $f(\theta_1, \ldots, \theta_4) = \mathbb{I}_{[\theta_4 \geq \theta_j, j \n
 
 
 
-
 * Extensiones: Muestreo por importancia
 
 Incluso cuando tenemos una integral *complicada* podemos ~relajar~ el problema de integración. De tal forma que podemos ~sustituir~
@@ -584,7 +616,7 @@ donde $\rho$ es una densidad de una variable aleatoria ~adecuada~.
 #+REVEAL: split
 Esto nos permite utilizar lo que sabemos de las propiedades del método Monte Carlo para resolver la integral
 \begin{align*}
-\pi(f) =  \int f(x) \pi(x) \text{d} x = \int f(x) w(x) \, \rho(x) \, \text{d}x =: \frac{\rho(fw)}{\rho(w)}\,,
+\pi(f) =  \int f(x) \pi(x) \text{d} x = \int f(x) w(x) \, \rho(x) \, \text{d}x =: \rho(fw)\,,
 \end{align*}
 por medio de una aproximación
 \begin{align}
@@ -607,7 +639,7 @@ distribución uniforme-- y la distribución ~sustituto~. Puedes leer más de est
 citet:Sanz-Alonso2019.
 
 
-* Referencias                                                         :latex: 
+# * Referencias                                                         :latex: 
 
 bibliographystyle:abbrvnat
 bibliography:./references.bib
