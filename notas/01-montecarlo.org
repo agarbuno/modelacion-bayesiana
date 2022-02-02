@@ -225,7 +225,7 @@ inicial es $p(\theta) = 2\theta$ (~checa que es una densidad~).
 #+REVEAL: split
 Y ahora podemos calcular la media posterior:
 \begin{align}
-\mathbb{E}[\theta] = \int \theta \, \pi(\theta | S_n)\, \text{d}\theta\,.
+\mathbb{E}[\theta | S_n] = \int \theta \, \pi(\theta | S_n)\, \text{d}\theta\,.
 \end{align}
 
 #+begin_src R
@@ -245,7 +245,6 @@ Y ahora podemos calcular la media posterior:
      0.71      0.71
 #+end_src
 
-
 ** Más de un parámetro
 
 #+BEGIN_NOTES
@@ -257,7 +256,7 @@ integral.
 #+END_NOTES
 
 
-#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+HEADER: :width 1500 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/eruption-quadrature.jpeg :exports results :results output graphics file
       canvas <- ggplot(faithful, aes(x = eruptions, y = waiting)) +
        xlim(0.5, 6) +
@@ -317,7 +316,7 @@ Sin embargo, se pueden utilizar aproximaciones
 
 $$\int f(x) \text{d} x \approx \sum_{n=1}^N f(\xi_n)\, \omega_n\,.$$
 
-Estas aproximaciones usualmente se realizan para integrales en intervalos cerrados $[a,b]$. Esto determina los pesos $\omega_n$ y los centros $\xi_n$ pues se escogen de acuerdo a ~ciertos criterios de convergencia~.
+Estas aproximaciones usualmente se realizan para integrales en intervalos cerrados $[a,b]$. La regla de cuadratura determina los pesos $\omega_n$ y los centros $\xi_n$ pues se escogen de acuerdo a ~ciertos criterios de convergencia~.
 
 #+BEGIN_NOTES
 Por ejemplo, se consideran polinomios que aproximen con cierto grado de precisión el integrando. Los pesos y los centros se escogen de acuerdo a la familia de polinomios. Pues para cada familia se tienen identificadas las mallas que optimizan la aproximación. Ver sección 3.1 de citet:Reich2015. 
