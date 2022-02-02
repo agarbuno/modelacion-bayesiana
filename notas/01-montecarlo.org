@@ -20,7 +20,7 @@
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022.\\
 *Objetivo*. Estudiar integración en el contexto probabilistico. Estudiar el método Monte Carlo y entender sus bondades y limitaciones en el contexto de inferencia Bayesiana. \\
-*Lectura recomendada*: Sección 6.1 de citep:Dogucu2021. 
+*Lectura recomendada*: Sección 6.1 de citet:Dogucu2021. Una lectura mas técnica sobre reglas de cuadratura se puede encontrar en la sección 3.1 de citet:Reich2015. Y una buena referencia (técnica) sobre el método Monte Carlo lo encuentran en citet:Sanz-Alonso2019. 
 #+END_NOTES
 
 
@@ -33,12 +33,15 @@
 - [[#integración-numérica][Integración numérica]]
   - [[#ejemplo-proporción][Ejemplo: Proporción]]
   - [[#más-de-un-parámetro][Más de un parámetro]]
+  - [[#reglas-de-cuadratura][Reglas de cuadratura]]
 - [[#integración-monte-carlo][Integración Monte Carlo]]
   - [[#ejemplo-dardos][Ejemplo: Dardos]]
   - [[#propiedades][Propiedades]]
   - [[#ejemplo-proporciones][Ejemplo: Proporciones]]
   - [[#ejemplo-sabores-de-helados][Ejemplo: Sabores de helados]]
   - [[#tarea-sabores-de-helados][Tarea: Sabores de helados]]
+- [[#extensiones-muestreo-por-importancia][Extensiones: Muestreo por importancia]]
+  - [[#propiedades-muestreo-por-importancia][Propiedades: muestreo por importancia]]
 - [[#referencias][Referencias]]
 :END:
 
@@ -218,6 +221,7 @@ Y ahora podemos calcular la media posterior:
      0.71      0.71
 #+end_src
 
+
 ** Más de un parámetro
 
 #+BEGIN_NOTES
@@ -272,6 +276,19 @@ integral.
 #+caption: Integral por método de malla. 
 #+RESULTS:
 [[file:../images/eruption-quadrature.jpeg]]
+
+** Reglas de cuadratura
+
+Por el momento hemos escogido aproximar las integrales por medio de una aproximación con una ~malla uniforme~.
+Sin embargo, se pueden utilizar aproximaciones 
+
+$$\int f(x) \text{d} x \approx \sum_{n=1}^N f(\xi_n)\, \omega_n\,.$$
+
+Estas aproximaciones usualmente se realizan para integrales en intervalos cerrados $[a,b]$. Esto determina los pesos $\omega_n$ y los centros $\xi_n$ pues se escogen de acuerdo a ~ciertos criterios de convergencia~.
+
+#+BEGIN_NOTES
+Por ejemplo, se consideran polinomios que aproximen con cierto grado de precisión el integrando. Los pesos y los centros se escogen de acuerdo a la familia de polinomios. Pues para cada familia se tienen identificadas las mallas que optimizan la aproximación. Ver sección 3.1 de citet:Reich2015. 
+#+END_NOTES
 
 * Integración Monte Carlo
 
@@ -353,9 +370,11 @@ tamaño 2, el cual contiene un circulo de radio 1.
 cualquier función bien comportada$^\dagger$.  Entonces, el estimador Monte Carlo es
 *insesgado*. Es decir, se satisface 
 
-$$\mathbb{E}\left[ \pi_N^{\textsf{MC}}(f) - \pi(f)\right] = 0,$$
-
-para cualquier $N$. Además tiene *error cuadrático medio acotado*
+\begin{align}
+\mathbb{E}\left[ \pi_N^{\textsf{MC}}(f) - \pi(f)\right] = 0,
+\end{align}
+para cualquier $N$. Usualmente estudiamos el error en un escenario pesimista
+donde medimos el *error cuadrático medio* en el peor escenario
 
 \begin{align*}
 \sup_{f \in \mathcal{F}} \, \,  \mathbb{E}\left[ \left(\pi_N^{\textsf{MC}}(f) - \pi(f) \right)^2 \right] \leq \frac1N.
@@ -552,6 +571,40 @@ donde $f(\theta_1, \ldots, \theta_4) = \mathbb{I}_{[\theta_4 \geq \theta_j, j \n
 
 - ¿Cuál es la probabilidad a priori de que cada sabor sea el preferido?
 - Con los datos de arriba, calcula la probabilidad de que la gente prefiera el sabor de mango sobre limón.
+
+
+
+
+* Extensiones: Muestreo por importancia
+
+Incluso cuando tenemos una integral *complicada* podemos ~relajar~ el problema de integración. De tal forma que podemos ~sustituir~
+$$\int f(x) \pi(x) \text{d} x = \int f(x) \frac{\pi(x)}{\rho(x)}\,\rho(x) \text{d} x = \int f(x) \, w(x) \, \rho(x) \, \text{d}x\,,$$
+donde $\rho$ es una densidad de una variable aleatoria ~adecuada~.
+
+#+REVEAL: split
+Esto nos permite utilizar lo que sabemos de las propiedades del método Monte Carlo para resolver la integral
+\begin{align*}
+\pi(f) =  \int f(x) \pi(x) \text{d} x = \int f(x) w(x) \, \rho(x) \, \text{d}x =: \frac{\rho(fw)}{\rho(w)}\,,
+\end{align*}
+por medio de una aproximación
+\begin{align}
+\pi(f) \approx \sum_{n = 1}^{N} \bar w^{(n)} f(x^{(n)}), \qquad x^{(n)} \overset{\mathsf{iid}}{\sim} \rho\,.
+\end{align}
+#+REVEAL: split
+Al estimador le llamamos el estimador por importancia y lo denotamos por
+\begin{align}
+\pi_N^{\mathsf{IS}}(f) = \sum_{n = 1}^{N} \bar w^{(n)} f(x^{(n)}), \qquad \bar w^{(n)} = \frac{w(x^{(n)})}{\sum_{m= 1}^{N}w(x^{(m)})}\,.
+\end{align}
+
+** Propiedades: muestreo por importancia
+
+Lamentablemente, utilizar muestreo por importancia ~impacta la calidad de la
+estimación~ (medida, por ejemplo, en términos del *peor error cuadrático medio
+cometido*). El impacto es un factor que incorpora la /diferencia/ entre la distribución
+~objetivo~ --para integrales de la forma $\int f(x) \text{d}x$, implica la
+distribución uniforme-- y la distribución ~sustituto~. Puedes leer más de esto
+(aunque a un nivel mas técnico) en la sección 5 de las notas de
+citet:Sanz-Alonso2019.
 
 
 * Referencias                                                         :latex: 
