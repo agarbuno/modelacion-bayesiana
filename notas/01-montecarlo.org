@@ -13,26 +13,6 @@
 #+REVEAL_EXTRA_CSS: ./mods.css
 #+REVEAL_PLUGINS: (notes)
 :END:
-:LATEX_PROPERTIES:
-#+OPTIONS: toc:nil date:nil author:nil tasks:nil
-#+LANGUAGE: sp
-#+LATEX_CLASS: handout
-#+LATEX_HEADER: \usepackage[spanish]{babel}
-#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
-#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
-#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
-#+LATEX_HEADER: \decimalpoint
-#+LATEX_HEADER:\usepackage{framed}
-#+LaTeX_HEADER: \usepackage{listings}
-#+LATEX_HEADER: \usepackage{xcolor}
-#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
-#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
-#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
-#+LaTeX_HEADER: {}
-#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
-#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
-#+EXPORT_FILE_NAME: ../docs/01-montecarlo.pdf
-:END:
 #+STARTUP: showall
 #+PROPERTY: header-args:R :session intro :exports both :results output org :tangle ../rscripts/01-montecarlo.R :mkdirp yes :dir ../
 #+EXCLUDE_TAGS: toc latex
@@ -67,6 +47,7 @@
   - [[#tarea-sabores-de-helados][Tarea: Sabores de helados]]
 - [[#extensiones-muestreo-por-importancia][Extensiones: Muestreo por importancia]]
   - [[#propiedades-muestreo-por-importancia][Propiedades: muestreo por importancia]]
+- [[#referencias][Referencias]]
 :END:
 
 
@@ -638,7 +619,7 @@ distribución uniforme-- y la distribución ~sustituto~. Puedes leer más de est
 citet:Sanz-Alonso2019.
 
 
-# * Referencias                                                         :latex: 
+* Referencias                                                         :latex: 
 
 bibliographystyle:abbrvnat
 bibliography:./references.bib
