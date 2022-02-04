@@ -14,6 +14,26 @@
 #+REVEAL_EXTRA_CSS: ./mods.css
 #+REVEAL_PLUGINS: (notes)
 :END:
+:LATEX_PROPERTIES:
+#+OPTIONS: toc:nil date:nil author:nil tasks:nil
+#+LANGUAGE: sp
+#+LATEX_CLASS: handout
+#+LATEX_HEADER: \usepackage[spanish]{babel}
+#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
+#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
+#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
+#+LATEX_HEADER: \decimalpoint
+#+LATEX_HEADER:\usepackage{framed}
+#+LaTeX_HEADER: \usepackage{listings}
+#+LATEX_HEADER: \usepackage{xcolor}
+#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
+#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
+#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
+#+LaTeX_HEADER: {}
+#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
+#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
+#+EXPORT_FILE_NAME: ../docs/02-mcmc.pdf
+:END:
 #+PROPERTY: header-args:R :session mcmc :exports both :results output org :tangle ../rscripts/02-mcmc.R :mkdirp yes :dir ../
 #+EXCLUDE_TAGS: toc latex
 
@@ -21,7 +41,7 @@
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022.\\
 *Objetivo*. Estudiar el método general de integración Monte Carlo vía cadenas de Markov (MCMC). La estrategia será construir poco a poco utilizando los principios básicos que lo componen. \\
-*Lectura recomendada*: Capítulo 3 de citep:Reich2015. Capítulo 7 de citep:Dogucu2021. 
+*Lectura recomendada*: Capítulo 7 de citep:Dogucu2021. Sección 6 de [[citep:Sanz-Alonso2019]] y Capítulo 3 de citep:Reich2015 (avanzado). 
 #+END_NOTES
 
 
@@ -36,7 +56,7 @@
   - [[#tarea][Tarea]]
   - [[#propiedades][Propiedades]]
 - [[#qué-hemos-visto][¿Qué hemos visto?]]
-- [[#muestreo-por-cadenas-de-markov][Muestreo por Cadenas de Markov]]
+- [[#muestreo-por-cadenas-de-markov][Muestreo por cadenas de Markov]]
   - [[#ejemplo][Ejemplo:]]
   - [[#pregunta][Pregunta]]
   - [[#modelación-del-tour-de-ventas][Modelación del tour de ventas]]
@@ -49,7 +69,9 @@
   - [[#tarea-2][Tarea (2)]]
 - [[#el-método-metropolis-hastings][El método Metropolis-Hastings]]
   - [[#tarea-3][Tarea (3)]]
-- [[#referencias][Referencias]]
+  - [[#distribución-propuesta][Distribución propuesta]]
+- [[#en-más-dimensiones][En más dimensiones]]
+- [[#por-qué-funciona][¿Por qué funciona?]]
 :END:
 
 
@@ -85,7 +107,6 @@ El interés es poder resolver
 \end{align}
 
 Sin embargo, ~no podemos generar~ $\theta^{(i)} \overset{\mathsf{iid}}{\sim} \pi(\theta|y)$.
-
 
 * Muestreo por aceptación rechazo
 
@@ -128,7 +149,6 @@ distribución objetivo. El rechazo se realiza lanzando una moneda. La tasa de
 #+caption: Esquema de muestreo. 
 #+RESULTS:
 [[file:../images/rejection-sampling.jpeg]]
-
 
 ** Implementación
 Necesitamos algunas cosas. Ser capaces de ~evaluar~ nuestra distribución
@@ -196,14 +216,15 @@ distribución objetivo.
         g <- aprox$density(propuesta, log = FALSE)
         u <- runif(1)
         if (u < p/(M * g)) {  ## Aceptamos 
-          muestras[ii, 2] <- 1
+          muestras[ii, 1] <- 1
         } else {              ## Rechazamos 
-          muestras[ii, 2] <- 0
+          muestras[ii, 1] <- 0
         }
-        muestras[ii, 1] <- propuesta
+        muestras[ii, 2] <- propuesta
         muestras[ii, 3] <- u 
       }
-      muestras 
+      colnames(muestras) <- c("accept", "value", "auxiliar")
+      muestras
     }
   }
 #+end_src
@@ -216,17 +237,17 @@ distribución objetivo.
 
   muestras <- muestreo_rechazo(5000) |>
     as.tibble() |>
-    mutate(density = modelo.muestreo$density(V1, log = FALSE))
+    mutate(density = modelo.muestreo$density(value, log = FALSE))
 
   g1 <- muestras |>
-    ggplot(aes(V1, V3 * modelo.muestreo$density(V1, log = FALSE))) +
-    geom_point(aes(color = factor(V2))) + sin_lineas + sin_ejes + sin_leyenda +
+    ggplot(aes(value, auxiliar * modelo.muestreo$density(value, log = FALSE))) +
+    geom_point(aes(color = factor(accept))) + sin_lineas + sin_ejes + sin_leyenda +
     xlab("") + ylab("") +
-    ggtitle(paste("Muestras en el espacio (x,u), eficiencia: ", mean(muestras$V2)))
+    ggtitle(paste("Muestras en el espacio (x,u), aceptación: ", mean(muestras$accept)))
 
   g2 <- muestras |>
-    filter(V2 == 1) |>
-    ggplot(aes(V1)) +
+    filter(accept == 1) |>
+    ggplot(aes(value)) +
     geom_histogram() + 
     sin_lineas + sin_ejes + sin_leyenda +
     xlab("") + ylab("") +
@@ -252,7 +273,6 @@ distribución objetivo.
 \pi(x | \textsf{aceptar}) = \frac{\pi(\textsf{aceptar} | x) \times \pi(x)}{\pi(\textsf{aceptar})}\,.
 \end{align}
 
-
 * ¿Qué hemos visto?
 
 - El método Monte Carlo se puede utilizar para aproximar integrales.
@@ -260,11 +280,19 @@ distribución objetivo.
 - Podemos lanzar monedas para /filtrar/ sólo los aleatorios que tengan altas probabilidades.
 - Hemos utilizado el supuesto de independencia.
 
+* Muestreo por cadenas de Markov
 
-* Muestreo por Cadenas de Markov
+Vamos a ~relajar~ el supuesto de ~independencia~. Es decir, vamos a generar una
+secuencia de números aleatorios con cierta correlación.
 
-Vamos a relajar el supuesto de independencia. Es decir, vamos a generar una
-secuencia de números que /esperamos/ se comporte tal cómo nos interesa.
+#+REVEAL: split
+*Definición (~Cadena de Markov~)*. Un *proceso estócastico* en tiempo discreto --una
+ colección de variables aleatorias $X_1, X_2, \ldots$ -- que satisface la
+ propiedad de dependencia condicional
+\begin{align}
+\mathbb{P}\left( X_{n+1}  = x | X_1 = x_1, \ldots, X_n = x_n \right) = \mathbb{P}\left( X_{n+1}  = x | X_n = x_n \right)\,,
+\end{align}
+se llama una *cadena de Markov* en tiempo discreto.
 
 ** Ejemplo:
 
@@ -302,15 +330,16 @@ del archipiélago y pudiera viajar en avión?
 
 El vendedor se encuentra en el $t$ -ésimo día. Supongamos que va a evaluar si se
 cambia a la isla de la derecha. Sea $\pi_\star$ la población de la isla propuesta y
-$\pi_{t}$ la población de la isla actual. Entonces el vendedor cambia de isla
+$\pi_{t}$ la población de la isla actual. Entonces el vendedor acepta cambiar de isla
 con probabilidad
 
 $$\alpha_{\textsf{mover}}= \frac{\pi_\star}{\pi_{t}}\,.$$
 
 #+BEGIN_NOTES
-Entre mas parecidas sean las poblaciones de las islas mas *indeciso*
-será de moverse. Por definición  $\alpha_{\textsf{mover}} \in (0,1)$. De
-hecho, podemos definir la probabilidad de viajar a otra isla por medio de
+Nota que nunca dudará moverse a una isla mas grande. Por otro lado, entre mas
+parecidas sean las poblaciones de las islas mas *indeciso* será de moverse. Por
+definición $\alpha_{\textsf{mover}} \in (0,1)$. De hecho, podemos definir la
+probabilidad de aceptar un viaje a otra isla por medio de
 
 $$\alpha(t, \star) = \min \Bigg\{ 1, \frac{\pi_\star}{\pi_{t}}\Bigg\},$$
 
@@ -319,9 +348,10 @@ pues incluye los dos casos.
 
 
 #+REVEAL: split
-El tiempo que un vendedor pase en cada isla corresponderá al tamaño relativo de
-ellas.
+Una propiedad interesante es que el tiempo que el vendedor pase en cada isla
+corresponderá al tamaño relativo de ellas. 
 
+#+REVEAL: split
 #+begin_src R :exports none :results none
   ## Caminata entre islas --------------------------
   set.seed(1087)
@@ -374,7 +404,7 @@ ellas.
          y = expression(hat(pi)(theta))) + sin_lineas + coord_flip()
   plot_caminata + plot_dist
 #+end_src
-#+caption: Caminata aleatoria entre 5 islas. 
+#+caption: Caminata aleatoria en un archipiélago de 5 islas. 
 #+RESULTS:
 [[file:../images/caminata-cafe.jpeg]]
 
@@ -418,7 +448,6 @@ ellas.
 - La estrategia del vendedor le permitirá, en el ~largo plazo~,  visitar todas las islas.
 - El tiempo que pasa en cada isla$^\dagger$ corresponde a la población relativa.
 - Al principio, aún no representa dicha proporción.
-
 
 * Generalizando... 
 
@@ -492,22 +521,22 @@ Veamos cómo implementarlo. Vamos a suponer una distribución de muestreo con un
       muestras <- matrix(nrow = niter, ncol = 2)
       ## Empezamos en algun lugar
       estado   <- muestreo$sample()
-      muestras[1,1] <- estado
-      muestras[1,2] <- 1
+      muestras[1,2] <- estado
+      muestras[1,1] <- 1
       for (ii in 2:niter){
         propuesta   <- estado + muestreo$sample()
         p_propuesta <- objetivo$density(propuesta, log = FALSE)
         p_estado    <- objetivo$density(estado, log = FALSE)
         if (runif(1) < p_propuesta/p_estado) {
-          muestras[ii, 2] <- 1 ## Aceptamos
-          muestras[ii, 1] <- propuesta
+          muestras[ii, 1] <- 1 ## Aceptamos
+          muestras[ii, 2] <- propuesta
         } else {
-          muestras[ii, 2] <- 0 ## Rechazamos
-          muestras[ii, 1] <- estado
+          muestras[ii, 1] <- 0 ## Rechazamos
+          muestras[ii, 2] <- estado
         }
-        estado <- muestras[ii, 1]
+        estado <- muestras[ii, 2]
       }
-      colnames(muestras) <- c("value", "accept")
+      colnames(muestras) <- c("accept", "value")
       muestras
     }
   }
@@ -555,24 +584,24 @@ Sin modificar el número de iteraciones, considera cambiar la dispersión de la 
 
 ** Tarea (2)
 
-Regresa a nuestro ejemplo conjugado Beta-Binomial. Considera una previa $\theta \sim \mathsf{Beta}(2,3)$ y una verosimilitud $Y|\theta \sim \mathsf{Binomial}(2, \theta)$. Escribe la distribución posterior. 
+Regresa a nuestro ejemplo conjugado Beta-Binomial. Considera una previa $\theta \sim \mathsf{Beta}(2,3)$ y una verosimilitud $Y|\theta \sim \mathsf{Binomial}(2, \theta)$. Escribe la distribución posterior asumiendo $Y = k$. 
 
 #+REVEAL: split
-Para este caso tenemos un ligero inconveniente. El soporte para $\theta$ es el intervalo cerrado $[0,1]$ y utilizar una propuesta como en el caso anterior nos podría colocar (casi seguramente) fuera del intervalo. Así que lo que haremos será un pequeña modificación a cómo generamos nuestra propuesta y cómo evaluamos la probabilidad de transición.
+Para este caso tenemos un ligero inconveniente. El soporte para $\theta$ es el intervalo cerrado $[0,1]$ y utilizar una propuesta como en el caso anterior nos podría colocar (casi seguramente) fuera del intervalo. Así que lo que haremos será un pequeña modificación a cómo generamos nuestra propuesta y cómo evaluamos la probabilidad de aceptar dicha propuesta.
 
 #+REVEAL: split
 - [ ] Vamos a generar propuestas de la siguiente manera
   \begin{align}
   \theta_\star | \theta_t \sim \mathsf{Beta}(\alpha, \beta)\,.
   \end{align}
-- [ ] Vamos a calcular la probabilidad de transición a través de
+- [ ] Vamos a calcular la probabilidad de aceptar dicho movimiento a través de
   \begin{align}
   \alpha(\theta_t, \theta_\star) = \min \left\lbrace 1,  \frac{\pi(\theta_\star|y)}{\pi(\theta_t|y)} \cdot \frac{g(\theta_t)}{g(\theta_\star)}\right\rbrace\,,
   \end{align}
-  donde $g$ denota la densidad de la distribución de transición definida arriba.
+  donde $g$ denota la densidad de la distribución de muestreo definida arriba.
 
 #+REVEAL: split
-Modifica el código de clase para implementar este muestreador. Compara con muestras exactas del modelo posterior. 
+Modifica el código de clase para implementar este muestreador. Compara con muestras exactas del modelo posterior bajo la observación $Y = 1$. 
 
 * El método Metropolis-Hastings 
 
@@ -583,20 +612,356 @@ La forma más general que tenemos para generar una cadena de muestras es el mét
   \begin{align}
   \theta_\star | \theta_t \sim q( \theta_\star | \theta_t )\,.
   \end{align}
-- [ ] Calculamos la probabilidad de transición como 
+- [ ] Calculamos la probabilidad de aceptar la propuesta como 
   \begin{align}
   \alpha(\theta_t, \theta_\star) = \min \left\lbrace 1,  \frac{\pi(\theta_\star)}{\pi(\theta_t)} \cdot \frac{q(\theta_t|\theta_\star)}{q(\theta_\star|\theta_t)}\right\rbrace\,,
   \end{align}
-  donde la notación hace énfasis en que este mecanismo puede generar muestras de la distribución $\pi$ utilizando un generador $q$.
+  donde la notación hace énfasis en que este mecanismo puede generar muestras de
+  la distribución $\pi$ utilizando un generador $q$.
 
 ** Tarea (3)
 
 - [ ] Repasemos ~los métodos anteriores~.
 - [ ] ¿Qué pasa si desconocemos la constante de normalización de la distribución objetivo?
 
+** Distribución propuesta
+
+El /arte/ está en proponer una distribución de muestreo eficiente. Como ya hemos
+discutido, si no está bien calibrada podríamos tener un comportamiento no
+deseado. Supongamos que queremos muestrear de una $\mathsf{Gamma}(20,
+100)$. Para esto veamos tres configuraciones de la distribución de muestreo que será
+$\mathsf{N}(\theta_t, \sigma^2)$. 
+
+#+begin_src R :exports none :results none
+  ## Implementacion Metropolis Hastings -----------------------
+  ModeloGamma <-
+    R6Class("ProbabilityModel",
+            list(
+              shape = NA,
+              rate  = NA, 
+              initialize = function(a = 0, b = 1){
+                self$shape = a
+                self$rate  = b
+              }, 
+              sample = function(n = 1){
+                rgamma(n, shape = self$shape, rate = self$rate)              
+              },
+              density = function(x, log = TRUE){
+                dgamma(x, shape = self$shape, rate = self$rate, log = log)
+              }           
+            ))
+#+end_src
+
+#+begin_src R :exports none :results none
+  ### Muestreador Metropolis-Hastings -------------------------
+  crea_metropolis_hastings <- function(objetivo, muestreo){
+    ## Este muestreador aprovecha la simetría de la propuesta 
+    function(niter){
+      ## Empezamos en algun lugar
+      estado <- muestreo$sample()
+      ndim <- length(estado) 
+      muestras <- matrix(nrow = niter, ncol = ndim + 1)      
+      muestras[1,2:(ndim+1)] <- estado
+      muestras[1,1] <- 1
+      for (ii in 2:niter){
+        propuesta   <- estado + muestreo$sample()
+        log_pi_propuesta <- objetivo$density(propuesta)
+        log_pi_estado    <- objetivo$density(estado)
+        log_alpha <- log_pi_propuesta - log_pi_estado
+
+        if (log(runif(1)) < log_alpha) {
+          muestras[ii, 1] <- 1 ## Aceptamos
+          muestras[ii, 2:(ndim+1)] <- propuesta
+        } else {
+          muestras[ii, 1] <- 0 ## Rechazamos
+          muestras[ii, 2:(ndim+1)] <- estado
+        }
+        estado <- muestras[ii, 2:(ndim+1)]
+      }
+      if (ndim == 1) {colnames(muestras) <- c("accept", "value")}
+      muestras
+    }
+  }
+#+end_src
 
 
-* Referencias                                                         :latex:
+#+REVEAL: split
+#+HEADER: :width 700 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/mh-pasochico.jpeg :exports results :results output graphics file
+  set.seed(108727)
+  objetivo <- ModeloGamma$new(a = 20, b = 100)
+  muestreo <- ModeloNormal$new(sd = 0.001)
+  mcmc_chico <- crea_metropolis_hastings(objetivo, muestreo)
+
+  g1 <- mcmc_chico(3000) |>
+    as.tibble() |>
+    mutate(t = 1:n()) |>
+    ggplot(aes(t, value)) +
+    geom_line() + sin_lineas + ylab(expression(theta)) +
+    ylim(0, 0.5)
+
+  g2 <- tibble(x = rgamma(10000, 20, 100)) |>
+    ggplot(aes(y = x, x = "")) +
+    geom_violin() +
+    ylab("") + sin_lineas +
+    ylim(0, 0.5)
+
+  g1 + g2 + plot_layout(widths = c(5, 1))
+#+end_src
+#+caption: Metropolis-Hastings en acción con un tamaño de paso muy pequeño. 
+#+RESULTS:
+[[file:../images/mh-pasochico.jpeg]]
+
+#+REVEAL: split
+#+HEADER: :width 700 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/mh-pasogrande.jpeg :exports results :results output graphics file
+  set.seed(108727)
+  muestreo <- ModeloNormal$new(sd = 20)
+  mcmc_grande <- crea_metropolis_hastings(objetivo, muestreo)
+
+  g1 <- mcmc_grande(3000) |>
+    as.tibble() |>
+    mutate(t = 1:n()) |>
+    ggplot(aes(t, value)) +
+    geom_line() + sin_lineas + ylab(expression(theta)) +
+    ylim(0, 0.5)
+
+  g2 <- tibble(x = rgamma(10000, 20, 100)) |>
+    ggplot(aes(y = x, x = "")) +
+    geom_violin() +
+    ylab("") + sin_lineas +
+    ylim(0, 0.5)
+
+  g1 + g2 + plot_layout(widths = c(5, 1))
+#+end_src
+#+caption: Metropolis-Hastings en acción con un tamaño de paso muy grande. 
+#+RESULTS:
+[[file:../images/mh-pasogrande.jpeg]]
+
+#+REVEAL: split
+#+HEADER: :width 700 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/mh-pasojusto.jpeg :exports results :results output graphics file
+  set.seed(108727)
+  muestreo <- ModeloNormal$new(sd = 0.1)
+  mcmc_justo <- crea_metropolis_hastings(objetivo, muestreo)
+
+  g1 <- mcmc_justo(3000) |>
+    as.tibble() |>
+    mutate(t = 1:n()) |>
+    ggplot(aes(t, value)) +
+    geom_line() + sin_lineas + ylab(expression(theta)) +
+    ylim(0, 0.5)
+
+  g2 <- tibble(x = rgamma(10000, 20, 100)) |>
+    ggplot(aes(y = x, x = "")) +
+    geom_violin() +
+    ylab("") + sin_lineas +
+    ylim(0, 0.5)
+
+  g1 + g2 + plot_layout(widths = c(5, 1))
+#+end_src
+#+caption: Metropolis-Hastings en acción con un tamaño de paso /justo/. 
+#+RESULTS:
+[[file:../images/mh-pasojusto.jpeg]]
+
+#+REVEAL: split
+#+begin_src R :exports results :results org
+  tibble(configuracion = c("Paso chico", "Paso grande", "Paso justo"), 
+         cadena   = c(mcmc_chico, mcmc_grande, mcmc_justo)) |>
+    mutate(muestras = map(cadena, function(x) {
+      set.seed(108727)
+      x(3000) |>
+        as.tibble()
+    })) |>
+    unnest(muestras) |>
+    group_by(configuracion) |>
+    summarise(media = mean(value),
+              tasa.aceptacion = mean(accept)) |>
+    rbind(tibble(configuracion = "Teorica",
+                 media = objetivo$shape/objetivo$rate,
+                 tasa.aceptacion = NA)) |>
+    as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+  configuracion media tasa.aceptacion
+1    Paso chico 0.086          0.9440
+2   Paso grande 0.309          0.0067
+3    Paso justo 0.197          0.4633
+4       Teorica 0.200              NA
+#+end_src
+
+#+REVEAL: split
+#+HEADER: :width 700 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/mh-largoplazo.jpeg :exports results :results output graphics file :eval never
+  set.seed(108727)
+
+  g1 <- mcmc_chico(1000000) |>
+    as.tibble() |>
+    mutate(t = 1:n()) |>
+    ggplot(aes(t, value)) +
+    geom_line() + sin_lineas + ylab(expression(theta)) +
+    ylim(0, 0.5)
+
+  g2 <- tibble(x = rgamma(10000, 20, 100)) |>
+    ggplot(aes(y = x, x = "")) +
+    geom_violin() +
+    ylab("") + sin_lineas +
+    ylim(0, 0.5)
+
+  g1 + g2 + plot_layout(widths = c(5, 1))
+#+end_src
+#+caption: Metropolis-Hastings en acción con un tamaño de paso /pequeño/ y un periodo suficientemente amplio. 
+#+RESULTS:
+[[file:../images/mh-largoplazo.jpeg]]
+
+* En más dimensiones
+
+Consideremos la siguiente distribución objetivo
+\begin{align}
+\theta \sim \mathsf{N}(\textsf{m}, \textsf{S}), \qquad \textsf{m} = (1,2)^\top, \qquad \mathsf{S} = \begin{pmatrix}1 & .75\\.75 &1 \end{pmatrix}\,,
+\end{align}
+y utilicemos el modelo de muestreo 
+\begin{align}
+\theta \sim \mathsf{N}(\mathsf{0}, \mathsf{\Sigma}), \qquad \mathsf{0} \in \mathbb{R}^2, \qquad \mathsf{\Sigma} =\sigma^2 \cdot \begin{pmatrix}1 & 0\\0 &1 \end{pmatrix}\,.
+\end{align}
+
+#+begin_src R :exports none :results none
+  ## En mas dimensiones -------------------------------
+#+end_src
+#+REVEAL: split
+#+begin_src R :exports code :results none
+  library(mvtnorm)
+  ModeloNormalMultivariado <-
+    R6Class("ProbabilityModel",
+            list(
+              mean = NA,
+              cov  = NA, 
+              initialize = function(mu = 0, sigma = 1){
+                self$mean = mu
+                self$cov  = sigma |> as.matrix()
+              }, 
+              sample = function(n = 1){
+                rmvnorm(n, mean = self$mean, sigma = self$cov)              
+              },
+              density = function(x, log = TRUE){
+                dmvnorm(x, self$mean, self$cov, log = log)              
+              }           
+            ))
+#+end_src
+
+#+REVEAL: split
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/multinormal.jpeg :exports results :results output graphics file
+  mu <- c(1, 2)
+  Sigma <- matrix(c(1, .75, .75, 1), nrow = 2)
+  objetivo <- ModeloNormalMultivariado$new(mu, Sigma)
+
+
+  genera_experimento <- function(sigma){
+    muestreo <- ModeloNormalMultivariado$new(c(0,0),
+                                             sigma * diag(c(1,1)))
+    set.seed(10)
+    mcmc_multi <- crea_metropolis_hastings(objetivo, muestreo)
+    mcmc_multi(50) |>
+      as.tibble()
+  }
+
+  ## Para dibujar las curvas de nivel 
+  plot.grid <- expand_grid(x = seq(-2,5, by = 7/99), y = seq(-1,5, by = 6/99))
+  plot.grid <- plot.grid %>% 
+    mutate(density = dmvnorm(plot.grid, mean = mu, sigma = Sigma))
+  plot.breaks <- plot.grid %>% 
+    summarise(breaks = quantile(density, probs = c(.67, .90, .99))) %>% 
+    pull(breaks)
+
+  tibble(sigma = c(.1, .75, 2.33/sqrt(2), 5)) |>
+    mutate(muestras = map(sigma, genera_experimento)) |>
+    unnest(muestras) |>
+    ggplot(aes(x = V2, y = V3)) +
+    geom_contour(data = plot.grid, aes(x,y,z = density), breaks = plot.breaks) + 
+    geom_path() + geom_point() + 
+    facet_wrap(~round(sigma,2), nrow = 1) + 
+    xlab(expression(x[1])) + ylab(expression(x[2])) + 
+    sin_lineas + coord_equal()
+#+end_src
+#+caption: Caminata aleatoria utilizando Metropolis-Hastings para $\theta\in \mathbb{R}^2$. 
+#+RESULTS:
+[[file:../images/multinormal.jpeg]]
+
+* ¿Por qué funciona?
+
+Ya vimos cómo funciona y describimos una versión suficientemente
+robusta. Ahora estudiaremos el por qué esa manera de operar las transiciones nos
+lleva a tener un mecanismo que genera muestras de la distribución (en el largo
+plazo).
+
+#+REVEAL: split
+Para esto tenemos que preguntarnos sobre las probabilidades de transición entre
+dos estados. Es decir, la probabilidad de movernos al estado $\theta_\star$
+condicional en estar en $\theta$. Lo denotamos por
+\begin{align}
+\mathbb{P}\left(  \theta_{t + 1} = \theta_\star | \theta_t = \theta\right)\,.
+\end{align}
+
+#+REVEAL: split
+Si el algoritmo es capaz de mantener un balance entre las probabilidades
+condicionales entre dos estados de acuerdo a su frecuencia relativa, entonces el
+algoritmo será capaz de preservar las frecuencias.
+
+#+REVEAL: split
+En palabras (bueno...), buscamos que
+\begin{align}
+\frac{\mathbb{P}\left(  \theta_{t + 1} = \theta_\star | \theta_t = \theta\right)}{\mathbb{P}\left(  \theta_{t + 1} = \theta | \theta_t = \theta_\star\right)} = \frac{\pi(\theta_\star)}{\pi(\theta)}\,,
+\end{align}
+donde $\pi(\cdot)$ denota la probabilidad objetivo.
+
+#+REVEAL: split
+Sólo nos falta calcular la probabilidad de transición. Esto lo logramos con dos
+pasos: 1) generar la propuesta y 2) aceptar o rechazar la propuesta. Por lo tanto
+\begin{align}
+\mathbb{P}\left(  \theta_{t + 1} = \theta_\star | \theta_t = \theta\right) = q(\theta | \theta_\star ) \cdot   \alpha(\theta, \theta_\star) =  q(\theta | \theta_\star ) \cdot \min \left\lbrace 1,  \frac{\pi(\theta_\star)}{\pi(\theta)} \cdot \frac{q(\theta|\theta_\star)}{q(\theta_\star|\theta)}\right\rbrace\,. 
+\end{align}
+
+#+REVEAL: split
+*Definición (~Invarianza~)* Decimos que la distribución $\pi$ es ~invariante~ para un
+mecanismo de transición Markoviana ($p(u, v)$) si satisface que
+\begin{align}
+\int \pi(u)\, p(u, v) \text{d}u = \pi(v) \,.
+\end{align}
+
+
+
+
+#+BEGIN_NOTES
+Lo que aprendemos de esto es que si tenemos un mecanismo de transición
+Markoviana que satisface las ecuaciones de balance entonces se mantendrá el
+comportamiento aleatorio de la distribución objetivo. Lo importante es que la
+transición preserva la distribución objetivo.
+#+END_NOTES
+
+
+
+
+#+REVEAL: split
+*Lemma (~Comportamiento asintótico de Metropolis-Hastings~)*. El mecanismo de MH
+descrito anteriormente tiene como distribución límite $\pi$.\\
+
+
+
+#+BEGIN_NOTES
+Lo que aprendemos de esto es que en particular MH preserva las ecuaciones de
+balance. Por lo tanto, si la cadena empieza en la distribución que nos interesa,
+entonces se mantendrá en ese comportamiento. Estudiar formalmente las
+condiciones y la tasa de convergencia para llegar a esa distribución escapa a
+los intereses del curso y se puede encontrar un tratamiento mas cuidadoso de
+esto en citep:Meyn1993. Sin embargo, podemos entenderlo bajo el argumento que MH
+busca las zonas de alta densidad. Tal como el vendedor ambulante prefería de
+manera consistente las islas mas grandes.
+#+END_NOTES
+
+# * Referencias                                                         :latex:
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
