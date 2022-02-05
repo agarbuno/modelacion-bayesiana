@@ -53,7 +53,9 @@
 - [[#introduccion][Introduccion]]
 - [[#muestreo-por-aceptación-rechazo][Muestreo por aceptación rechazo]]
   - [[#implementación][Implementación]]
-  - [[#tarea][Tarea]]
+    - [[#disclaimer][Disclaimer]]
+    - [[#implementación-de-una-distribución-de-muestreo][Implementación de una distribución de muestreo.]]
+  - [[#tarea-0][Tarea (0)]]
   - [[#propiedades][Propiedades]]
 - [[#qué-hemos-visto][¿Qué hemos visto?]]
 - [[#muestreo-por-cadenas-de-markov][Muestreo por cadenas de Markov]]
@@ -168,12 +170,19 @@ muestreo.
   M        <- 3.3
 #+end_src
 
-#+REVEAL: split
+*** /Disclaimer/
+:PROPERTIES:
+:reveal_background: #00468b
+:END:
 
-El objetivo del curso *no* es programación orientada a objetos. Pero todxs lxs
-jóvenes /cool/ lo utilizan.
+El objetivo del curso *no* es enseñar programación orientada a objetos. Nos
+permitirá abstraer los puntos importantes y concentrarnos en las ideas generales
+y no preocuparnos por lo detalles.
 
-#+REVEAL: split
+*** Implementación de una distribución de muestreo.
+
+Recordemos que lo que queremos son dos cosas: generar números aleatorios y evaluar la función de densidad. 
+
 #+caption: Distribución de muestreo. 
 #+begin_src R :exports code :results none
   library(R6)
@@ -199,13 +208,14 @@ jóvenes /cool/ lo utilizan.
 #+end_src
 
 #+BEGIN_NOTES
-En muestreo por aceptación rechazo necesitamos definir una distribución de la
+En muestreo con rechazo necesitamos definir una distribución de la
 cual *si podamos* generar números aleatorios. El inconveniente es, además, *conocer*
 qué tanto podemos inflar la densidad de nuestra propuesta para /cubrir/ la
 distribución objetivo.
 #+END_NOTES
 
 #+REVEAL: split
+#+caption: Algoritmo de muestreo con rechazo. 
 #+begin_src R :exports code :results none
   crea_rejection_sampling <- function(objetivo, aprox, M){
     function(niter){
@@ -259,16 +269,20 @@ distribución objetivo.
 #+RESULTS:
 [[file:../images/muestreo-aceptacion.jpeg]]
 
-** Tarea
+** Tarea (0)
+:PROPERTIES:
+:reveal_background: #00468b
+:END:
 
 - ¿Qué pasa si $M$ es demasiado grande? Juega con el código e interpreta los resultados. 
 - ¿Qué pasa si $M$ no es suficiente para cubrir la distribución objetivo? Juega con el código e interpreta los resultados.
 
 ** Propiedades
 
-*Lemma (~Consistencia de muestreo por rechazo~)*. El método de muestreo de aceptación-rechazo genera muestras $x^{(i)}$ con $i = 1, \ldots, N$ que son independientes y distribuidas acorde a la distribución objetivo $\pi$.
+*Lema (~Consistencia de muestreo por rechazo~)*. El método de muestreo por aceptación-rechazo genera muestras $x^{(i)}$ con $i = 1, \ldots, N$ que son independientes y distribuidas acorde a la distribución objetivo $\pi$.
 
-/Prueba/ Usemos probabilidad condicional para medir
+#+REVEAL: split
+/Prueba/. Usemos probabilidad condicional para medir
 \begin{align}
 \pi(x | \textsf{aceptar}) = \frac{\pi(\textsf{aceptar} | x) \times \pi(x)}{\pi(\textsf{aceptar})}\,.
 \end{align}
@@ -312,8 +326,8 @@ El vendedor de galletas quiere satisfacer la demanda para acompañar un café. E
 
 
 #+REVEAL: split
-También es astuto. Sabe que en donde haya mucha gente venderá mas, pero también
-sabe que una isla siempre lo podría llevar a una mas grande. Asi que a veces le
+También es astuto. Sabe que en /donde haya /mucha gente venderá mas/, pero también
+sabe que una isla siempre lo /podría llevar a una mas grande/. Asi que a veces le
 convendrá viajar a una isla pequeña. Asi que utilizará el ~principio de
 aceptación rechazo~ para decidir si se moverá a la siguiente isla.
 
@@ -346,17 +360,13 @@ $$\alpha(t, \star) = \min \Bigg\{ 1, \frac{\pi_\star}{\pi_{t}}\Bigg\},$$
 pues incluye los dos casos. 
 #+END_NOTES
 
-
-#+REVEAL: split
-Una propiedad interesante es que el tiempo que el vendedor pase en cada isla
-corresponderá al tamaño relativo de ellas. 
-
 #+REVEAL: split
 #+begin_src R :exports none :results none
   ## Caminata entre islas --------------------------
   set.seed(1087)
 #+end_src
 
+#+caption: Mecanismo de cambio o permanencia desde la isla $i$. 
 #+begin_src R :exports code :results none
   islas <- tibble(islas = 1:5, pob = seq(60, 100, by = 10))
   camina_isla <- function(i){ # i: isla actual
@@ -469,14 +479,14 @@ estrategia parecida que con el vendedor de galletas. La estrategia será:
 2. Decidir si nos movemos utilizando un cociente que tome en cuenta los pesos relativos.
 
 ** Pseudo-código 
-- [ ]  Vamos a proponer una ''moneda'' para lanzar la *dirección* de movimiento.
-  Esto lo haremos con
+- Vamos a proponer una ''moneda'' para lanzar la *dirección* de movimiento. Esto lo haremos con
+  
   \begin{align}
   \mu_\star | \mu_t \sim \mathsf{Uniforme}( \mu_t - \omega, \mu_t + \omega)\,.
   \end{align}
 
 #+REVEAL: split
-- [ ] Vamos a decidir si nos movemos de acuerdo a los pesos relativos
+- Vamos a decidir si nos movemos de acuerdo a los pesos relativos
   \begin{align}
   \alpha(\mu_t, \mu_\star)  = \min \left\lbrace1 , \frac{\pi(\mu_\star|y)}{\pi(\mu_t|y)} \right\rbrace\,.
   \end{align}
@@ -515,6 +525,7 @@ Veamos cómo implementarlo. Vamos a suponer una distribución de muestreo con un
 #+end_src
 
 #+REVEAL: split
+#+caption: Nuestra segunda cadena de Markov. 
 #+begin_src R :exports code :results none
   crea_cadena_markov <- function(objetivo, muestreo){
     function(niter){
@@ -577,12 +588,18 @@ Veamos cómo implementarlo. Vamos a suponer una distribución de muestreo con un
 [[file:../images/primer-mcmc.jpeg]]
 
 ** Tarea (1)
+:PROPERTIES:
+:reveal_background: #00468b
+:END:
 
 Sin modificar el número de iteraciones, considera cambiar la dispersión de la distribución de muestreo.
 - ¿Qué observas si $\omega = 0.01$?
 - ¿Qué observas si $\omega = 100$?
 
 ** Tarea (2)
+:PROPERTIES:
+:reveal_background: #00468b
+:END:
 
 Regresa a nuestro ejemplo conjugado Beta-Binomial. Considera una previa $\theta \sim \mathsf{Beta}(2,3)$ y una verosimilitud $Y|\theta \sim \mathsf{Binomial}(2, \theta)$. Escribe la distribución posterior asumiendo $Y = k$. 
 
@@ -590,11 +607,11 @@ Regresa a nuestro ejemplo conjugado Beta-Binomial. Considera una previa $\theta 
 Para este caso tenemos un ligero inconveniente. El soporte para $\theta$ es el intervalo cerrado $[0,1]$ y utilizar una propuesta como en el caso anterior nos podría colocar (casi seguramente) fuera del intervalo. Así que lo que haremos será un pequeña modificación a cómo generamos nuestra propuesta y cómo evaluamos la probabilidad de aceptar dicha propuesta.
 
 #+REVEAL: split
-- [ ] Vamos a generar propuestas de la siguiente manera
+- Vamos a generar propuestas de la siguiente manera
   \begin{align}
   \theta_\star | \theta_t \sim \mathsf{Beta}(\alpha, \beta)\,.
   \end{align}
-- [ ] Vamos a calcular la probabilidad de aceptar dicho movimiento a través de
+- Vamos a calcular la probabilidad de aceptar dicho movimiento a través de
   \begin{align}
   \alpha(\theta_t, \theta_\star) = \min \left\lbrace 1,  \frac{\pi(\theta_\star|y)}{\pi(\theta_t|y)} \cdot \frac{g(\theta_t)}{g(\theta_\star)}\right\rbrace\,,
   \end{align}
@@ -608,11 +625,11 @@ Modifica el código de clase para implementar este muestreador. Compara con mues
 La forma más general que tenemos para generar una cadena de muestras es el método de Metropolis-Hastings.
 #+REVEAL: split
 
-- [ ] Generamos propuestas en cada iteración por medio de 
+- Generamos propuestas en cada iteración por medio de 
   \begin{align}
   \theta_\star | \theta_t \sim q( \theta_\star | \theta_t )\,.
   \end{align}
-- [ ] Calculamos la probabilidad de aceptar la propuesta como 
+- Calculamos la probabilidad de aceptar la propuesta como 
   \begin{align}
   \alpha(\theta_t, \theta_\star) = \min \left\lbrace 1,  \frac{\pi(\theta_\star)}{\pi(\theta_t)} \cdot \frac{q(\theta_t|\theta_\star)}{q(\theta_\star|\theta_t)}\right\rbrace\,,
   \end{align}
@@ -620,9 +637,12 @@ La forma más general que tenemos para generar una cadena de muestras es el mét
   la distribución $\pi$ utilizando un generador $q$.
 
 ** Tarea (3)
+:PROPERTIES:
+:reveal_background: #00468b
+:END:
 
-- [ ] Repasemos ~los métodos anteriores~.
-- [ ] ¿Qué pasa si desconocemos la constante de normalización de la distribución objetivo?
+- Repasemos ~los métodos anteriores~.
+- ¿Qué pasa si desconocemos la constante de normalización de la distribución objetivo?
 
 ** Distribución propuesta
 
@@ -831,6 +851,7 @@ y utilicemos el modelo de muestreo
   ## En mas dimensiones -------------------------------
 #+end_src
 #+REVEAL: split
+#+caption: Modelo de muestreo multivariado.
 #+begin_src R :exports code :results none
   library(mvtnorm)
   ModeloNormalMultivariado <-
@@ -945,7 +966,7 @@ transición preserva la distribución objetivo.
 
 
 #+REVEAL: split
-*Lemma (~Comportamiento asintótico de Metropolis-Hastings~)*. El mecanismo de MH
+*Lema (~Comportamiento asintótico de Metropolis-Hastings~)*. El mecanismo de MH
 descrito anteriormente tiene como distribución límite $\pi$.\\
 
 
