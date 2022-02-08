@@ -153,38 +153,6 @@ plot_dist <- ggplot(caminata, aes(x = isla)) +
        y = expression(hat(pi)(theta))) + sin_lineas + coord_flip()
 plot_caminata + plot_dist
 
-## Animación histograma -----------------------------------
-library(gganimate)
-res <- caminata |>
-  mutate(tiempo = cut(paso, breaks = seq(0, n(), by = 10))) |>
-  group_by(isla, tiempo) |>
-  count() |>
-  ungroup() |>
-  complete(tiempo, nesting(isla), fill = list(n = 0)) |>
-  group_by(isla) |>
-  mutate(count = cumsum(n)) |>
-  group_by(tiempo) |>
-  mutate(prop = count/sum(count)) |>
-  arrange(tiempo, isla) |>
-  ungroup()
-
-
-anim <- res |>
-  mutate(tiempo = as.numeric(tiempo)) |>
-  filter(tiempo <= 1500) |>
-  ggplot(aes(x = isla, y = prop)) +
-  geom_bar(fill = "darkgray", stat = "identity") +
-  coord_flip() + sin_lineas +
-  geom_bar(data = islas |>  mutate(prop = pob/sum(pob)),
-           aes(x = islas, y = prop), fill = "steelblue", alpha = .3, stat = "identity") + 
-  scale_x_continuous(expression(theta), breaks = 1:10) +
-  transition_states(tiempo, transition_length = 2, state_length = 1) +
-  ease_aes("exponential-out")
-
-animate(anim, renderer = ffmpeg_renderer(), height = 300, width = 900)
-
-anim_save("./images/islas-histograma.mp4")
-
 ## Caminata en espacio continuo ------------------------
 
 ModeloUniforme <-
@@ -212,9 +180,11 @@ crea_cadena_markov <- function(objetivo, muestreo){
     muestras[1,2] <- estado
     muestras[1,1] <- 1
     for (ii in 2:niter){
+      ## Generamos un candidato
       propuesta   <- estado + muestreo$sample()
       p_propuesta <- objetivo$density(propuesta, log = FALSE)
       p_estado    <- objetivo$density(estado, log = FALSE)
+      ## Evaluamos probabilidad de aceptar
       if (runif(1) < p_propuesta/p_estado) {
         muestras[ii, 1] <- 1 ## Aceptamos
         muestras[ii, 2] <- propuesta

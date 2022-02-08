@@ -156,9 +156,9 @@ muestreo.
 :reveal_background: #00468b
 :END:
 
-El objetivo del curso *no* es enseñar programación orientada a objetos. Nos
-permitirá abstraer los puntos importantes y concentrarnos en las ideas generales
-y no preocuparnos por lo detalles.
+El objetivo del curso *no* es enseñar programación orientada a objetos. Sin
+embargo, permitirá abstraer los puntos importantes y concentrarnos en las ideas
+generales y no preocuparnos por lo detalles.
 
 *** Implementación de una distribución de muestreo.
 
@@ -399,7 +399,7 @@ pues incluye los dos casos.
 #+RESULTS:
 [[file:../images/caminata-cafe.jpeg]]
 
-#+begin_src R :exports none :results none :eval never
+#+begin_src R :exports none :results none :eval never :tangle no
   ## Animación histograma -----------------------------------
   library(gganimate)
   res <- caminata |>
@@ -414,7 +414,6 @@ pues incluye los dos casos.
     mutate(prop = count/sum(count)) |>
     arrange(tiempo, isla) |>
     ungroup()
-
 
   anim <- res |>
     mutate(tiempo = as.numeric(tiempo)) |>
@@ -601,7 +600,7 @@ Para este caso tenemos un ligero inconveniente. El soporte para $\theta$ es el i
   donde $g$ denota la densidad de la distribución de muestreo definida arriba.
 
 #+REVEAL: split
-Modifica el código de clase para implementar este muestreador. Compara con muestras exactas del modelo posterior bajo la observación $Y = 1$. 
+Modifica el código de clase para implementar este muestreador. Utiliza distintas configuraciones de $a,b$ para la distribución de propuesta. Compara con muestras exactas del modelo posterior bajo la observación $Y = 1$.
 
 * El método Metropolis-Hastings 
 
