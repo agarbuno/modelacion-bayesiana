@@ -1,7 +1,7 @@
 #+TITLE: EST-46115: Modelación Bayesiana
 #+AUTHOR: Prof. Alfredo Garbuno Iñigo
 #+EMAIL:  agarbuno@itam.mx
-#+DATE: Primavera, 2022
+#+DATE: ~Integración Monte Carlo~
 :REVEAL_PROPERTIES:
 #+LANGUAGE: es
 #+OPTIONS: num:nil toc:nil timestamp:nil
@@ -334,7 +334,7 @@ tamaño 2, el cual contiene un circulo de radio 1.
       ggplot(aes(x = x1, y = x2)) + 
         geom_point(aes(color = factor(resultado))) + 
         facet_wrap(~n, nrow = 1) +  
-      sin_lineas + sin_ejes + sin_leyenda
+      sin_lineas + sin_ejes + sin_leyenda + coord_equal()
 #+end_src
 #+caption: Integración Monte Carlo para aproximar $\pi$. 
 #+RESULTS:

@@ -1,7 +1,7 @@
 #+TITLE: EST-46115: Modelación Bayesiana
 #+AUTHOR: Prof. Alfredo Garbuno Iñigo
 #+EMAIL:  agarbuno@itam.mx
-#+DATE: MCMC
+#+DATE: ~MCMC~  
 #+STARTUP: showall
 :REVEAL_PROPERTIES:
 #+LANGUAGE: es
@@ -14,34 +14,14 @@
 #+REVEAL_EXTRA_CSS: ./mods.css
 #+REVEAL_PLUGINS: (notes)
 :END:
-:LATEX_PROPERTIES:
-#+OPTIONS: toc:nil date:nil author:nil tasks:nil
-#+LANGUAGE: sp
-#+LATEX_CLASS: handout
-#+LATEX_HEADER: \usepackage[spanish]{babel}
-#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
-#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
-#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
-#+LATEX_HEADER: \decimalpoint
-#+LATEX_HEADER:\usepackage{framed}
-#+LaTeX_HEADER: \usepackage{listings}
-#+LATEX_HEADER: \usepackage{xcolor}
-#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
-#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
-#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
-#+LaTeX_HEADER: {}
-#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
-#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
-#+EXPORT_FILE_NAME: ../docs/02-mcmc.pdf
-:END:
 #+PROPERTY: header-args:R :session mcmc :exports both :results output org :tangle ../rscripts/02-mcmc.R :mkdirp yes :dir ../
 #+EXCLUDE_TAGS: toc latex
 
 
 #+BEGIN_NOTES
-*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022.\\
+*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | MCMC.\\
 *Objetivo*. Estudiar el método general de integración Monte Carlo vía cadenas de Markov (MCMC). La estrategia será construir poco a poco utilizando los principios básicos que lo componen. \\
-*Lectura recomendada*: Capítulo 7 de citep:Dogucu2021. Sección 6 de [[citep:Sanz-Alonso2019]] y Capítulo 3 de citep:Reich2015 (avanzado). 
+*Lectura recomendada*: Capítulo 7 de citep:Dogucu2021. Sección 6 de [[citep:Sanz-Alonso2019]] y Capítulo 3 de citep:Reich2015 (avanzado). Si te interesa saber mas sobre programación orientada a objetos dentro del contexto de ~R~ puedes consultar citep:Wickham2019. 
 #+END_NOTES
 
 
@@ -74,6 +54,7 @@
   - [[#distribución-propuesta][Distribución propuesta]]
 - [[#en-más-dimensiones][En más dimensiones]]
 - [[#por-qué-funciona][¿Por qué funciona?]]
+- [[#referencias][Referencias]]
 :END:
 
 
@@ -535,9 +516,11 @@ Veamos cómo implementarlo. Vamos a suponer una distribución de muestreo con un
       muestras[1,2] <- estado
       muestras[1,1] <- 1
       for (ii in 2:niter){
+        ## Generamos un candidato
         propuesta   <- estado + muestreo$sample()
         p_propuesta <- objetivo$density(propuesta, log = FALSE)
         p_estado    <- objetivo$density(estado, log = FALSE)
+        ## Evaluamos probabilidad de aceptar
         if (runif(1) < p_propuesta/p_estado) {
           muestras[ii, 1] <- 1 ## Aceptamos
           muestras[ii, 2] <- propuesta
@@ -946,7 +929,7 @@ pasos: 1) generar la propuesta y 2) aceptar o rechazar la propuesta. Por lo tant
 \end{align}
 
 #+REVEAL: split
-*Definición (~Invarianza~)* Decimos que la distribución $\pi$ es ~invariante~ para un
+*Definición (~Invarianza~)* Decimos que la distribución $\pi$ es ~invariante~ ante un
 mecanismo de transición Markoviana ($p(u, v)$) si satisface que
 \begin{align}
 \int \pi(u)\, p(u, v) \text{d}u = \pi(v) \,.
@@ -967,7 +950,7 @@ transición preserva la distribución objetivo.
 
 #+REVEAL: split
 *Lema (~Comportamiento asintótico de Metropolis-Hastings~)*. El mecanismo de MH
-descrito anteriormente tiene como distribución límite $\pi$.\\
+descrito anteriormente tiene como distribución límite $\pi(\cdot)$.\\
 
 
 
@@ -982,7 +965,7 @@ busca las zonas de alta densidad. Tal como el vendedor ambulante prefería de
 manera consistente las islas mas grandes.
 #+END_NOTES
 
-# * Referencias                                                         :latex:
+* Referencias                                                         :latex:
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
