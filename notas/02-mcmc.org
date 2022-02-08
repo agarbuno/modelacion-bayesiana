@@ -35,7 +35,7 @@
   - [[#implementación][Implementación]]
     - [[#disclaimer][Disclaimer]]
     - [[#implementación-de-una-distribución-de-muestreo][Implementación de una distribución de muestreo.]]
-  - [[#tarea-0][Tarea (0)]]
+  - [[#ejercicio-0][Ejercicio (0)]]
   - [[#propiedades][Propiedades]]
 - [[#qué-hemos-visto][¿Qué hemos visto?]]
 - [[#muestreo-por-cadenas-de-markov][Muestreo por cadenas de Markov]]
@@ -47,14 +47,13 @@
   - [[#pseudo-código][Pseudo-código]]
   - [[#desentrañando][Desentrañando]]
   - [[#implementación][Implementación]]
-  - [[#tarea-1][Tarea (1)]]
-  - [[#tarea-2][Tarea (2)]]
+  - [[#ejercicio-1][Ejercicio (1)]]
+  - [[#ejercicio-2][Ejercicio (2)]]
 - [[#el-método-metropolis-hastings][El método Metropolis-Hastings]]
-  - [[#tarea-3][Tarea (3)]]
+  - [[#ejercicio-3][Ejercicio (3)]]
   - [[#distribución-propuesta][Distribución propuesta]]
 - [[#en-más-dimensiones][En más dimensiones]]
 - [[#por-qué-funciona][¿Por qué funciona?]]
-- [[#referencias][Referencias]]
 :END:
 
 
@@ -250,7 +249,7 @@ distribución objetivo.
 #+RESULTS:
 [[file:../images/muestreo-aceptacion.jpeg]]
 
-** Tarea (0)
+** Ejercicio (0)
 :PROPERTIES:
 :reveal_background: #00468b
 :END:
@@ -349,11 +348,11 @@ pues incluye los dos casos.
 
 #+caption: Mecanismo de cambio o permanencia desde la isla $i$. 
 #+begin_src R :exports code :results none
-  islas <- tibble(islas = 1:5, pob = seq(60, 100, by = 10))
+  islas <- tibble(islas = 1:7, pob = c(1,2,3,4,5,4,3))
   camina_isla <- function(i){ # i: isla actual
     u_izq <- runif(1) # Lanzamos volado para ver si nos vamos izq o der. 
     v <- ifelse(u_izq < 0.5, i - 1, i + 1)  # Pedimos índice isla vecina. 
-    if (v < 1 | v > 5) { # si estas en los extremos y el volado indica salir
+    if (v < 1 | v > 7) { # si estas en los extremos y el volado indica salir
       return(i)
     }
     u_cambio <- runif(1) # Moneda de aceptacion de cambio
@@ -370,7 +369,7 @@ pues incluye los dos casos.
 #+REVEAL: split
 #+begin_src R :exports none :results none
   pasos <- 100000; iteraciones <- numeric(pasos)
-  iteraciones[1] <- sample(1:5, 1) # isla inicial
+  iteraciones[1] <- sample(1:7, 1) # isla inicial
   for (j in 2:pasos) {
       iteraciones[j] <- camina_isla(iteraciones[j - 1])
   }
@@ -395,7 +394,7 @@ pues incluye los dos casos.
          y = expression(hat(pi)(theta))) + sin_lineas + coord_flip()
   plot_caminata + plot_dist
 #+end_src
-#+caption: Caminata aleatoria en un archipiélago de 5 islas. 
+#+caption: Caminata aleatoria en un archipiélago de 7 islas. 
 #+RESULTS:
 [[file:../images/caminata-cafe.jpeg]]
 
@@ -569,7 +568,7 @@ Veamos cómo implementarlo. Vamos a suponer una distribución de muestreo con un
 #+RESULTS:
 [[file:../images/primer-mcmc.jpeg]]
 
-** Tarea (1)
+** Ejercicio (1)
 :PROPERTIES:
 :reveal_background: #00468b
 :END:
@@ -578,7 +577,7 @@ Sin modificar el número de iteraciones, considera cambiar la dispersión de la 
 - ¿Qué observas si $\omega = 0.01$?
 - ¿Qué observas si $\omega = 100$?
 
-** Tarea (2)
+** Ejercicio (2)
 :PROPERTIES:
 :reveal_background: #00468b
 :END:
@@ -618,7 +617,7 @@ La forma más general que tenemos para generar una cadena de muestras es el mét
   donde la notación hace énfasis en que este mecanismo puede generar muestras de
   la distribución $\pi$ utilizando un generador $q$.
 
-** Tarea (3)
+** Ejercicio (3)
 :PROPERTIES:
 :reveal_background: #00468b
 :END:
@@ -964,9 +963,10 @@ busca las zonas de alta densidad. Tal como el vendedor ambulante prefería de
 manera consistente las islas mas grandes.
 #+END_NOTES
 
-* Referencias                                                         :latex:
+# * Referencias                                                         :latex:
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
 
 
+ 
