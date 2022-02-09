@@ -54,6 +54,7 @@
   - [[#distribución-propuesta][Distribución propuesta]]
 - [[#en-más-dimensiones][En más dimensiones]]
 - [[#por-qué-funciona][¿Por qué funciona?]]
+- [[#referencias][Referencias]]
 :END:
 
 
@@ -853,9 +854,7 @@ y utilicemos el modelo de muestreo
             ))
 #+end_src
 
-#+REVEAL: split
-#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
-#+begin_src R :file images/multinormal.jpeg :exports results :results output graphics file
+#+begin_src R :exports none :results none
   mu <- c(1, 2)
   Sigma <- matrix(c(1, .75, .75, 1), nrow = 2)
   objetivo <- ModeloNormalMultivariado$new(mu, Sigma)
@@ -869,28 +868,151 @@ y utilicemos el modelo de muestreo
     mcmc_multi(50) |>
       as.tibble()
   }
+#+end_src
 
-  ## Para dibujar las curvas de nivel 
+#+REVEAL: split
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/multinormal-propuestas-mh.jpeg :exports results :results output graphics file
+  set.seed(108727)
+  ## Para dibujar las curvas de nivel - distribucion objetivo 
   plot.grid <- expand_grid(x = seq(-2,5, by = 7/99), y = seq(-1,5, by = 6/99))
   plot.grid <- plot.grid %>% 
-    mutate(density = dmvnorm(plot.grid, mean = mu, sigma = Sigma))
-  plot.breaks <- plot.grid %>% 
-    summarise(breaks = quantile(density, probs = c(.67, .90, .99))) %>% 
+    mutate(density.target = dmvnorm(plot.grid, mean = mu, sigma = Sigma))
+  plot.breaks.target <- plot.grid %>% 
+    summarise(breaks = quantile(density.target, probs = c(.67, .90, .99, 1))) %>% 
     pull(breaks)
 
-  tibble(sigma = c(.1, .75, 2.33/sqrt(2), 5)) |>
-    mutate(muestras = map(sigma, genera_experimento)) |>
-    unnest(muestras) |>
+  ## Caminatas aleatorias 
+  muestras.normal <- tibble(sigma = c(.1, .75, 2.33/sqrt(2), 5)) |>
+     mutate(muestras = map(sigma, genera_experimento)) |>
+     unnest(muestras)
+
+  ## Para dibujar las curvas de nivel - distribucion propuesta
+  contours.proposal <- muestras.normal |>
+    filter(sigma == 2.33/sqrt(2)) |>
+    slice(1,3,7) |> mutate(id = 1:3) |>
+    nest(location = c(V2, V3)) |>
+    mutate(density.proposal = map(location,
+           function(x){
+             dmvnorm(plot.grid |> select(x,y),
+                     mean = as.matrix(x),
+                     sigma = 1.65 * diag(c(1,1)))
+           }),
+           coords = list(plot.grid |> select(x,y))) |>
+    mutate(breaks.proposal = map(density.proposal, quantile, probs = c(.67,.90,.99)))
+
+  contours.proposal |>
+    unnest(location, density.proposal, coords) |> 
+    ggplot(aes(x, y, z = density.proposal)) +
+    geom_contour_filled(bins = 4) + scale_fill_brewer(palette = "Purples") + 
+    geom_point(data = contours.proposal |> unnest(location),
+               aes(V2, V3), shape = 19, size = 10) +
+    geom_contour(data = plot.grid, aes(x,y,z = density.target),
+                 breaks = plot.breaks.target, color = "black") +
+    xlab(expression(x[1])) + ylab(expression(x[2])) + 
+    facet_wrap(~id) + sin_lineas + coord_equal() + sin_leyenda
+#+end_src
+#+caption: Propuestas Gaussianas (morado) contra densidad objetivo (línea sólida). Tres primeras iteraciones.
+#+RESULTS:
+[[file:../images/multinormal-propuestas-mh.jpeg]]
+
+#+REVEAL: split
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/multinormal-aceptacion-mh.jpeg :exports results :results output graphics file
+  contours.proposal |>
+    mutate(denominator = map(location, objetivo$density),
+           numerator   = map(coords  , objetivo$density)) |>
+    unnest(numerator, denominator) |>
+    mutate(metropolis.hastings = ifelse(exp(numerator-denominator) < 1,
+                                        exp(numerator-denominator), 1.00),
+           contours.proposal |> unnest(coords) |> select(x,y),
+           contours.proposal |> unnest(density.proposal),
+           alpha = metropolis.hastings * density.proposal) |>
+    ggplot(aes(x, y, z = metropolis.hastings)) +
+    geom_contour_filled(bins = 10) +
+    scale_fill_brewer(palette = "Purples", direction = 1) +
+    facet_wrap(~id) + sin_lineas + coord_equal() + sin_leyenda + 
+    geom_point(data = contours.proposal |> unnest(location),
+               aes(V2, V3), inherit.aes = FALSE, shape = 19, size = 10) +
+    xlab(expression(x[1])) + ylab(expression(x[2])) 
+#+end_src
+#+caption: Probabilidad de aceptación de la propuesta de transición.
+#+RESULTS:
+[[file:../images/multinormal-aceptacion-mh.jpeg]]
+
+
+#+REVEAL: split
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/multinormal-transicion-mh.jpeg :exports results :results output graphics file
+  contours.proposal |>
+    mutate(denominator = map(location, objetivo$density),
+           numerator   = map(coords  , objetivo$density)) |>
+    unnest(numerator, denominator) |>
+    mutate(metropolis.hastings = ifelse(exp(numerator-denominator) < 1,
+                                        exp(numerator-denominator), 1.00),
+           contours.proposal |> unnest(coords) |> select(x,y),
+           contours.proposal |> unnest(density.proposal),
+           alpha = metropolis.hastings * density.proposal) |>
+    ggplot(aes(x, y, z = alpha)) +
+    geom_contour_filled(bins = 5) +
+    scale_fill_brewer(palette = "Purples") +
+    facet_wrap(~id) + sin_lineas + coord_equal() + sin_leyenda + 
+    geom_point(data = contours.proposal |> unnest(location),
+               aes(V2, V3), inherit.aes = FALSE, shape = 19, size = 10) +
+    xlab(expression(x[1])) + ylab(expression(x[2])) 
+#+end_src
+#+caption: Probabilidad de transición (morado) = probabilidad de proponer un nuevo estado multiplicada por la probabilidad de aceptar dicha transición. 
+#+RESULTS:
+[[file:../images/multinormal-transicion-mh.jpeg]]
+
+#+begin_src R :exports none :results none :eval never :tangle no
+  ##
+  muestreo <- ModeloNormalMultivariado$new(c(0,0), 1.65 * diag(c(1,1)))
+  set.seed(10)
+  mcmc_multi <- crea_metropolis_hastings(objetivo, muestreo)
+
+  anim <- mcmc_multi(5000) |>
+    as.tibble() |>
+    mutate(tiempo = seq(1,5000)) |>
     ggplot(aes(x = V2, y = V3)) +
-    geom_contour(data = plot.grid, aes(x,y,z = density), breaks = plot.breaks) + 
+    geom_contour_filled(data = plot.grid, aes(x,y,z = density.target),
+                        breaks = plot.breaks.target, inherit.aes = FALSE) +
+    scale_fill_brewer(palette = "Reds") + 
+    ## geom_path(alpha = .3) +
+    geom_point() + 
+    xlab(expression(x[1])) + ylab(expression(x[2])) + 
+    sin_lineas + coord_equal() + sin_leyenda +
+    transition_reveal(tiempo) +
+    shadow_trail(alpha = .3, distance = 0.01) +
+    ## shadow_mark(past=TRUE, future = TRUE) + 
+    ease_aes("exponential-out")
+
+  animate(anim, renderer = ffmpeg_renderer(), height = 300, width = 300)
+
+  anim_save("./images/caminata-aleatoria.mp4")
+#+end_src
+
+
+
+#+REVEAL: split
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/multinormal.jpeg :exports results :results output graphics file
+  ## Caminatas aleatorias 
+  muestras.normal |>
+    ggplot(aes(x = V2, y = V3)) +
+    geom_contour_filled(data = plot.grid, aes(x,y,z = density.target),
+                 breaks = plot.breaks.target) +
+    scale_fill_brewer(palette = "Reds") + 
     geom_path() + geom_point() + 
     facet_wrap(~round(sigma,2), nrow = 1) + 
     xlab(expression(x[1])) + ylab(expression(x[2])) + 
-    sin_lineas + coord_equal()
+    sin_lineas + coord_equal() + sin_leyenda
 #+end_src
 #+caption: Caminata aleatoria utilizando Metropolis-Hastings para $\theta\in \mathbb{R}^2$. 
 #+RESULTS:
 [[file:../images/multinormal.jpeg]]
+
+
 
 * ¿Por qué funciona?
 
@@ -963,10 +1085,11 @@ busca las zonas de alta densidad. Tal como el vendedor ambulante prefería de
 manera consistente las islas mas grandes.
 #+END_NOTES
 
-# * Referencias                                                         :latex:
+* Referencias                                                         :latex:
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
 
 
  
+
