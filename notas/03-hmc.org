@@ -14,35 +14,12 @@
 #+REVEAL_EXTRA_CSS: ./mods.css
 #+REVEAL_PLUGINS: (notes)
 :END:
-:LATEX_PROPERTIES:
-#+OPTIONS: toc:nil date:nil author:nil tasks:nil
-#+LANGUAGE: sp
-#+LATEX_CLASS: handout
-#+LATEX_HEADER: \usepackage[spanish]{babel}
-#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
-#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
-#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
-#+LATEX_HEADER: \decimalpoint
-#+LATEX_HEADER:\usepackage{framed}
-#+LaTeX_HEADER: \usepackage{listings}
-#+LATEX_HEADER: \usepackage{fancyvrb}
-#+LATEX_HEADER: \usepackage{xcolor}
-#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
-#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
-#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
-#+LaTeX_HEADER: {}
-#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
-#+LaTeX_HEADER: {}
-#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
-#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
-#+EXPORT_FILE_NAME: ../docs/03-hmc.pdf
-:END:
 #+PROPERTY: header-args:R :session hmc :exports both :results output org :tangle ../rscripts/03-hmc.R :mkdirp yes :dir ../
 #+EXCLUDE_TAGS: toc latex
 
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | HMC.\\
-*Objetivo*. Estudiaremos el uso de modelos de física para simular cadenas de Markov con el objetivo de resolver integrales derivadas de un modelo probabilístico.\\
+*Objetivo*. Estudiaremos el uso de modelos de física para simular cadenas de Markov con el objetivo de resolver integrales derivadas de un modelo probabilístico. Esto nos lleva a estudiar el método que utiliza el estado del arte en simulación para resolver inferencia bayesiana. Lo lograremos con lo que ya hemos visto: método de aceptación-rechazo, Metropolis-Hastings y demás. \\
 *Lectura recomendada*: Capítulo 9 de citet:McElreath2020. Los artículos citep:Betancourt2018 y citep:Neal2011, aunque mas avanzados, tienen una muy buena explicación del mecanismo teórico y algorítmico que utiliza HMC. 
 #+END_NOTES
 
@@ -62,8 +39,8 @@
   - [[#cómo-incorporamos-el-componente-aleatorio-en-la-simulación][¿Cómo incorporamos el componente aleatorio en la simulación?]]
 - [[#conclusiones][Conclusiones]]
 - [[#el-estado-del-arte][El estado del arte]]
+- [[#referencias][Referencias]]
 :END:
-
 
 * Introducción
 
@@ -369,7 +346,7 @@ Se pueden utilizar, además, técnicas de ~Gaussianización~ de variables (como 
 
 * Exploración con un poco de física
 
-Imaginemos que la función de densidad corresponde ahora a un /bowl/. Podemos explorar esa superficie rodando una pelota. Donde denotaremos su ~posisición~ en el /bowl/ por medio de
+Imaginemos que la función de densidad corresponde ahora a un /bowl/. Podemos explorar esa superficie rodando una pelota. Donde denotaremos su ~posición~ en el /bowl/ por medio de
 \begin{align}
 \theta(\cdot): \mathbb{R} \rightarrow \mathbb{R}^p\,.
 \end{align}
@@ -381,6 +358,7 @@ De esta manera, pensemos que la pelota la dejamos correr desde un punto inicial 
 \theta_n = \theta(0), \qquad \theta_\star = \theta(T)\,.
 \end{align}
 
+#+REVEAL: split
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/bowl-gaussiano.jpeg :exports results :results output graphics file
   plot.grid |>  
@@ -414,18 +392,21 @@ inercia junto con el gradiente.
 Extendemos el espacio de variables $\theta \in \mathbb{R}^p$ al sistema en  $(\theta, \vartheta) \in \mathbb{R}^{p}\times \mathbb{R}^p$ por medio de
 la distribucion conjunta
 $$\pi(\theta, \vartheta) = \pi(\vartheta | \theta) \cdot \pi(\theta)\,,$$
-donde, como antes, $\pi(\theta)$ denota, como antes, la distribución objetivo.
+donde, como antes, $\pi(\theta)$ denota la distribución objetivo.
 
 #+REVEAL: split
-Es usual en mecánica clásica identificar un modelo probabilístico --la densidad $\pi(\cdot)$ -- con un potencial de energía --el negativo,  $-\log(\pi(\cdot))$ -- citep:Jorgensen1983a. De esta manera, podemos formular la densidad conjunta en términos del potencial de energía
+Es usual en mecánica clásica identificar un modelo probabilístico --la densidad $\pi(\cdot)$ -- con un potencial de energía --el negativo,  $(- 1) \times \log(\pi(\cdot))$ -- citep:Jorgensen1983a. De esta manera, podemos formular la densidad conjunta en términos del potencial de energía
 
 $$H(\theta, \vartheta) = - \log \pi(\theta, \vartheta)\,.$$
 
+
 #+REVEAL: split
+El cual podemos descomponer como 
 \begin{align} 
 H(\theta, \vartheta) &= -\log \pi(\vartheta | \theta) -\log \pi(\theta) \\
 & = K(\vartheta, \theta ) + V(\theta)\,.
 \end{align}
+#+REVEAL: split
 En este sistema, el vector $\theta$ representa la posición de un objeto y
 $\vartheta$ la inercia que tiene en su movimiento. Las funciones $K$ y $V$
 pueden ser interpretadas como las funciones de energía cinética y potencial,
@@ -491,6 +472,13 @@ simulando el sistema Hamiltoniano de manera determinista.
 La idea de combinar un proceso aleatorio (simular el componente de inercia) y un proceso determinista (seguir la trayectoria de las ecuaciones de Hamilton) es lo que originalmente motivó citet:Duane1987 a llamarle ~Monte Carlo Híbrido~. 
 #+END_NOTES
 
+#+REVEAL: split
+La simulación se ve así
+#+DOWNLOADED: screenshot @ 2022-02-11 20:28:42
+#+caption: Simulación de HMC. Imagen tomada de citet:McElreath2020. 
+#+attr_html: :width 700 :align center
+[[file:images/20220211-202842_screenshot.png]]
+
 * Conclusiones
 
 HMC es ~computacionalmente más costoso~ que Metropolis o Gibbs, sin embargo, sus
@@ -555,9 +543,9 @@ distribución posterior. En problemas donde la verosimilitud es
 ~computacionalmente costosa~ existen alternativas para crear aproximaciones. El
 artículo citep:Garbuno-Inigo2019 provee de una alternativa utilizando una
 combinación de técnicas bien establecidas (difusiones Langevin, ensamble de
-partículas y filtros de Kalman).
+partículas interactivas y filtros de Kalman).
 
-# * Referencias                                                         :latex: 
+* Referencias                                                         :latex: 
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
