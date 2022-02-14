@@ -928,8 +928,8 @@ y utilicemos el modelo de muestreo
            contours.proposal |> unnest(coords) |> select(x,y),
            contours.proposal |> unnest(density.proposal),
            alpha = metropolis.hastings * density.proposal) |>
-    ggplot(aes(x, y, z = metropolis.hastings)) +
-    geom_contour_filled(bins = 10) +
+    ggplot(aes(x, y, z = log(metropolis.hastings + 1))) +
+    geom_contour_filled(bins = 7) +
     scale_fill_brewer(palette = "Purples", direction = 1) +
     facet_wrap(~id) + sin_lineas + coord_equal() + sin_leyenda + 
     geom_point(data = contours.proposal |> unnest(location),
