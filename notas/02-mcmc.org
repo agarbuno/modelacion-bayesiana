@@ -1045,7 +1045,7 @@ donde $\pi(\cdot)$ denota la probabilidad objetivo.
 Sólo nos falta calcular la probabilidad de transición. Esto lo logramos con dos
 pasos: 1) generar la propuesta y 2) aceptar o rechazar la propuesta. Por lo tanto
 \begin{align}
-\mathbb{P}\left(  \theta_{t + 1} = \theta_\star | \theta_t = \theta\right) = q(\theta | \theta_\star ) \cdot   \alpha(\theta, \theta_\star) =  q(\theta | \theta_\star ) \cdot \min \left\lbrace 1,  \frac{\pi(\theta_\star)}{\pi(\theta)} \cdot \frac{q(\theta|\theta_\star)}{q(\theta_\star|\theta)}\right\rbrace\,. 
+\mathbb{P}\left(  \theta_{t + 1} = \theta_\star | \theta_t = \theta\right) = q(\theta_\star | \theta ) \cdot   \alpha(\theta, \theta_\star) =  q(\theta_\star | \theta ) \cdot \min \left\lbrace 1,  \frac{\pi(\theta_\star)}{\pi(\theta)} \cdot \frac{q(\theta|\theta_\star)}{q(\theta_\star|\theta)}\right\rbrace\,. 
 \end{align}
 
 #+REVEAL: split
@@ -1064,8 +1064,6 @@ Markoviana que satisface las ecuaciones de balance entonces se mantendrá el
 comportamiento aleatorio de la distribución objetivo. Lo importante es que la
 transición preserva la distribución objetivo.
 #+END_NOTES
-
-
 
 
 #+REVEAL: split
