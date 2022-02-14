@@ -1,6 +1,6 @@
 # Cargamos inicialmente de tidyverse
 
-FROM rocker/tidyverse:latest
+FROM rocker/tidyverse:4.1.1
 MAINTAINER Adrian Tame
 
 # Instalar paquetes de CRAN

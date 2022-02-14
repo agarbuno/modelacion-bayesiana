@@ -214,7 +214,7 @@ Para instrucciones de uso, se sugiere seguir la [Documentación de Rocker](https
 
 Un ejemplo de como construr y correr este contenedor sería: 
 
-Dentro del folder del repo, correr: `docker build .`
+Dentro del folder del repo, correr: `docker build . -t rocker-bayes`
 
 Correr `docker run -e PASSWORD=qwerty -p 8787:8787 --rm rocker-bayes` debería de iniciar el contenedor, con la contraseña especificada. Se puede agregar la bandera de `-v` si se quiere acceder a un folder local. Mas información de volúmenes [aquí](https://docs.docker.com/storage/volumes/). 
 
