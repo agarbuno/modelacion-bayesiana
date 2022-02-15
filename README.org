@@ -202,21 +202,45 @@ Se recomienda escribir en el archivo ~~/.Renviron~ la siguiente línea lo cual m
 
 ** Configuración de ~Docker~
 
-La imágen de Docker para el ambiente de RStudio está basada en la imagen de [rocker/tidyverse](https://hub.docker.com/r/rocker/tidyverse) de los dessarrolladores en el [Proyecto de Rocker](https://www.rocker-project.org/) con las siguientes herramientas agregadas para modelación bayesiana: 
+La imágen de Docker para el ambiente de RStudio está basada en la imagen de [[https://hub.docker.com/r/rocker/tidyverse][rocker/tidyverse]] de los desarrolladores en el [[https://www.rocker-project.org/][Proyecto de Rocker]] con las siguientes herramientas agregadas para la materia de modelación bayesiana: 
 
-* [posterior](https://cran.r-project.org/web/packages/posterior/index.html)
-* [bayesplot](https://cran.r-project.org/web/packages/bayesplot/index.html)
-* [tidybayes](https://github.com/mjskay/tidybayes)
-* [CmdStan](https://mc-stan.org/users/interfaces/cmdstan)
-* [CmdStanR](https://mc-stan.org/cmdstanr/)
+- [posterior](https://cran.r-project.org/web/packages/posterior/index.html)
+- [bayesplot](https://cran.r-project.org/web/packages/bayesplot/index.html)
+- [tidybayes](https://github.com/mjskay/tidybayes)
+- [CmdStan](https://mc-stan.org/users/interfaces/cmdstan)
+- [CmdStanR](https://mc-stan.org/cmdstanr/)
 
-Para instrucciones de uso, se sugiere seguir la [Documentación de Rocker](https://github.com/rocker-org/rocker/wiki/Using-the-RStudio-image)
+Para instrucciones de uso, se sugiere seguir la [[https://github.com/rocker-org/rocker/wiki/Using-the-RStudio-image][Documentación de Rocker]]
 
-Un ejemplo de como construr y correr este contenedor sería: 
+Un ejemplo de como construir y correr este contenedor sería lo siguiente. En un terminal, dentro del folder del repo, correr la siguiente línea
 
-Dentro del folder del repo, correr: `docker build . -t rocker-bayes`
+#+begin_src shell :exports code :results none
+  docker build --tag bayesiana:2022 .
+#+end_src
 
-Correr `docker run -e PASSWORD=qwerty -p 8787:8787 --rm rocker-bayes` debería de iniciar el contenedor, con la contraseña especificada. Se puede agregar la bandera de `-v` si se quiere acceder a un folder local. Mas información de volúmenes [aquí](https://docs.docker.com/storage/volumes/). 
+El contenedor lo podemos despertar con
+
+#+begin_src shell
+  docker run -e PASSWORD=qwerty -p 8787:8787 --rm bayesiana:2022
+#+end_src
+
+Para vistarlo basta con utilizar la ruta ~localhost:8787~  en un /browser/  de internet y utilizar la contraseña especificada. Se puede agregar la bandera de `-v` si se quiere acceder a un folder local. Mas información de volúmenes se puede encontrar en la [[https://docs.docker.com/storage/volumes/][documentación]]. 
+
+La imágen de Docker para el ambiente de RStudio está basada en la imagen de [[https://hub.docker.com/r/rocker/tidyverse][rocker/tidyverse]] de los desarrolladores en el [[https://www.rocker-project.org/][Proyecto de Rocker]] con las siguientes herramientas agregadas para modelación bayesiana: 
+
+- [[https://cran.r-project.org/web/packages/posterior/index.html][posterior]]
+- [[https://cran.r-project.org/web/packages/bayesplot/index.html][bayesplot]]
+- [[https://github.com/mjskay/tidybayes][tidybayes]]
+- [[https://mc-stan.org/users/interfaces/cmdstan][CmdStan]]
+- [[https://mc-stan.org/cmdstanr/][CmdStanR]]
+
+Para instrucciones de uso, se sugiere seguir la [[https://github.com/rocker-org/rocker/wiki/Using-the-RStudio-image][Documentación de Rocker]]
+
+Un ejemplo de como construir y correr este contenedor sería: 
+
+Dentro del folder del repo, correr: ~docker build . -t rocker-bayes~
+
+Correr ~docker run -e PASSWORD=qwerty -p 8787:8787 --rm rocker-bayes~ debería de iniciar el contenedor, con la contraseña especificada. Se puede agregar la bandera de ~-v~ si se quiere acceder a un folder local. Mas información de volúmenes [[https://docs.docker.com/storage/volumes/][aquí]]. 
 
 * Tarea 
 
