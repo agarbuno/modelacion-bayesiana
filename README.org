@@ -232,7 +232,7 @@ El contenedor se podrá levantar sin ningún problema por medio de la siguiente 
 #+end_src
 
 *** Observaciones.
-La imagen ~amd~ puede emular al instalación de ~R~ sin embargo hay dos inconvenientes: 1) la imagen es mas pesada que la basada en ~Intel~ y 2) la versión de ~R~ es la ~4.0.3~ lo cual quiere decir que *no podrá* utilizar el /pipe/ base sino el de ~~~maggritr~: ~%>%~. 
+La imagen ~amd~ puede emular al instalación de ~R~ sin embargo hay dos inconvenientes: 1) la imagen es mas pesada que la basada en ~Intel~ y 2) la versión de ~R~ es la ~4.0.3~ lo cual quiere decir que *no podrá* utilizar el /pipe/ base sino el de ~maggritr~: ~%>%~. 
 
 ** Configuración de ~Docker~                                          :github:
 
