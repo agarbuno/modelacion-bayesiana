@@ -35,10 +35,17 @@
   - [[#fechas-importantes][Fechas importantes]]
   - [[#grabaciones-de-clases][Grabaciones de clases]]
 - [[#evaluación][Evaluación]]
+  - [[#proyecto-final][Proyecto final]]
 - [[#ambiente-de-trabajo][Ambiente de trabajo]]
   - [[#configuración-r][Configuración R]]
   - [[#configuración-renv][Configuración renv]]
+  - [[#trabajando-con-ambiente-dockerizado][Trabajando con ambiente Dockerizado]]
+    - [[#observaciones][Observaciones.]]
   - [[#configuración-de-docker][Configuración de Docker]]
+- [[#tarea][Tarea]]
+- [[#dudas][¿Dudas?]]
+- [[#contribuidores][Contribuidores]]
+- [[#bibliografía][Bibliografía]]
 :END:
 
 * Introducción                                                       :github:
@@ -48,8 +55,7 @@ Este es el repositorio con el contenido del curso en *Modelación Bayesiana* de 
 avanzados en las licenciaturas de matemáticas aplicadas, ciencia de datos y
 actuaría.
 
-* 
-
+#+REVEAL: split
 #+begin_quote
 Our goal is ~not to eliminate uncertainty~, but to understand and quantify the
 uncertainty in order to make sound decisions. ---Netflix Tech Blog
