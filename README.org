@@ -200,7 +200,41 @@ Se recomienda escribir en el archivo ~~/.Renviron~ la siguiente línea lo cual m
   RENV_PATHS_ROOT=~/.renv
 #+end_src
 
-** Configuración de ~Docker~
+
+** Trabajando con ambiente ~Dockerizado~
+
+Las imágenes de  ~agarbuno/bayesiana~ (puedes ver imágenes en mi hub de Docker  [[https://hub.docker.com/repository/docker/agarbuno/bayesiana][aqui]], y/o los ~Dockerfiles~ [[https://github.com/agarbuno/dockerfiles][aqui]]) permiten tener un ambiente para trabajar con ~Docker~ en nuestro curso. Actualmente hay dos /tags/ para trabajar con el ambiente.
+1. El /tag/ ~2022~ ó ~latest~, basado en una distribución linux en una emulación con un procesador ~Intel~.
+2. El /tag/ ~amd~, basado en una distribución linux en una emulación con un procesador ~AMD~.
+
+#+REVEAL: split
+Ambos proveen de un ambiente donde se podrán instalar las paqueterías que utilizaremos sin ningún problema$\dagger$. La idea, adicional, es que utilicemos /volumes/ para poder tener permanencia en nuestro trabajo.
+
+#+REVEAL: split
+El contenedor se podrá levantar sin ningún problema por medio de la siguiente serie de instrucciones en terminal (también se puede establecer un script de /shell/).
+
+#+begin_src shell
+  # Ruta del cache de renv en el contenedor
+  RENV_PATHS_CACHE_CONTAINER=/home/rstudio/.renv
+  # Ruta del cache de renv en tu maquina
+  RENV_PATHS_CACHE_HOST=~/.renv/cache
+  # Ruta donde guardes los clones de las tareas
+  PATH_TRABAJO_HOST=<ruta hacia las carpetas de los repos de tareas>
+
+  docker run -p 8787:8787 \
+      -e PASSWORD=<contraseña de tu preferencia> \
+      -e "RENV_PATHS_CACHE=${RENV_PATHS_CACHE_CONTAINER}" \
+      -e "RENV_PATHS_ROOT=${RENV_PATHS_CACHE_CONTAINER}" \
+      -v "${RENV_PATHS_CACHE_HOST}:${RENV_PATHS_CACHE_CONTAINER}" \
+      -m 6g \ 
+      -v "${PATH_TRABAJO_HOST}:/home/rstudio/documentos" \
+      agarbuno/bayesiana:<tag>
+#+end_src
+
+*** Observaciones.
+La imagen ~amd~ puede emular al instalación de ~R~ sin embargo hay dos inconvenientes: 1) la imagen es mas pesada que la basada en ~Intel~ y 2) la versión de ~R~ es la ~4.0.3~ lo cual quiere decir que *no podrá* utilizar el /pipe/ base sino el de ~~~maggritr~: ~%>%~. 
+
+** Configuración de ~Docker~                                          :github:
 
 La imágen de Docker para el ambiente de RStudio está basada en la imagen de [[https://hub.docker.com/r/rocker/tidyverse][rocker/tidyverse]] de los desarrolladores en el [[https://www.rocker-project.org/][Proyecto de Rocker]] con las siguientes herramientas agregadas para la materia de modelación bayesiana: 
 
@@ -248,6 +282,10 @@ Las primeras tareas del semestre son básicamente configuración y es recomendab
 hacerlas si no cuentan con experiencia en: ~Git~, ~Github~, ~R~ y el ~tidyverse~.
 
 * ¿Dudas?
+
+* Contribuidores                                                     :github:
+
+[[https://github.com/AdrianTJ][AdrianTJ]] (ambiente en ~Docker~). 
 
 * Bibliografía                                                        :latex:
 \nocite{*}
