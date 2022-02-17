@@ -106,7 +106,7 @@ canvas <- ggplot(faithful, aes(x = eruptions, y = waiting)) +
                fill = 'salmon', alpha = .4) + ylab("") + xlab("") + 
       annotate('text', x = .5 + 5.5 * (6-.5)/grid.size, 
                        y = 40 + 3.5 * (110-40)/grid.size, 
-               label = expression(u[n]), color = 'red', size = 20) +
+               label = expression(u[n]), color = 'red', size = 15) +
         theme(axis.ticks = element_blank(), 
             axis.text = element_blank())
 
@@ -120,7 +120,16 @@ canvas <- ggplot(faithful, aes(x = eruptions, y = waiting)) +
       sin_lineas + theme(legend.position = "none") +
       ylab("") + xlab("")
 
-g1 + g2
+  g3 <- canvas + 
+      stat_bin2d(aes(fill = after_stat(density)), binwidth = c((6-.5)/25, (110-40)/25)) +
+      sin_lineas + theme(legend.position = "none") +
+      theme(axis.ticks = element_blank(), 
+              axis.text = element_blank()) +
+      scale_fill_distiller(palette = "Greens", direction = 1) + 
+      sin_lineas + theme(legend.position = "none") +
+      ylab("") + xlab("")
+
+g1 + g2 + g3
 
 ## Integración Monte Carlo ----------------------------------- 
 genera_dardos <- function(n = 100){
@@ -137,7 +146,7 @@ genera_dardos <- function(n = 100){
     ggplot(aes(x = x1, y = x2)) + 
       geom_point(aes(color = factor(resultado))) + 
       facet_wrap(~n, nrow = 1) +  
-    sin_lineas + sin_ejes + sin_leyenda
+    sin_lineas + sin_ejes + sin_leyenda + coord_equal()
 
 dardos |>
   group_by(n) |>
@@ -207,3 +216,79 @@ paletas |>
   group_by(favorito) |> tally() |>
   mutate(prop = n/sum(n)) |>
   as.data.frame()
+
+crea_mezcla <- function(weights){
+    function(x){
+      weights$w1 * dnorm(x, mean = -1.5, sd = .5) +
+        weights$w2 * dnorm(x, mean = 1.5, sd = .7)
+    }
+  }
+objetivo <- crea_mezcla(list(w1 = .6, w2 = .4))
+
+muestras_mezcla <- function(id){
+  n <- 100
+  tibble(u = runif(n)) |>
+    mutate(muestras = ifelse(u <= .6,
+                             rnorm(1, -1.5, sd = .5),
+                             rnorm(1,  1.5, sd = .7))) |>
+    pull(muestras)
+}
+
+muestras.mezcla <- tibble(id = 1:1000) |>
+  mutate(muestras  = map(id, muestras_mezcla)) |>
+  unnest(muestras) |>
+  group_by(id) |>
+  summarise(estimate = mean(muestras))
+
+g0 <- muestras.mezcla |>
+  ggplot(aes(estimate)) +
+  geom_histogram() +
+  geom_vline(xintercept = -1.5 * .6 + 1.5 * .4, lty = 2, color = 'red') +
+  geom_vline(xintercept = mean(muestras.mezcla$estimate), lty = 2, color = 'steelblue') +
+  xlim(-1, 1) +
+  ggtitle("Objetivo")
+
+muestras_uniforme <- function(id){
+  n <- 100
+  runif(n, -5, 5)
+}
+
+muestras.uniforme <- tibble(id = 1:1000) |>
+  mutate(muestras  = map(id, muestras_uniforme)) |>
+  unnest(muestras) |>
+  mutate(pix = objetivo(muestras),
+         gx  = dunif(muestras, -5, 5),
+         wx  = pix/gx) |>
+  group_by(id) |>
+  summarise(estimate = sum(muestras * wx)/sum(wx))
+
+g1 <- muestras.uniforme |>
+  ggplot(aes(estimate)) +
+  geom_histogram() +
+  geom_vline(xintercept = -1.5 * .6 + 1.5 * .4, lty = 2, color = 'red') +
+  geom_vline(xintercept = mean(muestras.uniforme$estimate), lty = 2, color = 'steelblue') +
+  xlim(-1, 1) +
+  ggtitle("Uniforme(-5,5)")
+
+muestras_importancia <- function(id){
+  n <- 100
+  rnorm(n, 0, sd = 1)
+}  
+
+muestras.normal  <- tibble(id = 1:1000) |>
+  mutate(muestras  = map(id, muestras_importancia)) |>
+  unnest(muestras) |>
+  mutate(pix = objetivo(muestras),
+         gx  = dnorm(muestras, 0, sd = 1),
+         wx  = pix/gx) |>
+  group_by(id) |>
+  summarise(estimate = sum(muestras * wx)/sum(wx))
+
+g2  <- muestras.normal |> ggplot(aes(estimate)) +
+  geom_histogram() +
+  geom_vline(xintercept = -1.5 * .6 + 1.5 * .4, lty = 2, color = 'red') +
+  geom_vline(xintercept = mean(muestras.normal$estimate), lty = 2, color = 'steelblue') +
+  xlim(-1, 1) +
+  ggtitle("Normal(0, 2)")
+
+g0 + g1 + g2

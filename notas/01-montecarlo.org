@@ -47,6 +47,7 @@
   - [[#tarea-sabores-de-helados][Tarea: Sabores de helados]]
 - [[#extensiones-muestreo-por-importancia][Extensiones: Muestreo por importancia]]
   - [[#propiedades-muestreo-por-importancia][Propiedades: muestreo por importancia]]
+  - [[#ejemplo][Ejemplo]]
 - [[#referencias][Referencias]]
 :END:
 
@@ -617,6 +618,95 @@ cometido*). El impacto es un factor que incorpora la /diferencia/ entre la distr
 distribución uniforme-- y la distribución ~sustituto~. Puedes leer más de esto
 (aunque a un nivel mas técnico) en la sección 5 de las notas de
 citet:Sanz-Alonso2019.
+
+** Ejemplo
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/muestreo-importancia-mezcla.jpeg :exports results :results output graphics file
+  crea_mezcla <- function(weights){
+      function(x){
+        weights$w1 * dnorm(x, mean = -1.5, sd = .5) +
+          weights$w2 * dnorm(x, mean = 1.5, sd = .7)
+      }
+    }
+  objetivo <- crea_mezcla(list(w1 = .6, w2 = .4))
+
+  muestras_mezcla <- function(id){
+    n <- 100
+    tibble(u = runif(n)) |>
+      mutate(muestras = ifelse(u <= .6,
+                               rnorm(1, -1.5, sd = .5),
+                               rnorm(1,  1.5, sd = .7))) |>
+      pull(muestras)
+  }
+
+  muestras.mezcla <- tibble(id = 1:1000) |>
+    mutate(muestras  = map(id, muestras_mezcla)) |>
+    unnest(muestras) |>
+    group_by(id) |>
+    summarise(estimate = mean(muestras))
+
+  g0 <- muestras.mezcla |>
+    ggplot(aes(estimate)) +
+    geom_histogram() +
+    geom_vline(xintercept = -1.5 * .6 + 1.5 * .4, lty = 2, color = 'red') +
+    geom_vline(xintercept = mean(muestras.mezcla$estimate), lty = 2, color = 'steelblue') +
+    xlim(-1, 1) +
+    ggtitle("Objetivo")
+
+  muestras_uniforme <- function(id){
+    n <- 100
+    runif(n, -5, 5)
+  }
+
+  muestras.uniforme <- tibble(id = 1:1000) |>
+    mutate(muestras  = map(id, muestras_uniforme)) |>
+    unnest(muestras) |>
+    mutate(pix = objetivo(muestras),
+           gx  = dunif(muestras, -5, 5),
+           wx  = pix/gx) |>
+    group_by(id) |>
+    summarise(estimate = sum(muestras * wx)/sum(wx))
+
+  g1 <- muestras.uniforme |>
+    ggplot(aes(estimate)) +
+    geom_histogram() +
+    geom_vline(xintercept = -1.5 * .6 + 1.5 * .4, lty = 2, color = 'red') +
+    geom_vline(xintercept = mean(muestras.uniforme$estimate), lty = 2, color = 'steelblue') +
+    xlim(-1, 1) +
+    ggtitle("Uniforme(-5,5)")
+
+  muestras_importancia <- function(id){
+    n <- 100
+    rnorm(n, 0, sd = 1)
+  }  
+
+  muestras.normal  <- tibble(id = 1:1000) |>
+    mutate(muestras  = map(id, muestras_importancia)) |>
+    unnest(muestras) |>
+    mutate(pix = objetivo(muestras),
+           gx  = dnorm(muestras, 0, sd = 1),
+           wx  = pix/gx) |>
+    group_by(id) |>
+    summarise(estimate = sum(muestras * wx)/sum(wx))
+
+  g2  <- muestras.normal |> ggplot(aes(estimate)) +
+    geom_histogram() +
+    geom_vline(xintercept = -1.5 * .6 + 1.5 * .4, lty = 2, color = 'red') +
+    geom_vline(xintercept = mean(muestras.normal$estimate), lty = 2, color = 'steelblue') +
+    xlim(-1, 1) +
+    ggtitle("Normal(0, 2)")
+
+  g0 + g1 + g2
+
+#+end_src
+#+caption: Muestreo por importancia utilizando distintas distribuciones instrumentales. Distribución /bootstrap/ de muestreo con $B = 10,000$ y $n = 100$. 
+#+RESULTS:
+[[file:../images/muestreo-importancia-mezcla.jpeg]]
+
+#+BEGIN_NOTES
+El análisis  del error en la sección anterior habla en del error cuadrático medio en el peor escenario posible bajo una familia de funciones de prueba (resumen). El ejemplo anterior muestra el error Monte Carlo cometido con respecto a una función resumen $f(\theta) = \theta$ con la cual, vemos, se reduce la varianza. Esto no contradice lo anterior pues para esta función resumen nuestra distribución instrumental satisface el criterio de reducción de varianza. En general, lo complicado es encontrar dicha distribución que podamos usar en la estimación Monte Carlo. 
+#+END_NOTES
 
 
 * Referencias                                                         :latex: 
