@@ -16,6 +16,8 @@
 #+STARTUP: showall
 #+EXCLUDE_TAGS: toc github latex
 
+[[https://mybinder.org/v2/gh/agarbuno/modelacion-bayesiana/binder-rocker?urlpath=rstudio][https://mybinder.org/badge_logo.svg]]
+
 * Contenido                                                             :toc:
 :PROPERTIES:
 :TOC:      :include all  :ignore this :depth 3
