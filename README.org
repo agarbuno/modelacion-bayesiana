@@ -42,7 +42,6 @@
   - [[#configuración-r][Configuración R]]
   - [[#configuración-renv][Configuración renv]]
   - [[#trabajando-con-ambiente-dockerizado][Trabajando con ambiente Dockerizado]]
-    - [[#observaciones][Observaciones.]]
   - [[#configuración-de-docker][Configuración de Docker]]
 - [[#tarea][Tarea]]
 - [[#dudas][¿Dudas?]]
@@ -211,12 +210,11 @@ Se recomienda escribir en el archivo ~~/.Renviron~ la siguiente línea lo cual m
 
 ** Trabajando con ambiente ~Dockerizado~
 
-Las imágenes de  ~agarbuno/bayesiana~ (puedes ver imágenes en mi hub de Docker  [[https://hub.docker.com/repository/docker/agarbuno/bayesiana][aqui]], y/o los ~Dockerfiles~ [[https://github.com/agarbuno/dockerfiles][aqui]]) permiten tener un ambiente para trabajar con ~Docker~ en nuestro curso. Actualmente hay dos /tags/ para trabajar con el ambiente.
-1. El /tag/ ~2022~ ó ~latest~, basado en una distribución linux en una emulación con un procesador ~Intel~.
-2. El /tag/ ~amd~, basado en una distribución linux en una emulación con un procesador ~AMD~.
+Las imágenes de  ~agarbuno/bayesiana~ (puedes ver imágenes en mi hub de Docker  [[https://hub.docker.com/repository/docker/agarbuno/bayesiana][aqui]], y/o los ~Dockerfiles~ [[https://github.com/agarbuno/dockerfiles][aqui]]) permiten tener un ambiente para trabajar con ~Docker~ en nuestro curso. 
+1) El /tag/ ~2022~ ó ~latest~, basado en una distribución linux en una emulación con un procesador ~Intel~.
 
 #+REVEAL: split
-Ambos proveen de un ambiente donde se podrán instalar las paqueterías que utilizaremos sin ningún problema$\dagger$. La idea, adicional, es que utilicemos /volumes/ para poder tener permanencia en nuestro trabajo.
+Esta imagen provee de un ambiente donde se podrán instalar las paqueterías que utilizaremos sin ningún problema$\dagger$. La idea, adicional, es que utilicemos /volumes/ para poder tener permanencia en nuestro trabajo.
 
 #+REVEAL: split
 El contenedor se podrá levantar sin ningún problema por medio de la siguiente serie de instrucciones en terminal (también se puede establecer un script de /shell/).
@@ -238,9 +236,6 @@ El contenedor se podrá levantar sin ningún problema por medio de la siguiente 
       -v "${PATH_TRABAJO_HOST}:/home/rstudio/documentos" \
       agarbuno/bayesiana:<tag>
 #+end_src
-
-*** Observaciones.
-La imagen ~amd~ puede emular al instalación de ~R~ sin embargo hay dos inconvenientes: 1) la imagen es mas pesada que la basada en ~Intel~ y 2) la versión de ~R~ es la ~4.0.3~ lo cual quiere decir que *no podrá* utilizar el /pipe/ base sino el de ~maggritr~: ~%>%~. 
 
 ** Configuración de ~Docker~                                          :github:
 
