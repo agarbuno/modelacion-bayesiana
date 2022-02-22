@@ -14,29 +14,6 @@
 #+REVEAL_EXTRA_CSS: ./mods.css
 #+REVEAL_PLUGINS: (notes)
 :END:
-:LATEX_PROPERTIES:
-#+OPTIONS: toc:nil date:nil author:nil tasks:nil
-#+LANGUAGE: sp
-#+LATEX_CLASS: handout
-#+LATEX_HEADER: \usepackage[spanish]{babel}
-#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
-#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
-#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
-#+LATEX_HEADER: \decimalpoint
-#+LATEX_HEADER:\usepackage{framed}
-#+LaTeX_HEADER: \usepackage{listings}
-#+LATEX_HEADER: \usepackage{fancyvrb}
-#+LATEX_HEADER: \usepackage{xcolor}
-#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
-#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
-#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
-#+LaTeX_HEADER: {}
-#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
-#+LaTeX_HEADER: {}
-#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
-#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
-#+EXPORT_FILE_NAME: ../docs/03-hmc.pdf
-:END:
 #+PROPERTY: header-args:R :session hmc :exports both :results output org :tangle ../rscripts/03-hmc.R :mkdirp yes :dir ../
 #+EXCLUDE_TAGS: toc latex
 
@@ -62,6 +39,7 @@
   - [[#cómo-incorporamos-el-componente-aleatorio-en-la-simulación][¿Cómo incorporamos el componente aleatorio en la simulación?]]
 - [[#conclusiones][Conclusiones]]
 - [[#el-estado-del-arte][El estado del arte]]
+- [[#referencias][Referencias]]
 :END:
 
 * Introducción
@@ -202,7 +180,7 @@ Recordemos nuestra ilustración anterior que corresponde a la siguiente distribu
     xlab(expression(x[1])) + ylab(expression(x[2])) + 
     facet_wrap(~id) + sin_lineas + coord_equal() + sin_leyenda
 #+end_src
-#+caption: Propuestas Gaussianas (morado) contra densidad objetivo (línea sólida). Tres primeras iteraciones.
+#+caption: Propuestas dirigidas por gradiente  morado) contra densidad objetivo (línea sólida). Tres primeras iteraciones.
 #+RESULTS:
 [[file:../images/multinormal-propuestas-mala.jpeg]]
 
@@ -221,7 +199,7 @@ citet:Roberts1998 o puedes también al libro de citet:Pavliotis2014.
 
 ** Observaciones:
 
-La alta dependencia en un parámetro de escala $\tau$ puede ocasionar problemas. Especialmente cuando la distribución es muy angosta. Para aliviar esto se puede incorporar información de segundo orden. Sin embargo la teoría necesaria (geometría diferencial) y el software aún no permiten una adopción masiva (citep:Girolami2011,Byrne2013).
+La alta dependencia en un parámetro de escala $\tau$ puede ocasionar problemas. Especialmente cuando la distribución es muy angosta. Para aliviar esto se puede incorporar información de segundo orden. Sin embargo la teoría necesaria (geometría diferencial) y el /software/ aún no permiten una adopción masiva (citep:Girolami2011,Byrne2013).
 
 * Resolviendo problemas comunes
 
@@ -260,7 +238,7 @@ En este ejemplo incorporar mayor correlación puede parecer un artificio un tant
 
 
 #+REVEAL: split
-- El problema: la alta tasa de rechazo que tendremos. Incluso si estamos en el punto de mayor densidad. 
+- ~El problema~: la alta tasa de rechazo que tendremos. Incluso si estamos en el punto de mayor densidad. 
 
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/normal-model-tight.jpeg :exports results :results output graphics file
@@ -567,7 +545,7 @@ artículo citep:Garbuno-Inigo2019 provee de una alternativa utilizando una
 combinación de técnicas bien establecidas (difusiones Langevin, ensamble de
 partículas interactivas y filtros de Kalman).
 
-# * Referencias                                                         :latex: 
+* Referencias                                                         :latex: 
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
