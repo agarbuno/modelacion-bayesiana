@@ -149,7 +149,7 @@ bloques con nombre. En general el esqueleto es como sigue:
 #+end_src
 
 #+begin_src R :exports code :results none
-  print_file("modelos/esqueleto.stan")
+  print_file("modelos/caso-escuelas/esqueleto.stan")
 #+end_src
 
 #+REVEAL: split
@@ -180,7 +180,7 @@ Por ejemplo, el código de nuestro modelo para las escuelas es:
 
 #+REVEAL: split
 #+begin_src R :exports code :results org
-  print_file("modelos/modelo-escuelas.stan")
+  print_file("modelos/caso-escuelas/modelo-escuelas.stan")
 #+end_src
 
 #+REVEAL: split
@@ -195,7 +195,7 @@ Una vez escrito nuestro modelo, lo podemos compilar utilizando la librería de
 
 #+begin_src R :exports code :results none
   modelos_files <- "modelos/compilados/caso-escuelas"
-  ruta <- file.path("modelos/modelo-escuelas.stan")
+  ruta <- file.path("modelos/caso-escuelas/modelo-escuelas.stan")
   modelo <- cmdstan_model(ruta, dir = modelos_files)
 #+end_src
 
@@ -647,7 +647,7 @@ centrado* para el primero, y para la reparametrización presentada en la
 ecuación de arriba nos referimos a un *modelo no centrado*. 
 
 #+begin_src R :exports code :results none
-  print_file("modelos/modelo-escuelas-ncp.stan")
+  print_file("modelos/caso-escuelas/modelo-escuelas-ncp.stan")
 #+end_src
 
 #+BEGIN_NOTES
@@ -662,7 +662,7 @@ Igual que antes lo necesitamos compilar para hacerlo un objeto ejecutable desde
 ~R~.
 
 #+begin_src R :exports code :results none
-  ruta_ncp <- file.path("modelos/modelo-escuelas-ncp.stan")
+  ruta_ncp <- file.path("modelos/caso-escuelas/modelo-escuelas-ncp.stan")
   modelo_ncp <- cmdstan_model(ruta_ncp, dir = modelos_files)
 #+end_src
 
