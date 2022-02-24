@@ -1,7 +1,7 @@
 #+TITLE: EST-46115: Modelación Bayesiana
 #+AUTHOR: Prof. Alfredo Garbuno Iñigo
 #+EMAIL:  agarbuno@itam.mx
-#+DATE: ~Caso: escuelas~
+#+DATE: ~Stan~
 #+STARTUP: showall
 :REVEAL_PROPERTIES:
 #+LANGUAGE: es
@@ -15,13 +15,13 @@
 #+REVEAL_PLUGINS: (notes)
 :END:
 #+EXCLUDE_TAGS: toc latex
-#+PROPERTY: header-args:R :session casos :exports both :results output org :tangle ../rscripts/casos.R :mkdirp yes :dir ../
+#+PROPERTY: header-args:R :session escuelas :exports both :results output org :tangle ../rscripts/casos.R :mkdirp yes :dir ../
 
 
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Caso práctico.\\
 *Objetivo*. Que veremos.\\
-*Lectura recomendada*: Referencia.
+*Lectura recomendada*: Sección 6.2.1 de citep:Dogucu2021. 
 #+END_NOTES
 
 * Contenido                                                             :toc:
@@ -30,6 +30,11 @@
 :END:
 :CONTENTS:
 - [[#introducción][Introducción]]
+  - [[#estructura-del-código][Estructura del código]]
+  - [[#visualizaciones][Visualizaciones]]
+  - [[#ejercicio-0][Ejercicio (0)]]
+  - [[#ejercicio-1][Ejercicio (1)]]
+- [[#caso-escuelas][Caso: escuelas]]
 - [[#primer-modelo-en-stan][Primer modelo en Stan]]
   - [[#nuestra-primera-cadena-de-markov][Nuestra primera cadena de Markov]]
   - [[#alternativas--rstan][Alternativas:  Rstan]]
@@ -70,11 +75,222 @@
 
 * Introducción
 
-Este caso nos servirá para introducir el ambiente de ~Stan~ (citep:Carpenter2017) con el cual
-simularemos realizaciones de parámetros para su uso en inferencia bayesiana.
-Para este propósito utilizaremos los datos de un estudio de desempeño de 8
-escuelas (citep:Rubin1981,Gelman2014a). Los datos consisten en el puntaje promedio de cada
-escuela ~y~ y los errores estándar reportados ~sigma~.
+Veremos ejemplos sencillos sobre la sintaxis de ~Stan~ (citep:Carpenter2017) con
+el cual simularemos realizaciones de parámetros ~no observables~ para los cuales
+tenemos un ~estado de conocimiento~ reflejado en la distribución posterior.
+
+#+REVEAL: split
+Habíamos visto que los /bayesics/ son los componentes:
+1) Un conjunto de datos. 
+2) Supuestos del proceso generador de  datos. 
+3) Conocimiento previo sobre los componentes que rigen el modelo.
+
+#+REVEAL: split
+Para ~Stan~ tenemos que seguir algo muy similar. Es decir,
+1) Definir el modelo.
+2) Ingestar los datos.
+3) Darle /play/ al botón de inferencia.
+
+#+REVEAL: split
+Un modelo de ~Stan~ se escribe en un archivo de texto y es una secuencia de
+bloques con nombre. En general el esqueleto es como sigue: 
+
+#+begin_src R :exports code :results none
+  print_file("modelos/tutorial/esqueleto.stan")
+#+end_src
+
+#+begin_src stan :eval never
+  functions {
+      // ... function declarations and definitions ...
+  }
+  data {
+      // ... declarations ...
+  }
+  transformed data {
+      // ... declarations ... statements ...
+  }
+  parameters {
+      // ... declarations ...
+  }
+  transformed parameters {
+      // ... declarations ... statements ...
+  }
+  model {
+      // ... declarations ... statements ...
+  }
+  generated quantities {
+      // ... declarations ... statements ...
+  }
+#+end_src
+
+#+REVEAL: split
+En general ~todos~ los bloques ~son opcionales~, y *no es necesario* tener todos para
+compilar un modelo. Para mas información puedes consultar [[https://mc-stan.org/docs/2_26/reference-manual/overview-of-stans-program-blocks.html][la guía de Stan]].
+
+** Estructura del código
+
+- Un bloque ~data~. Por ejemplo, $Y$ el número observado de éxitos en 10 pruebas. 
+- Un bloque ~parameters~. Por ejemplo, $\theta$  la tasa de éxito en la realización de las pruebas. 
+- Un bloque ~model~. Por ejemplo, $Y\sim \mathsf{Binomial}(10, \theta)$  y $\theta \sim \mathsf{Beta}(2,2)$.
+
+#+REVEAL: split
+El código es:
+#+begin_src stan :exports code :eval none
+  data {
+    int<lower = 0, upper = 10> Y;
+  }
+  parameters {
+    real<lower = 0, upper = 1> theta;
+  }
+  model {
+    Y ~ binomial(10, theta);
+    theta ~ beta(2, 2);
+  }
+#+end_src
+
+#+REVEAL: split
+#+begin_src R :exports code :results none
+  modelos_files <- "modelos/compilados/tutorial"
+  ruta <- file.path("modelos/tutorial/beta-binomial.stan")
+  modelo <- cmdstan_model(ruta, dir = modelos_files)
+#+end_src
+
+#+BEGIN_NOTES
+     Para leer mas sobre la herramienta y sus interacción desde línea de comandos puedes consultar la [[https://mc-stan.org/docs/2_24/cmdstan-guide-2_24.pdf][documentación de ~Stan~]].
+#+END_NOTES
+
+#+begin_src R :exports both :results org
+  class(modelo)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+[1] "CmdStanModel" "R6"
+#+end_src
+
+#+REVEAL: split
+Con esto tenemos un ~objeto~ (OOP) con distintos ~métodos~ que podemos
+utilizar. Puedes consultar [[https://mc-stan.org/cmdstanr/reference/CmdStanModel.html][aquí]] los métodos disponibles de dichos objetos.
+
+#+DOWNLOADED: screenshot @ 2022-02-23 20:32:57
+#+caption: Métodos de objetos ~CmdStanModel~. 
+#+attr_html: :width 1200 :align center
+[[file:images/20220223-203257_screenshot.png]]
+
+
+#+REVEAL: split
+Por ejemplo, uno que pueda generar muestras del ~modelo probabilístico~ que se
+definió en el bloque de modelo.
+
+#+REVEAL: split
+Necesitamos los datos:
+#+begin_src R :exports code :results none
+  data.list <- list(Y = 7) 
+#+end_src
+
+#+REVEAL: split
+Para darle /play/ :
+#+begin_src R :exports both :results org
+  muestras <- modelo$sample(data = data.list, 
+                            chains = 1, 
+                            iter=1500, 
+                            iter_warmup=500, 
+                            seed=483892929, 
+                            refresh=700)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+Running MCMC with 1 chain...
+
+Chain 1 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 1 Iteration:  501 / 2000 [ 25%]  (Sampling) 
+Chain 1 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
+Chain 1 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
+Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 1 finished in 0.0 seconds.
+#+end_src
+
+#+REVEAL: split
+El resultado es:
+#+begin_src R :exports both :results org
+  class(muestras)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+[1] "CmdStanMCMC" "CmdStanFit"  "R6"
+#+end_src
+
+Donde se pueden explorar los métodos de estos objetos en [[https://mc-stan.org/cmdstanr/reference/CmdStanMCMC.html][la documentación]]. 
+
+** Visualizaciones
+
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/beta-binomial-traces.jpeg :exports results :results output graphics file
+  mcmc_trace(muestras$draws(), pars = "theta") +
+  sin_lineas +
+  geom_hline(yintercept = 9/14, lty = 2, color = 'black')
+#+end_src
+
+#+RESULTS:
+[[file:../images/beta-binomial-traces.jpeg]]
+
+#+BEGIN_NOTES
+Nota: tuvimos que definir qué parámetros queremos en la visualización. Por
+/default/ incluye un misterioso ~_lp~ que hace referencia a la evaluación de la
+log-posterior para cada elemento de la simulación. Adicional, nota (en el código
+fuente) que la sintaxis para el gráfico utiliza la gramática y las funciones de
+~ggplot2~.
+#+END_NOTES
+
+#+REVEAL: split
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/beta-binomial-histogramas.jpeg :exports results :results output graphics file
+  # Histogram of the Markov chain values
+  g1 <- mcmc_hist(muestras$draws(), pars = "theta") + 
+    yaxis_text(TRUE) + 
+    ylab("count") + sin_lineas
+
+  # Density plot of the Markov chain values
+  g2 <- mcmc_dens(muestras$draws(), pars = "theta") + 
+    yaxis_text(TRUE) + 
+    ylab("density") + sin_lineas
+
+  g1 + g2
+#+end_src
+
+#+RESULTS:
+[[file:../images/beta-binomial-histogramas.jpeg]]
+
+** Ejercicio (0)
+:PROPERTIES:
+:reveal_background: #00468b
+:END:
+¿Cómo utilizarías ~Stan~ para generar números aleatorios de:
+1) la distribución previa;
+2) la distribución predictiva posterior?
+
+Utiliza el ejemplo Beta-Binomial de arriba para probarlo.
+/Hint/: revisa la documentación del bloque ~generated quantities~. 
+
+** Ejercicio (1)
+:PROPERTIES:
+:reveal_background: #00468b
+:END:
+
+Repite lo anterior para un modelo Poisson-Gamma. Es decir, para una colección de
+observaciones $(Y_1, Y_2) = (2, 9)$ donde suponemos que $Y_j
+\overset{\mathsf{iid}}{\sim} \mathsf{Poisson}(\lambda)$ y $\lambda \sim
+\mathsf{Exponencial}(3)$.
+
+/Hints:/ Revisa la documentación para definir vectores (en este caso de longitud 2) en el bloque de datos. 
+
+* Caso: escuelas
+
+Utilizaremos los datos de un estudio de desempeño de 8 escuelas
+(citep:Rubin1981,Gelman2014a). Los datos consisten en el puntaje promedio de
+cada escuela ~y~ y los errores estándar reportados ~sigma~.
 
 #+REVEAL: split
 #+begin_src R :exports code
@@ -113,51 +329,17 @@ lo cual representa información poco precisa de estos valores poblacionales.
 * Primer modelo en ~Stan~
 
 La forma en que escribimos el modelo en ~Stan~ es de manera generativa (/bottom up/):
-\begin{align*}
-\mu &\sim \mathsf{N}(0, 5) \,,\\ 
-\tau &\sim \textsf{Half-Cauchy}(0,5) \,,\\
-\theta_j &\sim \mathsf{N}(\mu, \tau) \qquad j = 1, \ldots, J \,,\\
-y_j &\sim \mathsf{N}(\theta_j, \sigma_j) \qquad j = 1, \ldots, J\,.
-\end{align*}
+\begin{gather}
+\mu \sim \mathsf{N}(0, 5) \,,\\ 
+\tau \sim \textsf{Half-Cauchy}(0,5) \,,\\
+\theta_j \sim \mathsf{N}(\mu, \tau), \qquad j = 1, \ldots, J \,,\\
+y_j \sim \mathsf{N}(\theta_j, \sigma_j), \qquad j = 1, \ldots, J\,.
+\end{gather}
 
-#+REVEAL: split
-Un modelo de ~Stan~ se escribe en un archivo de texto y es una secuencia de
-bloques con nombre. En general el esqueleto es como sigue: 
 
-#+begin_src stan :eval never
-  functions {
-      // ... function declarations and definitions ...
-  }
-  data {
-      // ... declarations ...
-  }
-  transformed data {
-      // ... declarations ... statements ...
-  }
-  parameters {
-      // ... declarations ...
-  }
-  transformed parameters {
-      // ... declarations ... statements ...
-  }
-  model {
-      // ... declarations ... statements ...
-  }
-  generated quantities {
-      // ... declarations ... statements ...
-  }
+#+begin_src R :exports code :results org
+  print_file("modelos/caso-escuelas/modelo-escuelas.stan")
 #+end_src
-
-#+begin_src R :exports code :results none
-  print_file("modelos/caso-escuelas/esqueleto.stan")
-#+end_src
-
-#+REVEAL: split
-En general todos los bloques son opcionales, y *no es necesario* tener todos para
-compilar un modelo. Para mas información puedes consultar [[https://mc-stan.org/docs/2_26/reference-manual/overview-of-stans-program-blocks.html][la
-guía]].
-
-Por ejemplo, el código de nuestro modelo para las escuelas es:
 
 #+begin_src stan :eval never
   data {
@@ -179,11 +361,6 @@ Por ejemplo, el código de nuestro modelo para las escuelas es:
 #+end_src
 
 #+REVEAL: split
-#+begin_src R :exports code :results org
-  print_file("modelos/caso-escuelas/modelo-escuelas.stan")
-#+end_src
-
-#+REVEAL: split
 Nota que ~sigma~ está definida como /parte del conjunto de datos/ que el usuario
 debe de proveer. Aunque es un parámetro en nuestro modelo (verosimilitud) no está
 sujeto al proceso de inferencia. Por otro lado, nota que la declaración no se
@@ -197,14 +374,6 @@ Una vez escrito nuestro modelo, lo podemos compilar utilizando la librería de
   modelos_files <- "modelos/compilados/caso-escuelas"
   ruta <- file.path("modelos/caso-escuelas/modelo-escuelas.stan")
   modelo <- cmdstan_model(ruta, dir = modelos_files)
-#+end_src
-
-#+BEGIN_NOTES
-Para leer mas sobre la herramienta y sus interacción desde línea de comandos puedes consultar la [[https://mc-stan.org/docs/2_24/cmdstan-guide-2_24.pdf][documentación de ~stand~]].
-#+END_NOTES
-
-#+begin_src R :exports code :results none
-  str(modelo)
 #+end_src
 
 Los datos que necesita el bloque ~data~ se pasan como una /lista con nombres/.
@@ -254,7 +423,7 @@ inspeccionar más a fondo con el siguiente comando:
 
 #+RESULTS:
 #+begin_src org
-Processing csv files: /var/folders/lk/4hdvzkhx269df8zc5xmkqgwr0000gn/T/Rtmpj1K5sl/modelo-escuelas-202202222254-1-032937.csv
+Processing csv files: /var/folders/lk/4hdvzkhx269df8zc5xmkqgwr0000gn/T/RtmpCUyqJo/modelo-escuelas-202202231948-1-817561.csv
 
 Checking sampler transitions treedepth.
 Treedepth satisfactory for all transitions.
@@ -295,7 +464,7 @@ Podemos inspeccionar el resultado de las simulaciones utilizando:
 Inference for Stan model: modelo_escuelas_model
 1 chains: each with iter=(700); warmup=(0); thin=(1); 700 iterations saved.
 
-Warmup took 0.029 seconds
+Warmup took 0.028 seconds
 Sampling took 0.042 seconds
 
                  Mean     MCSE   StdDev       5%    50%    95%    N_Eff  N_Eff/s    R_hat
@@ -341,7 +510,7 @@ para visualizar los resúmenes de manera alternativa.
 
 #+RESULTS:
 #+begin_src org
-Inference for Stan model: modelo-escuelas-202202222254-1-032937.
+Inference for Stan model: modelo-escuelas-202202231948-1-817561.
 1 chains, each with iter=1200; warmup=500; thin=1; 
 post-warmup draws per chain=700, total post-warmup draws=700.
 
@@ -358,7 +527,7 @@ theta[7]   5.4    0.59 4.9  -2.64   2.65   4.1  8.1  16.7    67  1.1
 theta[8]   4.5    0.53 4.9  -4.63   1.84   3.6  7.6  14.5    84  1.0
 lp__     -11.6    2.01 8.0 -25.98 -18.30 -11.9 -3.8   1.4    16  1.1
 
-Samples were drawn using NUTS(diag_e) at Tue Feb 22 22:54:23 2022.
+Samples were drawn using NUTS(diag_e) at Wed Feb 23 19:48:39 2022.
 For each parameter, n_eff is a crude measure of effective sample size,
 and Rhat is the potential scale reduction factor on split chains (at 
 convergence, Rhat=1).
@@ -622,24 +791,24 @@ y nuestros estimadores Monte Carlo no estén sesgados.
 
 #+REVEAL: split
 Esta situación es muy común en /modelos jerárquicos/. El cual hemos definido como
-\begin{align*}
-\mu &\sim \mathsf{N}(0, 5) \,,\\ 
-\tau &\sim \textsf{Half-Cauchy}(0,5) \,,\\
-\theta_j &\sim \mathsf{N}(\mu, \tau) \qquad j = 1, \ldots, J \,,\\
-y_j &\sim \mathsf{N}(\theta_j, \sigma_j) \qquad j = 1, \ldots, J\,.
-\end{align*}
+\begin{gather}
+\mu \sim \mathsf{N}(0, 5) \,,\\ 
+\tau \sim \textsf{Half-Cauchy}(0,5) \,,\\
+\theta_j \sim \mathsf{N}(\mu, \tau),  \qquad j = 1, \ldots, J \,,\\
+y_j \sim \mathsf{N}(\theta_j, \sigma_j),  \qquad j = 1, \ldots, J\,.
+\end{gather}
 
 #+REVEAL: split
 El problema es la geometría de la distribución posterior. La ventaja es que
 existe una solución sencilla para hacer el problema de muestreo mas
 sencillo. Esto es al escribir el modelo en términos de una variable auxiliar:
-\begin{align*}
-\mu &\sim \mathsf{N}(0, 5) \,,\\ 
-\tau &\sim \textsf{Half-Cauchy}(0,5) \,,\\
-\tilde{\theta}_j  &\sim \mathsf{N}(0, 1), \qquad \quad j = 1, \ldots, J \,,\\
-\theta_j &= \mu + \tau \cdot \tilde{\theta}_j\qquad j = 1, \ldots, J \,,\\
-y_j &\sim \mathsf{N}(\theta_j, \sigma_j) \qquad j = 1, \ldots, J\,.
-\end{align*}
+\begin{gather}
+\mu \sim \mathsf{N}(0, 5) \,,\\ 
+\tau \sim \textsf{Half-Cauchy}(0,5) \,,\\
+\tilde{\theta}_j  \sim \mathsf{N}(0, 1), \qquad \quad j = 1, \ldots, J \,,\\
+\theta_j = \mu + \tau \cdot \tilde{\theta}_j, \qquad j = 1, \ldots, J \,,\\
+y_\sim \mathsf{N}(\theta_j, \sigma_j),  \qquad j = 1, \ldots, J\,.
+\end{gather}
 
 #+REVEAL: split
 El modelo en ~Stan~ es muy parecido. La nomenclatura que se utiliza es: *modelo
