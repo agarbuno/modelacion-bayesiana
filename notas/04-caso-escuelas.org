@@ -89,7 +89,7 @@ escuela ~y~ y los errores estándar reportados ~sigma~.
 
 #+REVEAL: split
 En este caso se utiliza un modelo normal para los resultados de cada escuela
-$$y_j \sim \mathsf{N}(\theta_j, \sigma_j) \qquad j = 1, \ldots, J\,,$$
+$$y_j \sim \mathsf{N}(\theta_j, \sigma_j), \qquad j = 1, \ldots, J\,,$$
 donde $J = 8$, y $\theta_j$ representa el promedio de los alumnos de escuela que
 no observamos pero del cual tenemos un estimador $y_j$.
 
@@ -98,7 +98,7 @@ Nota que tenemos $J$ valores distintos para $\theta_j$ y $\sigma_j$. Dado que
 esperamos que las escuelas provengan de la misma población de escuelas asumimos
 que
 
-$$ \theta_j \sim \mathsf{N}(\mu, \tau) \qquad j = 1, \ldots, J\,,$$
+$$ \theta_j \sim \mathsf{N}(\mu, \tau), \qquad j = 1, \ldots, J\,,$$
 
 donde $\mu$ representa la media poblacional (el promedio en el sistema escolar)
 y $\tau$ la desviación estándar alrededor de este valor.
