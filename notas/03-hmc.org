@@ -524,10 +524,27 @@ programas pues uno simplemente debe especificar las distribuciones iniciales, la
 verosimilitud y los datos observados. Igual el libro de citet:Kruschke2014. 
 
 #+REVEAL: split
-[[https://docs.pymc.io/][pymc3]] es un muestreador ~híbrido~ que permite utilizar Metropolis-Hastings, Gibbs
-y HMC para la simulación de la posterior citep:Salvatier2016. Aunque también es
+Al depender de gradientes para construir propuestas para las cadenas de Markov
+ha sido natural el desarrollo de herramientas de muestreo basadas en
+diferenciadores automáticos. Por ejemplo, [[https://pyro.ai/][Pyro]] utiliza [[https://pytorch.org/][PyTorch]]. Tenemos también
+[[https://www.tensorflow.org/probability][Tensorflow Probability]] que utiliza ~Tensorflow~. [[https://docs.pymc.io/][Pymc]] (antes Pymc3) utiliza Theano
+(ahora llamado [[https://github.com/aesara-devs/aesara][Aesara]]). [[https://github.com/pyro-ppl/numpyro][NumPyro]] utiliza ~numpy~ y [[https://github.com/google/jax][JAX]] como /backend/. 
+
+#+REVEAL: split
+[[https://docs.pymc.io/][Pymc]] es un muestreador ~híbrido~ que permite utilizar Metropolis-Hastings, Gibbs
+y HMC para la simulación de la posterior citep:Salvatier2016. También es
 mucho más flexible y brinda muestreadores más modernos basados en particulas e
 información de primer orden (gradientes).
+
+#+REVEAL: split
+Además, hay herramientas que utilizan las librerías de muestreo para análisis
+específicos.  Por ejemplo, tenemos ~cmdstanarm~ ajusta *modelos de regresión*
+utilizando ~Stan~ como /backend/. La herramienta de Facebook, ~Prophet~, utiliza ~Stan~
+(ver [[https://statmodeling.stat.columbia.edu/2017/03/01/facebooks-prophet-uses-stan/][aqui]]) como /backend/ y se especializa en *series de tiempo*. [[https://github.com/IvanYashchuk/fenics-pymc3][fenics-pymc3]] se
+especializa en soluciones de *ecuaciones diferenciales* escritas en
+~FEniCS~. También tenemos [[https://github.com/hvasbath/beat][beat]] para *análisis probabilístico de terremotos* y
+[[https://github.com/exoplanet-dev/exoplanet][exoplanet]] para series de tiempo en *astronomía*. Por supuesto, no podía faltar una
+integración ~scikit~ que se llama [[https://www.pymc-learn.org/][Pymc-Learn]].
 
 #+REVEAL: split
 Existen otras alternativas para construir cadenas de Markov. Por ejemplo, hay
