@@ -38,7 +38,7 @@
 #+EXPORT_FILE_NAME: ../docs/04-stan.pdf
 :END:
 #+EXCLUDE_TAGS: toc latex
-#+PROPERTY: header-args:R :session escuelas :exports both :results output org :tangle ../rscripts/casos.R :mkdirp yes :dir ../
+#+PROPERTY: header-args:R :session escuelas :exports both :results output org :tangle ../rscripts/04-stan.R :mkdirp yes :dir ../
 
 
 #+BEGIN_NOTES
@@ -57,9 +57,10 @@
   - [[#visualizaciones][Visualizaciones]]
   - [[#ejercicio-0][Ejercicio (0)]]
   - [[#ejercicio-1][Ejercicio (1)]]
+  - [[#ejercicio-2][Ejercicio (2)]]
 - [[#caso-escuelas][Caso: escuelas]]
 - [[#primer-modelo-en-stan][Primer modelo en Stan]]
-  - [[#nuestra-primera-cadena-de-markov][Nuestra primera cadena de Markov]]
+  - [[#simulación][Simulación]]
   - [[#alternativas--rstan][Alternativas:  Rstan]]
   - [[#generando-mas-simulaciones][Generando mas simulaciones]]
   - [[#haciendo-tweaks-en-el-simulador][Haciendo tweaks en el simulador]]
@@ -173,6 +174,7 @@ El código es:
 
 #+caption: Código necesario para interactuar con ~Stan~ desde ~R~.
 #+begin_src R :exports code :results none
+  ## Modelo Beta-Binomial --------------------------------
   modelos_files <- "modelos/compilados/tutorial"
   ruta <- file.path("modelos/tutorial/beta-binomial.stan")
   modelo <- cmdstan_model(ruta, dir = modelos_files)
@@ -299,7 +301,7 @@ fuente) que la sintaxis para el gráfico utiliza la gramática y las funciones d
 1) la distribución previa;
 2) la distribución predictiva posterior?
 
-Utiliza el ejemplo Beta-Binomial de arriba para probarlo.
+Utiliza el ejemplo Beta-Binomial de arriba para ponerlo en práctica.
 /Hint/: revisa la documentación del bloque ~generated quantities~. 
 
 ** Ejercicio (1)
@@ -314,6 +316,13 @@ observaciones $(Y_1, Y_2) = (2, 9)$ donde suponemos que $Y_j
 
 /Hints:/ Revisa la documentación para definir vectores (en este caso de longitud 2) en el bloque de datos. 
 
+** Ejercicio (2)
+:PROPERTIES:
+:reveal_background: #00468b
+:END:
+Utiliza el ambiente de ~Stan~ para encontrar el estimador de Máxima verosimillitud de los dos problemas que hemos trabajado. Es decir, el caso Beta-Binomial y Poisson-Gamma. 
+
+
 * Caso: escuelas
 
 Utilizaremos los datos de un estudio de desempeño de 8 escuelas
@@ -323,6 +332,7 @@ resultados de dicha prueba.
 
 
 #+begin_src R :exports code
+  ## Caso: escuelas --------------------------------------
   data <- tibble( id = factor(seq(1, 8)), 
                   y = c(28, 8, -3, 7, -1, 1, 18, 12), 
                   sigma = c(15, 10, 16, 11, 9, 11, 10, 18))
@@ -365,7 +375,7 @@ y_j \sim \mathsf{N}(\theta_j, \sigma_j), \qquad j = 1, \ldots, J\,.
 #+begin_src R :exports code :results org
   print_file("modelos/caso-escuelas/modelo-escuelas.stan")
 #+end_src
-
+#+caption: Código del modelo para el desempeño de las escuelas. 
 #+begin_src stan :eval never
   data {
     int<lower=0> J;
@@ -405,10 +415,9 @@ Los datos que necesita el bloque ~data~ se pasan como una /lista con nombres/.
 
 #+begin_src R :exports code :results none
   data_list <- c(data, J = 8)
-  data_list
 #+end_src
 
-** Nuestra primera cadena de Markov
+** Simulación 
 
 Contra todas las recomendaciones usuales, corramos sólo una cadena corta:
 
@@ -420,7 +429,7 @@ Contra todas las recomendaciones usuales, corramos sólo una cadena corta:
                             seed=483892929, 
                             refresh=1200)
 #+end_src
-
+#+caption: Resultados del muestreador en el modelo. 
 #+RESULTS:
 #+begin_src org
 Running MCMC with 1 chain...
@@ -445,7 +454,7 @@ inspeccionar más a fondo con el siguiente comando:
 #+begin_src R :exports both :results org
   muestras$cmdstan_diagnose()
 #+end_src
-
+#+caption: Diagnósticos y resumen. 
 #+RESULTS:
 #+begin_src org
 Processing csv files: /var/folders/lk/4hdvzkhx269df8zc5xmkqgwr0000gn/T/RtmpCUyqJo/modelo-escuelas-202202231948-1-817561.csv
@@ -483,7 +492,7 @@ Podemos inspeccionar el resultado de las simulaciones utilizando:
 #+begin_src R :exports both :results org
   muestras$cmdstan_summary()
 #+end_src
-
+#+caption: Resumen utilizando los métodos de ~CmdStanModel~. 
 #+RESULTS:
 #+begin_src org
 Inference for Stan model: modelo_escuelas_model
@@ -532,7 +541,7 @@ para visualizar los resúmenes de manera alternativa.
   stanfit <- rstan::read_stan_csv(muestras$output_files())
   stanfit
 #+end_src
-
+#+caption: Resumen obtenido con librería de ~Rstan~. 
 #+RESULTS:
 #+begin_src org
 Inference for Stan model: modelo-escuelas-202202231948-1-817561.
@@ -581,7 +590,7 @@ con $\tau$ que es el parámetro donde más problemas parecemos tener.
       geom_hline(yintercept = 0.7657852, lty = 2)
   g_tau /g_theta
 #+end_src
-
+#+caption: Trayectorías de las muestras del modelo para los componentes $\log \tau$ y $\theta_1$. 
 #+RESULTS:
 [[file:../images/muestras-escuelas.jpeg]]
 
@@ -600,7 +609,7 @@ seríamos capaces de diagnosticar estos problemas.
       ylim(-4, 4) + 
       geom_hline(yintercept = 0.7657852, lty = 2)
 #+end_src
-
+#+caption: Media acumulada de $\log \tau$.
 #+RESULTS:
 [[file:../images/escuelas-media-acumulada.jpeg]]
 
@@ -617,10 +626,10 @@ problema. En color salmón apuntamos las muestras con transiciones /divergentes/
     pars = c("theta[1]", "log_tau"),
     np = nuts_params(stanfit),
     np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)
-  ) + sin_lineas+ ylim(-1, 4)
+  ) + sin_lineas+ ylim(-4, 3)
   g1_dispersion
 #+end_src
-
+#+caption: Gráfico de dispersión. Muestras en color salmón representan simulaciones /problemáticas/.
 #+RESULTS:
 [[file:../images/escuelas-dispersion.jpeg]]
 
@@ -640,7 +649,7 @@ componentes.
                                             div_size = .5)) + 
     sin_lineas
 #+end_src
-
+#+caption: Gráfico de coordenadas paralelas. Permiten /conectar/ los distintos componentes de un vector. Color salmón representa simulaciones /problemáticas/.
 #+RESULTS:
 [[file:../images/escuelas-coordenadas-paralelas.jpeg]]
 
@@ -654,7 +663,7 @@ Y por último, también podemos explorar la autocorrelación de la cadena.
 
   acf_tau / acf_theta
 #+end_src
-
+#+caption: Autocorrelaciones en las simulaciones. 
 #+RESULTS:
 [[file:../images/escuelas-autocorrelacion.jpeg]]
 
@@ -716,7 +725,7 @@ convergence, Rhat=1).
       ylim(-4, 4) + 
       geom_hline(yintercept = 0.7657852, lty = 2)
 #+end_src
-
+#+caption: Trayectorías de simulaciones. 
 #+RESULTS:
 [[file:../images/escuelas-traceplot-cadenalarga.jpeg]]
 
@@ -735,12 +744,12 @@ siguiente gráfica.
     pars = c("theta[1]", "log_tau"),
     np = nuts_params(stanfit),
     np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)) + 
-    sin_lineas+ ylim(-6, 3) +
+    sin_lineas+ ylim(-4, 3) +
     ggtitle("Original")
 
   g2_dispersion
 #+end_src
-
+#+caption: Gráficos de dispersión.
 #+RESULTS:
 [[file:../images/escuelas-embudo.jpeg]]
 
@@ -755,7 +764,7 @@ siguiente gráfica.
       ylim(0, 4) + 
       geom_hline(yintercept = 0.7657852, lty = 2)
 #+end_src
-
+#+caption: Media acumulada de $\log \tau$. 
 #+RESULTS:
 [[file:../images/escuelas-promediomovil.jpeg]]
 
@@ -799,12 +808,12 @@ segura de la distribución.
     pars = c("theta[1]", "log_tau"),
     np = nuts_params(stanfit),
     np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)) + 
-    sin_lineas + ylim(-6, 3) +
+    sin_lineas + ylim(-4, 3) +
     ggtitle("Configuración hmc")
 
   g1 / (g2_dispersion + g2_dispersion_90)
 #+end_src
-
+#+caption: Gráficos de comparación. 
 #+RESULTS:
 [[file:../images/escuelas-diagnosticos-noparam.jpeg]]
 
@@ -841,6 +850,7 @@ centrado* para el primero, y para la reparametrización presentada en la
 ecuación de arriba nos referimos a un *modelo no centrado*. 
 
 #+begin_src R :exports code :results none
+  ## Cambiando de modelo -------------------------------------
   print_file("modelos/caso-escuelas/modelo-escuelas-ncp.stan")
 #+end_src
 
@@ -952,7 +962,7 @@ problemas observamos lo siguiente:
     pars = c("theta_tilde[1]", "log_tau"),
     np = nuts_params(stanfit_ncp),
     np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)) + 
-    sin_lineas + ylim(-6, 3) +
+    sin_lineas + ylim(-4, 3) +
     ggtitle("Variable auxiliar")
 
   g3_dispersion <- muestras_dt |> 
@@ -961,7 +971,7 @@ problemas observamos lo siguiente:
     pars = c("theta[1]", "log_tau"),
     np = nuts_params(stanfit_ncp),
     np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)) + 
-    sin_lineas + ylim(-6, 3) +
+    sin_lineas + ylim(-4, 3) +
     ggtitle("Re-parametrización")
 
   g3 + g3_dispersion
