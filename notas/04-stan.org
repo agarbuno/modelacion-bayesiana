@@ -65,6 +65,10 @@
   - [[#generando-mas-simulaciones][Generando mas simulaciones]]
   - [[#haciendo-tweaks-en-el-simulador][Haciendo tweaks en el simulador]]
 - [[#cambiando-ligeramente-el-modelo][Cambiando ligeramente el modelo]]
+- [[#regularización-bayesiana][Regularización Bayesiana]]
+  - [[#formulación-probabilística][Formulación probabilística]]
+  - [[#regularización-en-regresión-diabetes][Regularización en regresión (diabetes)]]
+  - [[#regularización-en-regresión-carros][Regularización en regresión (carros)]]
 :END:
 
 #+begin_src R :exports none :results none
@@ -321,8 +325,6 @@ observaciones $(Y_1, Y_2) = (2, 9)$ donde suponemos que $Y_j
 :reveal_background: #00468b
 :END:
 Utiliza el ambiente de ~Stan~ para encontrar el estimador de Máxima verosimillitud de los dos problemas que hemos trabajado. Es decir, el caso Beta-Binomial y Poisson-Gamma. 
-
-
 * Caso: escuelas
 
 Utilizaremos los datos de un estudio de desempeño de 8 escuelas
@@ -992,6 +994,178 @@ g2_dispersion + g2_dispersion_90 + g3_dispersion
 
 #+RESULTS:
 [[file:../images/escuelas-dispersion-comparacion.jpeg]]
+
+#+BEGIN_NOTES
+Como lo hemos mencionado antes. Este caso ilustra uno de los casos de uso mas
+conocidos de la inferencia Bayesiana, ~modelos jerárquicos~. Estos modelos surgen
+en diversas aplicaciones, como regresión, análisis de series de tiempo, datos
+estratificados, etc.
+#+END_NOTES
+
+* Regularización Bayesiana
+
+Otro caso de uso bastante común y con el cual /podrían/ estar altamente familiarizados es con el concepto de ~regularización~. Por ejemplo, en modelos predictivos donde buscamos una regla de asociación $y = f_\theta(x)$. En dichos modelos $\theta$ son los parámetros que no conocemos y que ajustamos minimizando una función de pérdida /adecuada/
+\begin{align}
+\hat \theta = \underset{\theta}{\arg \min} \, \mathcal{J}(y, f_\theta(x))\,.
+\end{align}
+El problema de optimización está usualmente ~mal formulado~ en el sentido de que pequeñas perturbaciones en el conjunto de datos utilizado para /entrenar/ lleva a soluciones radicalmente distintas. En este contexto se busca ~regularizar~ el problema utilizando una función que permita restringir la solución y de esta manera tener soluciones ~estables~. Esto lo formulamos como 
+\begin{align}
+\hat \theta_R = \underset{\theta}{\arg \min} \,\left( \mathcal{J}(y, f_\theta(x)) + R(\theta) \right)\,.
+\end{align}
+Esto es bastante usual en la solución de problemas inversos (citep:Tarantola2005,Kaipio2005) y la estimación de modelos predictivos por medio de Ridge o Lasso (citep:Hastie2009c). Por ejemplo, se pueden considerar regularizadores  como  penalizaciones en norma 2 (Ridge, $\|\theta\|_2^2 =  \sum (\theta_i)^2$ ) o norma 1 (Lasso, $\|\theta\|_1 = \sum |\theta_i|$ ).
+
+** Formulación probabilística 
+
+En términos probabilísticos esto correspondería a plantear un modelo
+\begin{align}
+\pi(\theta | y ) \propto \exp \left(  - \mathcal{J}(y, f_\theta(x))  \right) \, \exp \left(- R(\theta)  \right)\,.
+\end{align}
+
+Por ejemplo, considerar regresión Ridge implica considerar un modelo Gaussiano
+para la verosimilitud y un modelo Gaussiano para la previa.
+
+#+BEGIN_NOTES
+Una variable aleatoria Gaussiana tiene conexiones interesantes con la ~descomposición espectral~ de una señal (descomposición en valores singulares y series de Fourier). Si pensamos que en un problema de regresión queremos estimar coeficientes. La solución sin restricciones nos puede dar algunos coeficientes con ~errores estándar muy altos~ y en consecuencia ~estadísticamente no significativos~ (alta varianza y centrados en cero). La regularización elimina la alta variabilidad (las frecuencia altas de una señal) y rápidamente centra los valores de aquellos valores alrededor del cero para tener una señal con una frecuencia mas /suave/. ¡La conexión la podemos trazar a los coeficientes de Fourier (citep:Fourier1878)!
+#+END_NOTES
+
+La solución de este problema de optimización se traduce en encontrar el punto
+~máximo posterior~.
+
+Ahora, el problema es que tanto para Ridge (previa Gaussiana) como para LASSO
+(previa ~doble-exponencial~ o Laplace), la /moda/ --el punto que maximiza la posterior-- es muy
+distinto de lo que nos darían simulaciones de ese modelo.
+
+En el contexto Bayesiano nos interesaría poder utilizar una distribución previa
+de la cual podamos extraer muestras donde algunos componentes son cero. Con este
+propósito se han estudiado y propuesto previas de la familia ~horseshoe~
+(presiento que es un modismo finlandés) citep:Piironen2017a.
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/previas-regularizacion.jpeg :exports results :results output graphics file
+  ## Modelos de regularizacion --------------------------------
+  modelos_files <- "modelos/compilados/regularizacion"
+  ruta <- file.path("modelos/regularizacion/modelo-")
+
+  compila_modelo <- function(modelo){
+    modelo_name <- paste(ruta, modelo, ".stan",sep = "")
+    cmdstan_model(modelo_name, dir = modelos_files)
+  }
+
+  genera_muestras <- function(modelo){
+    modelo$sample(data = data.list, 
+                  chains = 1, 
+                  iter=5000, 
+                  iter_warmup=500, 
+                  seed=483892929, 
+                  refresh=700)
+  }
+
+  data.list <- list(p = 2, sigma = 1)
+
+  tibble(nombre = fct_inorder(c("normal", "laplace", "horseshoe"))) |>
+    mutate(modelo = map(nombre, compila_modelo),
+           ajuste = map(modelo, genera_muestras),
+           muestras = map(ajuste, function(x){ as_draws_df(x$draws()) })) |>
+    unnest(muestras) |>
+    ggplot(aes(`theta[1]`, `theta[2]`)) +
+    geom_point(size = 1, alpha = .2) +
+    facet_wrap(~nombre) + sin_lineas + coord_equal() +
+    xlim(-10, 10) + ylim(-10, 10) +
+    ylab(expression(theta[2])) + xlab(expression(theta[1]))
+#+end_src
+#+caption: Distintas previas y efectos de regularización. 
+#+RESULTS:
+[[file:../images/previas-regularizacion.jpeg]]
+
+** Regularización en regresión (diabetes)
+
+Veamos lo siguiente para comparar los distintos modelos probabilísticos (Normal, Laplace, Horseshoe). 
+
+#+begin_src R :exports none :results none
+  ## Ejemplo regresion regularizada --------------------------------
+  library(rstanarm)
+  library(bayesplot)
+  data <- read_csv("datos/diabetes.csv")
+  # removing those observation rows with 0 in any of the variables
+  for (i in 2:6) {
+        data <- data[-which(data[, i] == 0), ]
+  }
+  # scale the covariates for easier comparison of coefficient posteriors
+  for (i in 1:8) {
+        data[i] <- scale(data[i])
+  }
+  # modify the data column names slightly for easier typing
+  names(data)[7] <- "dpf"
+  names(data) <- tolower(names(data))
+  data$outcome <- factor(data$outcome)
+
+
+  n=dim(data)[1]
+  p=dim(data)[2]
+
+  (reg_formula <- formula(paste("outcome ~", paste(names(data)[1:(p-1)], collapse = " + "))))
+
+  model.normal <- stan_glm(reg_formula, data, family = binomial(link = "logit"))
+
+  g1 <- plot(model.normal, "areas", prob = 0.95, prob_outer = 1) +
+    geom_vline(xintercept = 0, lty = 2) + ggtitle("Normal")
+#+end_src
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/comparacion-regularizacion-diabetes.jpeg :exports results :results output graphics file
+    model.laplace <- stan_glm(reg_formula, data, family = binomial(link = "logit"),
+                                prior = laplace())
+
+    model.horseshoe <- stan_glm(reg_formula, data, family = binomial(link = "logit"),
+                                prior = hs())
+
+    g2 <- plot(model.laplace, "areas", prob = 0.95, prob_outer = 1) +
+      geom_vline(xintercept = 0, lty = 2) + ggtitle("Laplace")
+
+    g3 <- plot(model.horseshoe, "areas", prob = 0.95, prob_outer = 1) +
+      geom_vline(xintercept = 0, lty = 2) + ggtitle("Horseshoe")
+
+    g1 + g2 + g3
+#+end_src
+#+caption: Ajuste posterior bajo distinas previas. 
+#+RESULTS:
+[[file:../images/comparacion-regularizacion-diabetes.jpeg]]
+
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/dispersion-regularizacion.jpeg :exports results :results output graphics file
+  mcmc_scatter(model.horseshoe,
+             pars = c("pregnancies", "skinthickness"),
+             np   = nuts_params(model.horseshoe),
+             alpha = 0.2)
+#+end_src
+#+caption: Efecto de la regularización en un par de coeficientes. 
+#+RESULTS:
+[[file:../images/dispersion-regularizacion.jpeg]]
+
+** Regularización en regresión (carros)
+
+Notemos como el modelo tiene dos zonas de alta probabilidad. 
+
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/dispersion-mtcars.jpeg :exports results :results output graphics file
+  ## Ejemplo mtcars ------------------------------------
+  fit <- stan_glm(
+    mpg ~ ., data = mtcars,
+    iter = 1000, refresh = 0,
+    # this combo of prior and adapt_delta should lead to some divergences
+    prior = hs(),
+    adapt_delta = 0.9
+  )
+
+  posterior <- as.array(fit)
+  np <- nuts_params(fit)
+
+  # mcmc_scatter with divergences highlighted
+  mcmc_scatter(posterior, pars = c("wt", "sigma"), np = np, alpha = .3)
+#+end_src
+#+caption: Efecto de regularización en dos parámetros de un modelo. 
+#+RESULTS:
+[[file:../images/dispersion-mtcars.jpeg]]
 
 # * Referencias                                                         :latex:
 

@@ -251,3 +251,96 @@ g3_dispersion <- muestras_dt |>
 g3 + g3_dispersion
 
 g2_dispersion + g2_dispersion_90 + g3_dispersion
+
+## Modelos de regularizacion --------------------------------
+modelos_files <- "modelos/compilados/regularizacion"
+ruta <- file.path("modelos/regularizacion/modelo-")
+
+compila_modelo <- function(modelo){
+  modelo_name <- paste(ruta, modelo, ".stan",sep = "")
+  cmdstan_model(modelo_name, dir = modelos_files)
+}
+
+genera_muestras <- function(modelo){
+  modelo$sample(data = data.list, 
+                chains = 1, 
+                iter=5000, 
+                iter_warmup=500, 
+                seed=483892929, 
+                refresh=700)
+}
+
+data.list <- list(p = 2, sigma = 1)
+
+tibble(nombre = fct_inorder(c("normal", "laplace", "horseshoe"))) |>
+  mutate(modelo = map(nombre, compila_modelo),
+         ajuste = map(modelo, genera_muestras),
+         muestras = map(ajuste, function(x){ as_draws_df(x$draws()) })) |>
+  unnest(muestras) |>
+  ggplot(aes(`theta[1]`, `theta[2]`)) +
+  geom_point(size = 1, alpha = .2) +
+  facet_wrap(~nombre) + sin_lineas + coord_equal() +
+  xlim(-10, 10) + ylim(-10, 10) +
+  ylab(expression(theta[2])) + xlab(expression(theta[1]))
+
+## Ejemplo regresion regularizada --------------------------------
+library(rstanarm)
+library(bayesplot)
+data <- read_csv("datos/diabetes.csv")
+# removing those observation rows with 0 in any of the variables
+for (i in 2:6) {
+      data <- data[-which(data[, i] == 0), ]
+}
+# scale the covariates for easier comparison of coefficient posteriors
+for (i in 1:8) {
+      data[i] <- scale(data[i])
+}
+# modify the data column names slightly for easier typing
+names(data)[7] <- "dpf"
+names(data) <- tolower(names(data))
+data$outcome <- factor(data$outcome)
+
+
+n=dim(data)[1]
+p=dim(data)[2]
+
+(reg_formula <- formula(paste("outcome ~", paste(names(data)[1:(p-1)], collapse = " + "))))
+
+model.normal <- stan_glm(reg_formula, data, family = binomial(link = "logit"))
+
+g1 <- plot(model.normal, "areas", prob = 0.95, prob_outer = 1) +
+  geom_vline(xintercept = 0, lty = 2) + ggtitle("Normal")
+
+model.laplace <- stan_glm(reg_formula, data, family = binomial(link = "logit"),
+                            prior = laplace())
+
+model.horseshoe <- stan_glm(reg_formula, data, family = binomial(link = "logit"),
+                            prior = hs())
+
+g2 <- plot(model.laplace, "areas", prob = 0.95, prob_outer = 1) +
+  geom_vline(xintercept = 0, lty = 2) + ggtitle("Laplace")
+
+g3 <- plot(model.horseshoe, "areas", prob = 0.95, prob_outer = 1) +
+  geom_vline(xintercept = 0, lty = 2) + ggtitle("Horseshoe")
+
+g1 + g2 + g3
+
+mcmc_scatter(model.horseshoe,
+           pars = c("pregnancies", "skinthickness"),
+           np   = nuts_params(model.horseshoe),
+           alpha = 0.2)
+
+## Ejemplo mtcars ------------------------------------
+fit <- stan_glm(
+  mpg ~ ., data = mtcars,
+  iter = 1000, refresh = 0,
+  # this combo of prior and adapt_delta should lead to some divergences
+  prior = hs(),
+  adapt_delta = 0.9
+)
+
+posterior <- as.array(fit)
+np <- nuts_params(fit)
+
+# mcmc_scatter with divergences highlighted
+mcmc_scatter(posterior, pars = c("wt", "sigma"), np = np, alpha = .3)
