@@ -38,7 +38,7 @@
 #+EXPORT_FILE_NAME: ../docs/04-stan.pdf
 :END:
 #+EXCLUDE_TAGS: toc latex
-#+PROPERTY: header-args:R :session escuelas :exports both :results output org :tangle ../rscripts/04-stan.R :mkdirp yes :dir ../
+#+PROPERTY: header-args:R :session tutorial :exports both :results output org :tangle ../rscripts/04-stan.R :mkdirp yes :dir ../
 
 
 #+BEGIN_NOTES
@@ -218,10 +218,8 @@ Necesitamos los datos en un formato muy especial (una lista):
 #+end_src
 
 #+BEGIN_NOTES
-La interacción desde ~R~ con ~Stan~ necesita los datos ordenados en listas con nombres. En ~Python~ éstos son diccionarios. Ambos, generalizan a archivos en formato ~JSON~. 
+La interacción desde ~R~ con ~Stan~ necesita los datos ordenados en =listas con nombres=. En ~Python~ éstos son =diccionarios=. Ambos, generalizan a archivos en formato ~JSON~. 
 #+END_NOTES
-
-
 
 Para darle /play/ :
 #+begin_src R :exports both :results org
@@ -230,7 +228,7 @@ Para darle /play/ :
                             iter=1500, 
                             iter_warmup=500, 
                             seed=483892929, 
-                            refresh=700)
+                            refresh=500)
 #+end_src
 #+caption: Resultados de muestreo. 
 #+RESULTS:
@@ -238,9 +236,10 @@ Para darle /play/ :
 Running MCMC with 1 chain...
 
 Chain 1 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 1 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 Chain 1 Iteration:  501 / 2000 [ 25%]  (Sampling) 
-Chain 1 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
-Chain 1 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
+Chain 1 Iteration: 1000 / 2000 [ 50%]  (Sampling) 
+Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 1 finished in 0.0 seconds.
 #+end_src
@@ -272,7 +271,7 @@ Donde se pueden explorar los métodos de estos objetos en [[https://mc-stan.org/
 
 #+BEGIN_NOTES
 Nota: tuvimos que definir qué parámetros queremos en la visualización. Por
-/default/ incluye un misterioso ~_lp~ que hace referencia a la evaluación de la
+/default/ incluye un misterioso ~lp__~ que hace referencia a la evaluación de la
 log-posterior para cada elemento de la simulación. Adicional, nota (en el código
 fuente) que la sintaxis para el gráfico utiliza la gramática y las funciones de
 ~ggplot2~.
@@ -340,9 +339,16 @@ resultados de dicha prueba.
                   sigma = c(15, 10, 16, 11, 9, 11, 10, 18))
 #+end_src
 
+#+RESULTS:
+#+begin_src org
+#+end_src
+
 
 En este caso se utiliza un modelo normal para los resultados de cada escuela
-$$y_j \sim \mathsf{N}(\theta_j, \sigma_j), \qquad j = 1, \ldots, J\,,$$
+\begin{align}
+y_j \sim \mathsf{N}(\theta_j, \sigma_j), \qquad j = 1, \ldots, J\,,
+\end{align}
+
 donde $J = 8$, y $\theta_j$ representa el promedio de los alumnos de escuela que
 no observamos pero del cual tenemos un estimador $y_j$.
 
@@ -350,7 +356,6 @@ no observamos pero del cual tenemos un estimador $y_j$.
 Nota que tenemos $J$ valores distintos para $\theta_j$ y $\sigma_j$. Dado que 
 esperamos que las escuelas provengan de la misma población de escuelas asumimos
 que
-
 $$ \theta_j \sim \mathsf{N}(\mu, \tau), \qquad j = 1, \ldots, J\,,$$
 
 donde $\mu$ representa la media poblacional (el promedio en el sistema escolar)
@@ -1012,7 +1017,7 @@ El problema de optimización está usualmente ~mal formulado~ en el sentido de q
 \begin{align}
 \hat \theta_R = \underset{\theta}{\arg \min} \,\left( \mathcal{J}(y, f_\theta(x)) + R(\theta) \right)\,.
 \end{align}
-Esto es bastante usual en la solución de problemas inversos (citep:Tarantola2005,Kaipio2005) y la estimación de modelos predictivos por medio de Ridge o Lasso (citep:Hastie2009c). Por ejemplo, se pueden considerar regularizadores  como  penalizaciones en norma 2 (Ridge, $\|\theta\|_2^2 =  \sum (\theta_i)^2$ ) o norma 1 (Lasso, $\|\theta\|_1 = \sum |\theta_i|$ ).
+Esto es bastante usual en la solución de problemas inversos (citep:Tarantola2005,Kaipio2005) y la estimación de modelos predictivos por medio de Ridge o Lasso (citep:Hastie2009c). Por ejemplo, se pueden considerar regularizadores  como  penalizaciones en *norma 2* (=Ridge=, $\|\theta\|_2^2 =  \sum (\theta_i)^2$ ) o *norma 1* (=Lasso=, $\|\theta\|_1 = \sum |\theta_i|$ ).
 
 ** Formulación probabilística 
 
@@ -1021,8 +1026,8 @@ En términos probabilísticos esto correspondería a plantear un modelo
 \pi(\theta | y ) \propto \exp \left(  - \mathcal{J}(y, f_\theta(x))  \right) \, \exp \left(- R(\theta)  \right)\,.
 \end{align}
 
-Por ejemplo, considerar regresión Ridge implica considerar un modelo Gaussiano
-para la verosimilitud y un modelo Gaussiano para la previa.
+Por ejemplo, considerar ~regresión Ridge~ implica considerar un modelo =Gaussiano=
+para la =verosimilitud= y un modelo Gaussiano para la =previa=.
 
 #+BEGIN_NOTES
 Una variable aleatoria Gaussiana tiene conexiones interesantes con la ~descomposición espectral~ de una señal (descomposición en valores singulares y series de Fourier). Si pensamos que en un problema de regresión queremos estimar coeficientes. La solución sin restricciones nos puede dar algunos coeficientes con ~errores estándar muy altos~ y en consecuencia ~estadísticamente no significativos~ (alta varianza y centrados en cero). La regularización elimina la alta variabilidad (las frecuencia altas de una señal) y rápidamente centra los valores de aquellos valores alrededor del cero para tener una señal con una frecuencia mas /suave/. ¡La conexión la podemos trazar a los coeficientes de Fourier (citep:Fourier1878)!
@@ -1099,7 +1104,6 @@ Veamos lo siguiente para comparar los distintos modelos probabilísticos (Normal
   names(data) <- tolower(names(data))
   data$outcome <- factor(data$outcome)
 
-
   n=dim(data)[1]
   p=dim(data)[2]
 
@@ -1115,13 +1119,11 @@ Veamos lo siguiente para comparar los distintos modelos probabilísticos (Normal
 #+begin_src R :file images/comparacion-regularizacion-diabetes.jpeg :exports results :results output graphics file
     model.laplace <- stan_glm(reg_formula, data, family = binomial(link = "logit"),
                                 prior = laplace())
-
     model.horseshoe <- stan_glm(reg_formula, data, family = binomial(link = "logit"),
                                 prior = hs())
 
     g2 <- plot(model.laplace, "areas", prob = 0.95, prob_outer = 1) +
       geom_vline(xintercept = 0, lty = 2) + ggtitle("Laplace")
-
     g3 <- plot(model.horseshoe, "areas", prob = 0.95, prob_outer = 1) +
       geom_vline(xintercept = 0, lty = 2) + ggtitle("Horseshoe")
 
@@ -1169,6 +1171,6 @@ Notemos como el modelo tiene dos zonas de alta probabilidad.
 
 # * Referencias                                                         :latex:
 
-bibliographystyle:abbrvnat
-bibliography:references.bib
+# bibliographystyle:abbrvnat
+# bibliography:references.bib
 
