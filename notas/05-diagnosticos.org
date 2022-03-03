@@ -160,18 +160,18 @@ MCMC, sin importar el método (Metrópolis, Gibbs, HMC), buscamos que:
 #+REVEAL: split
 - Los valores simulados ~no estén influenciados~ por el valor inicial (arbitrario)
   y deben explorar todo el rango de la posterior.
-- Debemos tener suficientes simulaciones de tal manera que las estimaciones sean
+- Debemos tener ~suficientes simulaciones~ de tal manera que las estimaciones sean
   precisas y estables.
-- Queremos tener métodos y resúmenes informativos que nos ayuden diagnosticar
+- Queremos tener ~métodos y resúmenes informativos~ que nos ayuden diagnosticar
   correctamente el desempeño de nuestas simulaciones.
 
 #+REVEAL: split
 En la ~práctica~ intentamos cumplir lo más posible estos objetivos. Debemos de
-tener un criterio para considerar cadenas de longitud finita y evaluar la calidad de las
+tener un criterio para considerar cadenas de ~longitud finita~ y ~evaluar la calidad~ de las
 simulaciones.
 
 #+REVEAL: split
-Primero estudiaremos diagnósticos generales para métodos que utilicen MCMC y
+Primero estudiaremos ~diagnósticos generales~! para métodos que utilicen MCMC y
 después estudiaremos particularidades del método de simulación HMC.
 
 * Diagnósticos generales
@@ -268,7 +268,7 @@ previa o perturbaciones aleatorias a estimadores $\textsf{MLE}$.
 #+REVEAL: split
 Correr varias cadenas en puntos dispersos tienen la ventaja de explorar desde
 distintas regiones de la posterior. Eventualmente, esperamos que todas las
-cadenas mezclen bien y representen realizaciones independientes del mismo
+/cadenas/ ~mezclen bien~ y ~representen realizaciones independientes~ del mismo
 proceso estócastico (Markoviano).
 
 #+REVEAL: split
@@ -344,7 +344,7 @@ En esta simulación es evidente$^\dagger$ que necesitamos descartar una parte in
 
 citet:Gelman2014a recomiendan descartar la mitad de las iteraciones de cada una de las cadenas
 que se simularon. Para problemas en dimensiones altas, incluso se podría esperar 
-descartar hasta un 80\% de simulaciones (en especial para métodos basados en
+descartar hasta un $80\%$ de simulaciones (en especial para métodos basados en
 Metropolis-Hastings).
 
 #+REVEAL: split
@@ -388,17 +388,17 @@ Metropolis-Hastings).
 #+RESULTS:
 [[file:../images/trayectorias-estacionarias-cantantes.jpeg]]
 
-** Monitoreo de mezcla dentro y entre cadenas
+** Monitoreo de mezcla /dentro/ y /entre/ cadenas
 
 Gelman y diversos de sus coatures han desarollado un diagnóstico numérico para evaluar
 implementaciones de MCMC al considerar múltiples cadenas. Aunque éste
 estadístico se ha ido refinando con los años, su desarrollo muestra 
 un entendimiento gradual de éstos métodos en la práctica. La
-medida $\hat{R}$ se conoce como el *factor de reducción potencial de escala*.
+medida $\hat{R}$ se conoce como el ~factor de reducción potencial de escala~.
 
 #+REVEAL: split
-El estadístico $\hat R$ pretende ser una estimación de la posible reducción en
-la longitud de un intervalo de confianza si las simulaciones continuaran
+El estadístico $\hat R$ pretende ser una estimación de la posible ~reducción en
+la longitud~ de un intervalo de confianza si las simulaciones continuaran
 infinitamente.
 
 #+REVEAL: split
@@ -440,12 +440,11 @@ $\theta$ o alguna otra cantidad derivada $\phi = f(\theta)$.
 Ahora denotemos por $\phi_{ij}$ las simulaciones que tenemos disponibles con $i
 = 1, \ldots, n$, y $j = 1, \ldots, m$. Calculamos $B$ y $W$, la variabilidad
 ~entre~ (/between/) y ~dentro~ (/within/) cadenas, respectivamente, por medio de
-\begin{subequations}
 \begin{align}
 W &= \frac1m \sum_{j = 1}^m s_j^2, \quad \text{con} \quad s_j^2 = \frac{1}{n-1}\sum_{i = 1}^n (\phi_{ij} - \bar \phi_{\cdot j})^2, \quad \text{donde} \quad \bar \phi_{\cdot j} = \frac1n \sum_{i = 1}^n \phi_{ij}, \\
 B &= \frac{n}{m-1}\sum_{j = 1}^m (\bar \phi_{\cdot j} - \bar \phi_{\cdot \cdot})^2, \quad \text{donde} \quad \bar \phi_{\cdot \cdot} = \frac1m \sum_{j = 1}^m \bar \phi_{\cdot j}.
 \end{align}
-\end{subequations}
+
 
 #+BEGIN_NOTES
 La varianza entre cadenas, $B$, se multiplica por $n$ dado que ésta se calcula
@@ -527,7 +526,6 @@ por construcción converge a 1 cuando $n \to \infty$.
 [[file:../images/diagnosticos-rhat-cantantes.jpeg]]
 
 #+REVEAL: split
-#+REVEAL: split
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/diagnosticos-rhat-cantantes-estacionario.jpeg :exports results :results output graphics file
   diagnosticos.rhat.short <- cadenas.cantantes |>
@@ -585,8 +583,6 @@ supuesto de normalidad no es un buen indicador. Es por esto que también se
 recomienda incorprorar transformaciones que nos permitan generar un buen
 estimador. Puedes leer mas de esto aqui: citep:Vehtari2021a. 
 #+END_NOTES
-
-
 
 # * Referencias                                                         :latex:
 
