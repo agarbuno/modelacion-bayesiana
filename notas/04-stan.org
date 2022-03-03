@@ -182,6 +182,8 @@ El código es:
   modelos_files <- "modelos/compilados/tutorial"
   ruta <- file.path("modelos/tutorial/beta-binomial.stan")
   modelo <- cmdstan_model(ruta, dir = modelos_files)
+
+
 #+end_src
 
 #+BEGIN_NOTES
@@ -262,7 +264,7 @@ Donde se pueden explorar los métodos de estos objetos en [[https://mc-stan.org/
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/beta-binomial-traces.jpeg :exports results :results output graphics file
   mcmc_trace(muestras$draws(), pars = "theta") +
-  sin_lineas +
+    sin_lineas +
   geom_hline(yintercept = 9/14, lty = 2, color = 'black')
 #+end_src
 #+caption: Trazas (trayectorias) del componente $\theta$ en el modelo Beta-Binomial. 
