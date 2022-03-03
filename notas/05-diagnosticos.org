@@ -76,7 +76,6 @@
   - [[#monitoreo-de-convergencia][Monitoreo de convergencia]]
     - [[#datos][Datos:]]
   - [[#monitoreo-de-mezcla-dentro-y-entre-cadenas][Monitoreo de mezcla dentro y entre cadenas]]
-- [[#referencias][Referencias]]
 :END:
 
 * Introducción
@@ -412,6 +411,24 @@ mitad de una cadena deberían de poseer las mismas estadísticas).
 La estrategia es descartar la ~primera mitad~ de cada cadena. El resto lo volvemos
 a dividir en dos y utilizamos cada fracción como si fuera una cadena independiente$^\dagger$.
 
+#+HEADER: :width 900 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/split-cadenas.jpeg :exports results :results output graphics file
+cadenas.cantantes |>
+    unnest(cadenas) |>
+    filter(iter < 300) |>
+    ggplot(aes(x = iter, y = mu, color = cadena)) + 
+    geom_path() +  sin_lineas + 
+    annotate("rect", xmin = 0, xmax = 225, ymin = -Inf, ymax = Inf, alpha = .2) + 
+    annotate("rect", xmin = 0, xmax = 150, ymin = -Inf, ymax = Inf, alpha = .2) + 
+    annotate("text", x = c(75, 187.5,262.5),
+             y = rep(145, 3), 
+             label = c("burn-in", "sub 1", "sub 2"))
+#+end_src
+#+caption: Separación de simulaciones para cálculo de $\hat R$. 
+#+RESULTS:
+[[file:../images/split-cadenas.jpeg]]
+
+
 #+REVEAL: split
 Denotemos por $m$ el número de cadenas simuladas y por $n$ el número de 
 simulaciones dentro de cada cadena. Cada una de las ~cantidades escalares de
@@ -421,8 +438,8 @@ $\theta$ o alguna otra cantidad derivada $\phi = f(\theta)$.
 
 #+REVEAL: split
 Ahora denotemos por $\phi_{ij}$ las simulaciones que tenemos disponibles con $i
-= 1, \ldots, n$, y $j = 1, \ldots, m.$ Calculamos $B$ y $W$, la variabilidad
-~entre~ (_between_) y ~dentro~ (_within_) cadenas, respectivamente, por medio de
+= 1, \ldots, n$, y $j = 1, \ldots, m$. Calculamos $B$ y $W$, la variabilidad
+~entre~ (/between/) y ~dentro~ (/within/) cadenas, respectivamente, por medio de
 \begin{subequations}
 \begin{align}
 W &= \frac1m \sum_{j = 1}^m s_j^2, \quad \text{con} \quad s_j^2 = \frac{1}{n-1}\sum_{i = 1}^n (\phi_{ij} - \bar \phi_{\cdot j})^2, \quad \text{donde} \quad \bar \phi_{\cdot j} = \frac1n \sum_{i = 1}^n \phi_{ij}, \\
@@ -436,5 +453,142 @@ por medio de promedios y sin este factor de corrección no reflejaría la
 variabilidad de las cantidades de interés $\phi$. 
 #+END_NOTES
 
+#+REVEAL: split
+La varianza de $\phi$ se puede estimar por medio de 
+\begin{align}
+\hat{\mathbb{V}}(\phi)^+ = \frac{n -1}{n} W + \frac{1}{n} B \, .
+\end{align}
 
-* Referencias                                                         :latex:
+Este estimador ~sobre-estima~ la varianza pues los puntos iniciales
+pueden estar sobre-dispersos, mientras que es un ~estimador insesgado~ una vez
+que se haya alcanzado el estado estacionario (realizaciones de la distribución
+objetivo)
+
+#+REVEAL: split
+Por otro lado, la varianza estimada por $W$ será un sub-estimador pues podría
+ser el caso de que cada cadena no ha tenido la oportunidad de recorrer todo el
+soporte de la distribución. En el límite $n \to \infty$, el valor esperado de
+$W$ aproxima $\mathbb{V}(\phi)$. 
+
+#+REVEAL: split
+Se utiliza como diagnostico el factor por el cual la escala de la
+distribución actual de $\phi$ se puede reducir si se continua con el
+procedimiento en el límite $n \to \infty$. Esto es, 
+$$\hat{R} = \sqrt{\frac{\hat{\mathbb{V}}(\phi)^+}{W}}\,,$$
+por construcción converge a 1 cuando $n \to \infty$.
+
+#+REVEAL: split
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/diagnosticos-rhat-cantantes.jpeg :exports results :results output graphics file
+  diagnosticos.rhat.short <- cadenas.cantantes |>
+    unnest(cadenas) |>
+    filter(iter < 200) |>
+    filter(iter > max(iter)/2) |>
+    mutate(cadena = paste(cadena, ifelse(iter <= (max(iter) + min(iter))/2, 
+                                         'a', 'b'), sep = "")) |>
+    pivot_longer(mu:sigma, names_to = "parametro", values_to = "valor") |>
+    group_by(parametro, cadena) |>
+    summarise(media = mean(valor), num = n(), sigma2 = var(valor)) |>
+    summarise(N = first(num), 
+              M = n_distinct(cadena), 
+              B = N * var(media), 
+              W = mean(sigma2), 
+              V_hat = ((N-1)/N) * W + B/N,
+              R_hat = sqrt(V_hat/W)) 
+
+  g.mu <- cadenas.cantantes |>
+    unnest(cadenas) |>
+    filter(iter < 200) |>
+    ggplot(aes(x = iter, y = mu, color = cadena)) + 
+    geom_path() + sin_leyenda + sin_lineas + 
+    ggtitle(paste("Rhat: ", round((diagnosticos.rhat.short |> pull(R_hat))[1], 3), sep = "")) + 
+    annotate("rect", xmin = 0, xmax = 150, ymin = -Inf, ymax = Inf, alpha = .2) + 
+    annotate("rect", xmin = 0, xmax = 100, ymin = -Inf, ymax = Inf, alpha = .2) + 
+    annotate("text", x = c(50, 125, 175),
+             y = rep(145, 3), 
+             label = c("burn-in", "sub 1", "sub 2"))
+
+  g.sigma <- cadenas.cantantes |>
+    unnest(cadenas) |>
+    filter(iter < 200) |>
+    ggplot(aes(x = iter, y = sigma, color = cadena)) + 
+    geom_path() + sin_leyenda + sin_lineas + 
+    ggtitle(paste("Rhat: ", round((diagnosticos.rhat.short |> pull(R_hat))[2], 3), sep = "")) + 
+    annotate("rect", xmin = 0, xmax = 150, ymin = -Inf, ymax = Inf, alpha = .2) + 
+    annotate("rect", xmin = 0, xmax = 100, ymin = -Inf, ymax = Inf, alpha = .2) + 
+    annotate("text", x = c(50, 125, 175),
+             y = rep(5, 3), 
+             label = c("burn-in", "sub 1", "sub 2"))
+
+  g.mu / g.sigma
+#+end_src
+#+caption: Diágnostico de reducción de escala. Sugerencia: generar mas simulaciones. 
+#+RESULTS:
+[[file:../images/diagnosticos-rhat-cantantes.jpeg]]
+
+#+REVEAL: split
+#+REVEAL: split
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/diagnosticos-rhat-cantantes-estacionario.jpeg :exports results :results output graphics file
+  diagnosticos.rhat.short <- cadenas.cantantes |>
+    unnest(cadenas) |>
+    filter(iter < 600) |>
+    filter(iter > max(iter)/2) |>
+    mutate(cadena = paste(cadena, ifelse(iter <= (max(iter) + min(iter))/2, 
+                                         'a', 'b'), sep = "")) |>
+    pivot_longer(mu:sigma, names_to = "parametro", values_to = "valor") |>
+    group_by(parametro, cadena) |>
+    summarise(media = mean(valor), num = n(), sigma2 = var(valor)) |>
+    summarise(N = first(num), 
+              M = n_distinct(cadena), 
+              B = N * var(media), 
+              W = mean(sigma2), 
+              V_hat = ((N-1)/N) * W + B/N,
+              R_hat = sqrt(V_hat/W)) 
+
+  g.mu <- cadenas.cantantes |>
+    unnest(cadenas) |>
+    filter(iter < 600) |>
+    ggplot(aes(x = iter, y = mu, color = cadena)) + 
+    geom_path() + sin_leyenda + sin_lineas + 
+    ggtitle(paste("Rhat: ", round((diagnosticos.rhat.short |> pull(R_hat))[1], 3), sep = "")) + 
+    annotate("rect", xmin = 0, xmax = 450, ymin = -Inf, ymax = Inf, alpha = .2) + 
+    annotate("rect", xmin = 0, xmax = 300, ymin = -Inf, ymax = Inf, alpha = .2) + 
+    annotate("text", x = c(150, 375, 525),
+             y = rep(145, 3), 
+             label = c("burn-in", "sub 1", "sub 2"))
+
+  g.sigma <- cadenas.cantantes |>
+    unnest(cadenas) |>
+    filter(iter < 600) |>
+    ggplot(aes(x = iter, y = sigma, color = cadena)) + 
+    geom_path() + sin_leyenda + sin_lineas + 
+    ggtitle(paste("Rhat: ", round((diagnosticos.rhat.short |> pull(R_hat))[2], 3), sep = "")) + 
+    annotate("rect", xmin = 0, xmax = 450, ymin = -Inf, ymax = Inf, alpha = .2) + 
+    annotate("rect", xmin = 0, xmax = 300, ymin = -Inf, ymax = Inf, alpha = .2) + 
+    annotate("text", x = c(150, 375, 525),
+             y = rep(5, 3), 
+             label = c("burn-in", "sub 1", "sub 2"))
+
+  g.mu / g.sigma
+#+end_src
+#+caption: Diágnostico de reducción de escala. Observaciones: parece estar bien. 
+#+RESULTS:
+[[file:../images/diagnosticos-rhat-cantantes-estacionario.jpeg]]
+
+#+BEGIN_NOTES
+Problemas con $\hat{R}$. El estimador de reducción de escala funciona bien para
+monitorear estimadores y cantidades de interés basados en medias y varianzas, o
+bien, cuando la distribución es simétrica y cercana a una Gaussiana. Es decir,
+colas ligeras. Sin embargo, para percentiles, o distribuciones lejos del
+supuesto de normalidad no es un buen indicador. Es por esto que también se
+recomienda incorprorar transformaciones que nos permitan generar un buen
+estimador. Puedes leer mas de esto aqui: citep:Vehtari2021a. 
+#+END_NOTES
+
+
+
+# * Referencias                                                         :latex:
+
+bibliographystyle:abbrvnat
+bibliography:references.bib
