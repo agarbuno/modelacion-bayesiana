@@ -38,12 +38,12 @@
 #+EXPORT_FILE_NAME: ../docs/05-diagnosticos.pdf
 :END:
 #+EXCLUDE_TAGS: toc latex
-#+PROPERTY: header-args:R :session diagnosticos :exports both :results output org :tangle ../rscripts/04-stan.R :mkdirp yes :dir ../
+#+PROPERTY: header-args:R :session diagnosticos :exports both :results output org :tangle ../rscripts/05-diagnosticos.R :mkdirp yes :dir ../
 
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Diagnósticos MCMC.\\
-*Objetivo*. Que veremos.\\
-*Lectura recomendada*: Referencia.
+*Objetivo*. Estudiaremos diagnósticos típicos de métodos de simulación Markoviana (por Metropolis-Hastings o HMC) con el objetivo de poder identificar problemas y posibles soluciones para simulaciones deficientes. \\
+*Lectura recomendada*: Sección 11.4 de citep:Gelman2014a.
 #+END_NOTES
 
 #+begin_src R :exports none :results none
@@ -158,13 +158,14 @@ Cuando generamos una muestra de la distribución posterior usando
 MCMC, sin importar el método (Metrópolis, Gibbs, HMC), buscamos que:
 
 #+REVEAL: split
-1. Los valores simulados ~no estén influenciados~ por el valor inicial
-(arbitrario) y deben explorar todo el rango de la posterior.
-2. Debemos tener suficientes simulaciones de tal manera que las
-estimaciones sean precisas y estables.
-3. Queremos tener métodos y resúmenes informativos que nos ayuden diagnosticar
-correctamente el desempeño de nuestas simulaciones.
+- Los valores simulados ~no estén influenciados~ por el valor inicial (arbitrario)
+  y deben explorar todo el rango de la posterior.
+- Debemos tener suficientes simulaciones de tal manera que las estimaciones sean
+  precisas y estables.
+- Queremos tener métodos y resúmenes informativos que nos ayuden diagnosticar
+  correctamente el desempeño de nuestas simulaciones.
 
+#+REVEAL: split
 En la ~práctica~ intentamos cumplir lo más posible estos objetivos. Debemos de
 tener un criterio para considerar cadenas de longitud finita y evaluar la calidad de las
 simulaciones.
@@ -172,7 +173,6 @@ simulaciones.
 #+REVEAL: split
 Primero estudiaremos diagnósticos generales para métodos que utilicen MCMC y
 después estudiaremos particularidades del método de simulación HMC.
-
 
 * Diagnósticos generales
 
