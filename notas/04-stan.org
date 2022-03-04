@@ -182,8 +182,6 @@ El código es:
   modelos_files <- "modelos/compilados/tutorial"
   ruta <- file.path("modelos/tutorial/beta-binomial.stan")
   modelo <- cmdstan_model(ruta, dir = modelos_files)
-
-
 #+end_src
 
 #+BEGIN_NOTES
@@ -326,6 +324,7 @@ observaciones $(Y_1, Y_2) = (2, 9)$ donde suponemos que $Y_j
 :reveal_background: #00468b
 :END:
 Utiliza el ambiente de ~Stan~ para encontrar el estimador de Máxima verosimillitud de los dos problemas que hemos trabajado. Es decir, el caso Beta-Binomial y Poisson-Gamma. 
+
 * Caso: escuelas
 
 Utilizaremos los datos de un estudio de desempeño de 8 escuelas
@@ -334,17 +333,12 @@ cada escuela ~y~ y los errores estándar reportados ~sigma~ la dispersión de lo
 resultados de dicha prueba.
 
 
-#+begin_src R :exports code
+#+begin_src R :exports code :results none
   ## Caso: escuelas --------------------------------------
   data <- tibble( id = factor(seq(1, 8)), 
                   y = c(28, 8, -3, 7, -1, 1, 18, 12), 
                   sigma = c(15, 10, 16, 11, 9, 11, 10, 18))
 #+end_src
-
-#+RESULTS:
-#+begin_src org
-#+end_src
-
 
 En este caso se utiliza un modelo normal para los resultados de cada escuela
 \begin{align}

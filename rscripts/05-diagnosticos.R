@@ -307,3 +307,28 @@ g.sigma <- cadenas.cantantes |>
            label = c("burn-in", "sub 1", "sub 2"))
 
 g.mu / g.sigma
+
+library(forecast)
+ggAcf(rgamma(1000,1,1)) + sin_lineas
+
+ggAcf(muestras.cantantes$mu) + sin_lineas +
+ggtitle("Series: mu (modelo cantantes)")
+
+library(posterior)
+c(mu    = ess_basic(muestras.cantantes$mu)/nrow(muestras.cantantes),
+  sigma = ess_basic(muestras.cantantes$sigma)/nrow(muestras.cantantes),
+  accept = mean(muestras.cantantes$V1))
+
+### Actualización del muestreador  -----------------------------
+set.seed(108727)
+objetivo <- ModeloNormal$new(cantantes$estatura_cm)
+muestreo <- ModeloNormalMultivariado$new(c(0,0), 3 * diag(2))
+mcmc <- crea_metropolis_hastings(objetivo, muestreo)
+
+muestras.cantantes <-  mcmc(5000, c(175, 7.5)) |>
+  as_tibble() |>
+  mutate(mu = V2, sigma = V3, iter = 1:n())
+
+c(mu    = ess_basic(muestras.cantantes$mu)/nrow(muestras.cantantes),
+  sigma = ess_basic(muestras.cantantes$sigma)/nrow(muestras.cantantes),
+  accept = mean(muestras.cantantes$V1))

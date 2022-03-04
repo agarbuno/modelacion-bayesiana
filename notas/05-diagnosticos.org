@@ -14,36 +14,13 @@
 #+REVEAL_EXTRA_CSS: ./mods.css
 #+REVEAL_PLUGINS: (notes)
 :END:
-:LATEX_PROPERTIES:
-#+OPTIONS: toc:nil date:nil author:nil tasks:nil
-#+LANGUAGE: sp
-#+LATEX_CLASS: handout
-#+LATEX_HEADER: \usepackage[spanish]{babel}
-#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
-#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
-#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
-#+LATEX_HEADER: \decimalpoint
-#+LATEX_HEADER:\usepackage{framed}
-#+LaTeX_HEADER: \usepackage{listings}
-#+LATEX_HEADER: \usepackage{fancyvrb}
-#+LATEX_HEADER: \usepackage{xcolor}
-#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
-#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
-#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
-#+LaTeX_HEADER: {}
-#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
-#+LaTeX_HEADER: {}
-#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
-#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
-#+EXPORT_FILE_NAME: ../docs/05-diagnosticos.pdf
-:END:
 #+EXCLUDE_TAGS: toc latex
 #+PROPERTY: header-args:R :session diagnosticos :exports both :results output org :tangle ../rscripts/05-diagnosticos.R :mkdirp yes :dir ../
 
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Diagnósticos MCMC.\\
 *Objetivo*. Estudiaremos diagnósticos típicos de métodos de simulación Markoviana (por Metropolis-Hastings o HMC) con el objetivo de poder identificar problemas y posibles soluciones para simulaciones deficientes. \\
-*Lectura recomendada*: Sección 11.4 de citep:Gelman2014a.
+*Lectura recomendada*: Para una revisión de los diagnósticos de MCMC busca la sección 11.4 de citep:Gelman2014a. El Capítulo 3 de citep:Cressie2015 tiene una revisión muy bonita de series de tiempo. 
 #+END_NOTES
 
 #+begin_src R :exports none :results none
@@ -76,6 +53,8 @@
   - [[#monitoreo-de-convergencia][Monitoreo de convergencia]]
     - [[#datos][Datos:]]
   - [[#monitoreo-de-mezcla-dentro-y-entre-cadenas][Monitoreo de mezcla dentro y entre cadenas]]
+  - [[#número-efectivo-de-simulaciones][Número efectivo de simulaciones]]
+- [[#referencias][Referencias]]
 :END:
 
 * Introducción
@@ -335,7 +314,7 @@ Denotamos por $x_i$ la estatura de tenores (cantantas de ópera). Asumimos un mo
     geom_line(alpha = .2) +geom_point(size = 4, alpha = .4) + 
     sin_lineas 
  #+end_src
-#+caption: Cadena de Markov con distribución objetivo la posterior. 
+#+caption: Cadena de Markov simulando de la posterior como distribución objetivo. 
  #+RESULTS:
  [[file:../images/cantantes-muestras.jpeg]]
 
@@ -584,7 +563,164 @@ recomienda incorprorar transformaciones que nos permitan generar un buen
 estimador. Puedes leer mas de esto aqui: citep:Vehtari2021a. 
 #+END_NOTES
 
-# * Referencias                                                         :latex:
+** Número efectivo de simulaciones
+
+Queremos que los recursos que hemos asignado a generar simulaciones sean
+representativos de la distribución objetivo. Si las $n$ simulaciones dentro de cada cadena en verdad son
+realizaciones independientes entonces la estimación de $B$ sería un estimador insesgado 
+de $\mathbb{V}(\phi)$.
+
+#+REVEAL: split
+En esta situación tendríamos $n \cdot m$ realizaciones de la distribución que
+queremos simular. Sin embargo, la correlación entre las muestras hacen que $B$
+sea mayor que $\mathbb{V}(\phi)$ en promedio.
+
+#+REVEAL: split
+Una manera para definir el tamaño efectivo de simulaciones es por medio del estudio
+del estimador
+\begin{align}
+\bar{\phi}_{\cdot\cdot} \approx \mathbb{E}(\phi)\,.
+\end{align}
+Del cual podemos derivar que
+$$\mathbb{V}(\bar{\phi}_{\cdot\cdot}) = \frac{\mathbb{V}(\phi)}{m\cdot n}\,.$$
+
+#+REVEAL: split
+El problema es que la correlación en las cadenas implica el denominador ($m\cdot n$)
+realmente sea una fracción del total de muestras, digamos $\lambda$. De tal forma que 
+el número efectivo de simulaciones es 
+$$N_{\mathsf{eff}} = \lambda \cdot (m \, n)\,,$$
+donde
+$$ \lambda = \frac{1}{\sum_{t = -\infty}^\infty \rho_t} = \frac{1}{1 + 2 \sum_{t = 1}^\infty  \rho_t}\,.$$
+
+
+#+REVEAL: split
+El término $\rho_t$ denota la *auto-correlación* con diferencia en $t$ unidades de tiempo.
+
+#+REVEAL: split
+~Definición (autocorrelación)~: La autocovarianza y autocorrelación de una serie temporal *estacionaria* $\{Y_t : t = 0, \ldots\}$ están definidas (respectivamente) como
+\begin{align}
+C_\tau = \mathbb{E}[(Y_{t+\tau} - \mu ) (Y_t - \mu)], \qquad \rho_\tau = \frac{\mathbb{E}[(Y_{t+\tau} - \mu ) (Y_t - \mu)]}{\sigma^2}\,.
+\end{align}
+#+REVEAL: split
+~Definición (estimador de autocorrelación)~: La función de autocorrelación se estima utilizando
+\begin{align}
+\hat C_\tau = \frac{1}{T- \tau} \sum_{t = 1}^{T - \tau} (Y_{t + \tau} - \hat \mu)( Y_{t} - \hat \mu), \qquad \hat \rho_\tau = \frac{\hat C_\tau}{\hat C_0}\,.
+\end{align}
+#+REVEAL: split
+~Definición (variograma)~: El variograma de una serie temporal *estacionaria* $\{Y_t : t = 0, \ldots\}$ está definido como
+\begin{align}
+V_\tau = \mathbb{E}[(Y_{t+\tau} - Y_t)^2]\,.
+\end{align}
+
+*Nota* que $V_\tau = C_0 - C_\tau$.
+
+#+REVEAL: split
+Regresando a nuestro contexto... para estimar $\rho_t$ partimos de nuestro estimador $\hat{\mathbb{V}}(\phi)^+;$
+y utilizamos el *variograma* $V_t$ para cada retraso $t$
+$$V_t = \frac{1}{m (n - t)} \sum_{j = 1}^m \sum_{i = t + 1}^n (\phi_{i,j} - \phi_{i-t, j})^2\,.$$
+
+#+REVEAL: split
+Utilizando la igualdad $\mathbb{E}(\phi_{i} - \phi_{i-t})^2 = 2 (1 - \rho_t) \mathbb{V}(\phi)$, podemos estimar
+$$\hat \rho_t = 1 - \frac{V_t}{2 \, \hat{\mathbb{V}}(\phi)^+} \, . $$
+
+#+BEGIN_NOTES
+La mayor dificultad que presenta el estimador es considerar *todos* los retrasos
+posibles. Eventualmente agotaremos la longitud de las cadenas para ello. Por
+otro lado, para $t$  eventualmente grande nuestros estimadores del variograma
+$V_t$ serán muy ruidosos (¿por qué?). En la práctica truncamos la serie de
+acuerdo a las observaciones citep:Geyer2002. La serie tiene la propiedad de que para
+cada par $\rho_{2 t} + \rho_{2 t + 1} > 0$. Por lo tanto, la serie se trunca 
+cuando observamos $\hat \rho_{2 t} + \hat \rho_{2 t + 1} < 0$ para dos retrasos
+sucesivos.
+#+END_NOTES
+
+Si denotamos por $T$ el *tiempo de paro*, el estimador para el número efectivo de
+simulaciones es
+$$\hat N_{\mathsf{eff}} = \frac{m \, n}{1 + 2 \sum_{t = 1}^T \hat  \rho_t}\,.$$
+
+#+REVEAL: split
+El *tamaño efectivo de simulaciones* nos ayuda a monitorear lo siguiente. Si las
+simulaciones fueran independientes $N_{\textsf{eff}}$ sería el número total de
+simulaciones; sin embargo, las simulaciones de MCMC suelen estar
+correlacionadas, de modo que cada iteración de MCMC es menos informativa que si
+fueran independientes.
+
+#+REVEAL: split
+Por ejemplo si graficaramos simulaciones independientes, esperaríamos valores de 
+autocorrelación chicos:
+
+#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/autocorrelacion-indep.jpeg :exports results :results output graphics file
+  library(forecast)
+  ggAcf(rgamma(1000,1,1)) + sin_lineas
+#+end_src
+
+#+RESULTS:
+[[file:../images/autocorrelacion-indep.jpeg]]
+
+#+REVEAL: split
+Sin embargo, los valores que simulamos tienen el siguiente perfil de
+autocorrelación:
+
+#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/autocorrelacion-metropolishastings.jpeg :exports results :results output graphics file
+  ggAcf(muestras.cantantes$mu) + sin_lineas +
+  ggtitle("Series: mu (modelo cantantes)")
+#+end_src
+
+#+RESULTS:
+[[file:../images/autocorrelacion-metropolishastings.jpeg]]
+
+
+#+REVEAL: split
+#+begin_src R :exports results :results org
+  library(posterior)
+  c(mu    = ess_basic(muestras.cantantes$mu)/nrow(muestras.cantantes),
+    sigma = ess_basic(muestras.cantantes$sigma)/nrow(muestras.cantantes),
+    accept = mean(muestras.cantantes$V1))
+#+end_src
+#+caption: Fracción $N_\mathsf{eff}/nm$ para la simulación de la posterior los cantantes de ópera. 
+#+RESULTS:
+#+begin_src org
+    mu  sigma accept 
+146.06 241.12   0.69
+#+end_src
+
+
+#+begin_src R :exports results :results org
+  ### Actualización del muestreador  -----------------------------
+  set.seed(108727)
+  objetivo <- ModeloNormal$new(cantantes$estatura_cm)
+  muestreo <- ModeloNormalMultivariado$new(c(0,0), 3 * diag(2))
+  mcmc <- crea_metropolis_hastings(objetivo, muestreo)
+
+  muestras.cantantes <-  mcmc(5000, c(175, 6.5)) |>
+    as_tibble() |>
+    mutate(mu = V2, sigma = V3, iter = 1:n())
+
+  c(mu    = ess_basic(muestras.cantantes$mu)/nrow(muestras.cantantes),
+    sigma = ess_basic(muestras.cantantes$sigma)/nrow(muestras.cantantes),
+    accept = mean(muestras.cantantes$V1))
+#+end_src
+#+caption: Fracción $N_\mathsf{eff}/nm$ para la simulación (calibrada) de la posterior los cantantes de ópera. 
+#+RESULTS:
+#+begin_src org
+    mu  sigma accept 
+ 0.088  0.146  0.380
+#+end_src
+
+#+REVEAL: split
+#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/autocorrelacion-metropolishastings-rechazo.jpeg :exports results :results output graphics file
+  ggAcf(muestras.cantantes$mu) + sin_lineas +
+    ggtitle("Series: mu (modelo cantantes)")
+#+end_src
+#+caption: Perfil de correlación para la simulación calibrada. 
+#+RESULTS:
+[[file:../images/autocorrelacion-metropolishastings-rechazo.jpeg]]
+
+
+* Referencias                                                         :latex:
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
