@@ -20,7 +20,7 @@
 
 * Contenido                                                             :toc:
 :PROPERTIES:
-:TOC:      :include all  :ignore this :depth 3
+:TOC:      :include all  :ignore this :depth 2
 :END:
 :CONTENTS:
 - [[#introducción][Introducción]]
@@ -47,22 +47,7 @@
 - [[#dudas][¿Dudas?]]
 - [[#contribuidores][Contribuidores]]
 - [[#bibliografía][Bibliografía]]
-- [[#plan-de-trabajo-0150][Plan de trabajo [0/15][0%]​]]
-  - [[#repaso][Repaso]]
-  - [[#integración-numerica][Integración numerica]]
-  - [[#mcmc-parte-1][MCMC (Parte 1)]]
-  - [[#mcmc-parte-2][MCMC (Parte 2)]]
-  - [[#hmc][HMC]]
-  - [[#diagnosticos][Diagnosticos]]
-  - [[#posterior-predictive-sampling][Posterior Predictive Sampling]]
-  - [[#simulation-based-calibration][Simulation Based calibration]]
-  - [[#posterior-and-prior-predictive-checks][Posterior and prior predictive checks]]
-  - [[#evaluation-and-cross-validation][Evaluation and cross validation]]
-  - [[#poststratification][Poststratification]]
-  - [[#decision-analysis][Decision Analysis]]
-  - [[#clustering][Clustering]]
-  - [[#item-response-theory][Item response theory]]
-  - [[#variational-inference][Variational inference]]
+  - [[#plan-de-trabajo-51533][Plan de trabajo [5/15][33%]​]]
 :END:
 
 * Introducción                                                       :github:
@@ -311,20 +296,28 @@ hacerlas si no cuentan con experiencia en: ~Git~, ~Github~, ~R~ y el ~tidyverse~
 bibliographystyle:abbrvnat
 bibliography:references.bib
 
-* Plan de trabajo [0/15][0%]                                         :github:
-** TODO Repaso 
-** TODO Integración numerica
-** TODO MCMC (Parte 1)
-** TODO MCMC (Parte 2)
-** TODO HMC
-** TODO Diagnosticos
-** TODO Posterior Predictive Sampling
-** TODO Simulation Based calibration
-** TODO Posterior and prior predictive checks
-** TODO Evaluation and cross validation
-** TODO Poststratification
-** TODO Decision Analysis
-** TODO Clustering
-** TODO Item response theory 
-** TODO Variational inference
+**** Plan de trabajo [5/15][33%]                                  :github:
+:PROPERTIES:
+:UNNUMBERED: notoc
+:END:
+***** DONE Repaso 
+CLOSED: [2022-03-04 Fri 19:42]
+***** DONE Integración numerica
+CLOSED: [2022-03-04 Fri 19:43]
+***** DONE MCMC (Parte 1)
+CLOSED: [2022-03-04 Fri 19:43]
+***** DONE MCMC (Parte 2)
+CLOSED: [2022-03-04 Fri 19:43]
+***** DONE HMC
+CLOSED: [2022-03-04 Fri 19:43]
+***** NEXT Diagnosticos
+***** TODO Posterior Predictive Sampling
+***** TODO Simulation Based calibration
+***** TODO Evaluation and cross validation
+***** TODO Posterior and prior predictive checks
+***** TODO Poststratification
+***** TODO Decision Analysis
+***** TODO Clustering
+***** TODO Item response theory 
+***** TODO Variational inference
   
