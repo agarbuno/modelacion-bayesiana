@@ -295,7 +295,7 @@ hacerlas si no cuentan con experiencia en: ~Git~, ~Github~, ~R~ y el ~tidyverse~
 bibliographystyle:abbrvnat
 bibliography:references.bib
 
-**** Plan de trabajo [5/15][33%]                                  :noexport:
+**** COMMENT Plan de trabajo [5/15][33%]                        :noexport:
 :PROPERTIES:
 :UNNUMBERED: notoc
 :END:
