@@ -47,6 +47,8 @@
 - [[#dudas][¿Dudas?]]
 - [[#contribuidores][Contribuidores]]
 - [[#bibliografía][Bibliografía]]
+  - [[#multi-armed-bandits][Multi-Armed Bandits]]
+  - [[#sir-modeling][SIR modeling]]
 :END:
 
 * Introducción                                                       :github:
@@ -295,7 +297,7 @@ hacerlas si no cuentan con experiencia en: ~Git~, ~Github~, ~R~ y el ~tidyverse~
 bibliographystyle:abbrvnat
 bibliography:references.bib
 
-* COMMENT Plan de trabajo [5/15][33%]                              :noexport:
+* COMMENT Plan de trabajo [5/17][29%]                              :noexport:
 :PROPERTIES:
 :UNNUMBERED: notoc
 :END:
@@ -319,4 +321,9 @@ CLOSED: [2022-03-04 Fri 19:43]
 ** TODO Clustering
 ** TODO Item response theory 
 ** TODO Variational inference
-  
+
+* COMMENT Posibles temas 
+** TODO Multi-Armed Bandits
+Tomar el caso en [Grenable]. 
+** TODO SIR modeling 
+Tomar el caso en [Grenable, Stan tutorial]. 
