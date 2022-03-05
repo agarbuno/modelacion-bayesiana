@@ -47,7 +47,6 @@
 - [[#dudas][¿Dudas?]]
 - [[#contribuidores][Contribuidores]]
 - [[#bibliografía][Bibliografía]]
-  - [[#plan-de-trabajo-51533][Plan de trabajo [5/15][33%]​]]
 :END:
 
 * Introducción                                                       :github:
@@ -296,7 +295,7 @@ hacerlas si no cuentan con experiencia en: ~Git~, ~Github~, ~R~ y el ~tidyverse~
 bibliographystyle:abbrvnat
 bibliography:references.bib
 
-**** Plan de trabajo [5/15][33%]                                  :github:
+**** Plan de trabajo [5/15][33%]                                  :noexport:
 :PROPERTIES:
 :UNNUMBERED: notoc
 :END:
