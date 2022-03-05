@@ -47,8 +47,6 @@
 - [[#dudas][¿Dudas?]]
 - [[#contribuidores][Contribuidores]]
 - [[#bibliografía][Bibliografía]]
-  - [[#multi-armed-bandits][Multi-Armed Bandits]]
-  - [[#sir-modeling][SIR modeling]]
 :END:
 
 * Introducción                                                       :github:
@@ -322,7 +320,7 @@ CLOSED: [2022-03-04 Fri 19:43]
 ** TODO Item response theory 
 ** TODO Variational inference
 
-* COMMENT Posibles temas
+* COMMENT Posibles temas                                           :noexport:
 :PROPERTIES:
 :UNNUMBERED: notoc
 :END:
