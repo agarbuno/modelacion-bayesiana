@@ -322,7 +322,10 @@ CLOSED: [2022-03-04 Fri 19:43]
 ** TODO Item response theory 
 ** TODO Variational inference
 
-* COMMENT Posibles temas 
+* COMMENT Posibles temas
+:PROPERTIES:
+:UNNUMBERED: notoc
+:END:
 ** TODO Multi-Armed Bandits
 Tomar el caso en [Grenable]. 
 ** TODO SIR modeling 
