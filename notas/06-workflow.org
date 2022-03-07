@@ -1117,7 +1117,7 @@ flexible. Lo cual especificamos en el bloque de modelo
 Podríamos ajustar como lo hemos hecho antes, pero en este caso si tenemos
 problemas serios en el ajuste.
 
-#+begin_src R :exports code :results org
+#+begin_src R :exports results :results org
   ruta <- file.path("modelos/golf/fuerza-normal-plano.stan")
   modelo <- cmdstan_model(ruta, dir = modelos_files)
 
