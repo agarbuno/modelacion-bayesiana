@@ -325,6 +325,8 @@ CLOSED: [2022-03-04 Fri 19:43]
 :UNNUMBERED: notoc
 :END:
 ** TODO Multi-Armed Bandits
-Tomar el caso en [Grenable]. 
+Tomar el caso en [[https://www.smartly.io/blog/tutorial-how-we-productized-bayesian-revenue-estimation-with-stan][Smartly.io]] o también [[https://www.linkedin.com/pulse/tutorial-how-we-productized-bayesian-revenue-estimation-markus-ojala/][aqui]]. Comentarios por [[https://statmodeling.stat.columbia.edu/2018/01/21/smartly-io-productized-bayesian-revenue-estimation-stan/][Andrew Gelman]]. 
 ** TODO SIR modeling 
 Tomar el caso en [Grenable, Stan tutorial]. 
+
+Referencia muy general [[https://michaeldewittjr.com/dewitt_blog/posts/2020-08-28-bayesian-sir/][Michael DeWitt: Bayesian SIR]]. El caso mas completo aqui: [[https://mc-stan.org/users/documentation/case-studies/boarding_school_case_study.html][Bayesian workflow for disease transmission modeling in Stan]]. Referencia de Grenable: [[https://www.generable.com/post/fitting-a-basic-sir-model-in-stan][Fitting a Basic SIR Model in Stan]]. 
