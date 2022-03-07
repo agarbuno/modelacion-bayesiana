@@ -1,0 +1,1321 @@
+#+TITLE: EST-46115: Modelación Bayesiana
+#+AUTHOR: Prof. Alfredo Garbuno Iñigo
+#+EMAIL:  agarbuno@itam.mx
+#+DATE: ~Flujo de trabajo~
+#+STARTUP: showall
+:REVEAL_PROPERTIES:
+#+LANGUAGE: es
+#+OPTIONS: num:nil toc:nil timestamp:nil
+#+REVEAL_REVEAL_JS_VERSION: 4
+#+REVEAL_THEME: night
+#+REVEAL_SLIDE_NUMBER: t
+#+REVEAL_HEAD_PREAMBLE: <meta name="description" content="Modelación Bayesiana">
+#+REVEAL_INIT_OPTIONS: width:1600, height:900, margin:.2
+#+REVEAL_EXTRA_CSS: ./mods.css
+#+REVEAL_PLUGINS: (notes)
+:END:
+:LATEX_PROPERTIES:
+#+OPTIONS: toc:nil date:nil author:nil tasks:nil
+#+LANGUAGE: sp
+#+LATEX_CLASS: handout
+#+LATEX_HEADER: \usepackage[spanish]{babel}
+#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
+#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
+#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
+#+LATEX_HEADER: \decimalpoint
+#+LATEX_HEADER:\usepackage{framed}
+#+LaTeX_HEADER: \usepackage{listings}
+#+LATEX_HEADER: \usepackage{fancyvrb}
+#+LATEX_HEADER: \usepackage{xcolor}
+#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
+#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
+#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
+#+LaTeX_HEADER: {}
+#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
+#+LaTeX_HEADER: {}
+#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
+#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
+#+EXPORT_FILE_NAME: ../docs/06-workflow.pdf
+:END:
+#+PROPERTY: header-args:R :session workflow :exports both :results output org :tangle ../rscripts/06-workflow.R :mkdirp yes :dir ../
+#+EXCLUDE_TAGS: toc
+
+#+BEGIN_NOTES
+*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Flujo de trabajo bayesiano.\\
+*Objetivo*. Que veremos.\\
+*Lectura recomendada*: Leer Capítulo 9 de citep:Martin2021 y el artículo citep:Gelman2020. 
+#+END_NOTES
+
+#+begin_src R :exports none :results none
+  ## Setup --------------------------------------------
+  library(tidyverse)
+  library(patchwork)
+  library(scales)
+
+  ## Cambia el default del tamaño de fuente 
+  theme_set(theme_linedraw(base_size = 25))
+
+  ## Cambia el número de decimales para mostrar
+  options(digits = 2)
+
+  sin_lineas <- theme(panel.grid.major = element_blank(),
+                      panel.grid.minor = element_blank())
+  color.itam  <- c("#00362b","#004a3b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f", NA)
+
+  sin_leyenda <- theme(legend.position = "none")
+  sin_ejes <- theme(axis.ticks = element_blank(), axis.text = element_blank())
+
+#+end_src
+
+#+begin_src R :exports none :results none
+  ## Librerias para modelacion bayesiana
+  library(cmdstanr)
+  library(posterior)
+  library(bayesplot)
+#+end_src
+
+  
+* Contenido                                                             :toc:
+:PROPERTIES:
+:TOC:      :include all  :ignore this :depth 3
+:END:
+:CONTENTS:
+- [[#introducción][Introducción]]
+- [[#ejemplo-tiempo-de-respuesta-a-reclamaciones][Ejemplo: tiempo de respuesta a reclamaciones]]
+- [[#ejemplo-tiros-de-golf][Ejemplo: tiros de golf]]
+  - [[#modelo-logístico][Modelo logístico]]
+  - [[#análisis-conceptual][Análisis conceptual]]
+  - [[#angulo-de-tiro][Angulo de tiro]]
+  - [[#ajuste-modelo][Ajuste modelo]]
+  - [[#nuevo-conjunto-de-datos][Nuevo conjunto de datos]]
+  - [[#incorporando-ángulo-de-tiro][Incorporando ángulo de tiro]]
+  - [[#otro-modelo][Otro modelo]]
+    - [[#tarea][Tarea:]]
+- [[#mensaje][Mensaje]]
+:END:
+
+* Introducción 
+
+El desarrollo de algoritmos de muestreo nos permiten ~explorar computacionalmente~ una distribución de probabilidad de interés $\pi(\cdot)$. En el contexto bayesiano $\pi(\cdot)$ denota la distribución (previa o posterior)  para un problema de inferencia, donde  queremos reportar resúmenes
+\begin{align}
+\pi(f) = \mathbb{E}[f(\theta)] = \int_{\Theta} f(\theta) \, \pi(\theta | y) \, \text{d}\theta\,.
+\end{align}
+
+#+BEGIN_NOTES
+Para resolver un problema de modelado en el contexto bayesiano debemos de tener en mente los distintos componentes del ~modelo~ /y/ las ~herramientas computacionales~.
+
+- Los datos con los que contamos (o podemos contar), $y$.
+- Nuestra abstracción del modelo generativo, $\pi(y|\theta)$.
+- Nuestra matematización de nuestro conocimiento sobre el problema, $\pi(\theta)$.
+- Los resúmenes que reportaremos, $f(\theta)$ ó $f(\hat y)$.
+- El mecanismo computacional para resolver integrales,  $\int_\Theta \, \cdot \, \pi(\theta|y) \, \text{d}\theta$. 
+#+END_NOTES
+
+#+REVEAL: split
+Exploraremos la idea general de un marco de trabajo bayesiano para después enfocarnos en cada uno de los componentes del proceso. Esto con el objetivo de entender los pasos de este proceso iterativo.
+
+En general cuenta con tres pasos:
+1. Inferencia.
+2. Exploración y mejora de modelos.
+3. Comparación de modelos. 
+
+#+BEGIN_NOTES
+En este contexto no necesariamente queremos escoger el mejor modelo. Lo que buscamos es generar un mejor entendimiento del modelo y esto lo podemos lograr al evaluar las bondades de uno sobre otro. El computo asociado con modelación bayesiana es muy complejo y puede tomar varias iteraciones en lo que estamos seguros de lo que esta realizando. Es decir, nos puede tomar varios pasos estar seguros que podemos confiar en nuestro modelo en relación a los datos que estamos analizando.
+#+END_NOTES
+
+#+REVEAL: split
+Lo importante es considerar la ~pregunta objetivo~. Es decir, encontrar la pregunta que esperamos nuestro análisis pueda resolver. Por supuesto en el camino encontraremos preguntas sobre los datos, los modelos, la inferencia. Tener en mente la respuesta que queremos proveer nos permitirá definir muchos de los componentes del flujo que seguirá nuestro trabajo. 
+
+#+REVEAL: split
+Es decir, nos permitirá acotar la colección de modelos apropiados, cómo escoger previas, qué esperar de la distribución posterior, cómo seleccionar entre modelos, qué reportar, cómo resumir la información de nuestro modelo, qué conclusiones comunicar.
+
+#+begin_quote
+Do not be the Data Scientist and statistician that immediately reaches for Bayesian Methods, Neural Networks, Distributed Computing Clusters, or other complex tools before truly understanding the need
+---citet:Martin2021.
+#+end_quote
+
+#+REVEAL: split
+#+caption: Tomada de [[https://twitter.com/bayesdose][@BayesDose]], Generable. 
+#+attr_html: :width 700 :align center
+file:../images/workflow.jpeg
+
+* Ejemplo: tiempo de respuesta a reclamaciones
+
+* Ejemplo: tiros de golf
+
+#+BEGIN_NOTES
+Este ejemplo lo hemos tomado de citep:Gelman2019. El objetivo de este *no* es
+volvernos expertos en modelar tiros de golf. El objetivo es *conocer de un
+proceso iterativo para construcción y validación de modelos*. 
+#+END_NOTES
+
+
+Queremos ~entender~ y ~modelar~ la *probabilidad de éxito de /putts* de Golf (/putts/:
+tiros relativamente cerca del hoyo que buscan que la pelota ruede al hoyo o muy
+cerca de él). Asi como entender la dependencia entre el éxito y la distancia del
+tiro. Como conclusiones quisiéramos inferir qué tan precisos son los
+profesionales en sus tiros citep:Gelman2002a. 
+
+#+REVEAL: split
+~Definición (datos)~: El espacio de observaciones que esperaríamos son del tipo $(x, y)$ donde $x$ es
+la distancia del /putt/ y $y$ indica si se logró o no. Sin embargo, los datos que
+tenemos son agregados: para cada distancia aproximada $x_j$ tendremos un conteo
+de intentos $n_j$ y éxitos $y_j$ sobre los tiros de los jugadores
+profesionales. En total las distancias han sido redondeadas y obtenemos $J = 19$
+distancias distintas.
+
+#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/golf-observaciones.jpeg :exports results :results output graphics file
+  datos <- read_delim("datos/golf.csv", delim = " ")
+  datos <- datos |> 
+    mutate(x = round(30.48  * x, 0), 
+           se = sqrt((y/n)*(1-y/n)/n))
+
+  g_datos <- datos |> 
+    ggplot(aes(x = x, y = y/n)) + 
+      geom_linerange(aes(ymin = y/n - 2 * se, ymax = y/n + 2*se)) + 
+      geom_point(colour = "steelblue", alpha = 1.) + 
+      ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito") + 
+      ggtitle("Datos sobre putts en golf profesional") + sin_lineas
+
+  g_datos
+#+end_src
+
+#+RESULTS:
+[[file:../images/golf-observaciones.jpeg]]
+
+** Modelo logístico 
+
+Un primer intento es modelar la probabilidad de éxito a través de una regresión
+logística.
+$$y_j \sim \mathsf{Binomial}\left(n_j, \text{logit}^{-1}(a + b x_j)\right),$$
+para cada $j = 1, \ldots, J$. Este modelo lo escribimos en ~Stan~ como sigue
+
+#+caption: Modelo logístico para tasa de éxito de tiros de golf. 
+#+begin_src stan :tangle ../modelos/golf/modelo-logistico.stan
+  data {
+      int J;
+      int n[J];
+      vector[J] x;
+      int y[J];
+  }
+  parameters {
+      real a;
+      real b;
+  }
+  model {
+      y ~ binomial_logit(n, a*x + b);
+  }
+#+end_src
+
+Notemos que no hemos especificado una distribución inicial explícita para
+nuestros parámetros. Por default ~Stan~ está incorporando una distribución
+*plana* en todo el espacio $(a,b) \in \mathbb{R}^2$. Podríamos debatir si esto
+es aceptable y las consecuencias de incluir una distribución inicial de esta
+naturaleza. 
+
+#+begin_src R :exports code :results none
+  modelos_files <- "modelos/compilados/golf"
+  ruta <- file.path("modelos/golf/modelo-logistico.stan")
+  modelo <- cmdstan_model(ruta, dir = modelos_files)
+#+end_src
+
+Utilicemos la siguiente función para evitar /overhead/ en el ajuste del modelo. 
+
+#+begin_src R :exports none :results none
+  ajustar_modelo <- function(modelo, datos, iter_sampling = 1000, iter_warmup = 1000, seed = 2210){ 
+    ajuste <- modelo$sample(data = datos, 
+                            seed = seed,
+                            iter_sampling = iter_sampling, 
+                            iter_warmup = iter_sampling,
+                            refresh = 0, 
+                            show_messages = FALSE)
+    ajuste
+  }
+#+end_src
+
+#+begin_src R :exports results :results org
+  data_list <- c(datos, list("J" = nrow(datos)))
+  ajuste <- ajustar_modelo(modelo, data_list)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+Running MCMC with 4 sequential chains...
+
+Chain 1 Rejecting initial value:
+Chain 1   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 1   Stan can't start sampling from this initial value.
+Chain 1 Rejecting initial value:
+Chain 1   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 1   Stan can't start sampling from this initial value.
+Chain 1 finished in 1.5 seconds.
+Chain 2 Rejecting initial value:
+Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 2   Stan can't start sampling from this initial value.
+Chain 2 Rejecting initial value:
+Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 2   Stan can't start sampling from this initial value.
+Chain 2 Rejecting initial value:
+Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 2   Stan can't start sampling from this initial value.
+Chain 2 Rejecting initial value:
+Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 2   Stan can't start sampling from this initial value.
+Chain 2 Rejecting initial value:
+Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 2   Stan can't start sampling from this initial value.
+Chain 2 Rejecting initial value:
+Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 2   Stan can't start sampling from this initial value.
+Chain 2 Rejecting initial value:
+Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 2   Stan can't start sampling from this initial value.
+Chain 2 Rejecting initial value:
+Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 2   Stan can't start sampling from this initial value.
+Chain 2 Rejecting initial value:
+Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 2   Stan can't start sampling from this initial value.
+Chain 2 finished in 0.1 seconds.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 Rejecting initial value:
+Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 3   Stan can't start sampling from this initial value.
+Chain 3 finished in 0.1 seconds.
+Chain 4 Rejecting initial value:
+Chain 4   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 4   Stan can't start sampling from this initial value.
+Chain 4 finished in 0.1 seconds.
+
+All 4 chains finished successfully.
+Mean chain execution time: 0.5 seconds.
+Total execution time: 2.2 seconds.
+#+end_src
+
+A pesar de los problemas en la semillas iniciales parece ser que no hay problema en muestrear del modelo posterior. 
+
+#+begin_src R :exports results :results org
+  ajuste$summary() |> as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+  variable     mean   median      sd     mad       q5      q95 rhat ess_bulk
+1     lp__ -4.4e+05 -4.4e+05 9.6e-01 0.0e+00 -4.4e+05 -4.4e+05    1      970
+2        a -8.1e-03 -8.1e-03 1.5e-05 1.5e-05 -8.1e-03 -8.1e-03    1      850
+3        b  2.8e+00  2.8e+00 4.4e-03 4.4e-03  2.8e+00  2.8e+00    1      698
+  ess_tail
+1       NA
+2     1204
+3      763
+#+end_src
+
+Podemos explorar las trayectorias marginales. Todo indica que el ajuste está bien y no hay problemas aparentes con el modelo. 
+
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/golf-trayectorias-logistico.jpeg :exports results :results output graphics file
+  muestras <- tibble(posterior::as_draws_df(ajuste$draws(c("a", "b"))))
+  muestras |>
+    pivot_longer(cols = c(a, b), names_to = 'parameter') |> 
+    mutate(Chain = as.factor(.chain)) |> 
+    ggplot(aes(x = .iteration, y = value)) + 
+    geom_line(aes(group = .chain, color = Chain)) + 
+    facet_wrap(~parameter, ncol = 1, scales = 'free', strip.position="right") + 
+    scale_color_viridis_d(option = 'plasma')+ sin_lineas
+#+end_src
+
+#+RESULTS:
+[[file:../images/golf-trayectorias-logistico.jpeg]]
+
+/Fun fact/: como exploraron en la tarea podemos extraer los puntos que maximizan la distribución posterior, ¿en serio?
+
+#+begin_src R :exports code :results org
+  params_map <- modelo$optimize(data = data_list, seed = 108)
+  params_map <- params_map$summary() |>
+    pivot_wider(values_from = estimate, names_from = variable)
+  params_map |> as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+Initial log joint probability = -399026 
+    Iter      log prob        ||dx||      ||grad||       alpha      alpha0  # evals  Notes  
+Error evaluating model log probability: Non-finite function evaluation. 
+Error evaluating model log probability: Non-finite function evaluation. 
+Error evaluating model log probability: Non-finite function evaluation. 
+Error evaluating model log probability: Non-finite function evaluation. 
+Error evaluating model log probability: Non-finite function evaluation. 
+Error evaluating model log probability: Non-finite function evaluation. 
+Error evaluating model log probability: Non-finite function evaluation. 
+Error evaluating model log probability: Non-finite function evaluation. 
+Error evaluating model log probability: Non-finite function evaluation. 
+Error evaluating model log probability: Non-finite function evaluation. 
+Error evaluating model log probability: Non-finite function evaluation. 
+Error evaluating model log probability: Non-finite function evaluation. 
+Error evaluating model log probability: Non-finite function evaluation. 
+      24       -3020.5   0.000264238       8.23497           1           1       47    
+Optimization terminated normally:  
+  Convergence detected: relative gradient magnitude is below tolerance 
+Finished in  0.2 seconds.
+   lp__       a   b
+1 -3020 -0.0084 2.2
+#+end_src
+
+Podríamos explorar un gráfico de dispersión para visualizar la correlación
+posterior de nuestros parámetros y ubicar el valor que maximiza la
+pseudo-posterior.
+
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/golf-logistico-dispersion.jpeg :exports results :results output graphics file
+  muestras |> 
+    ggplot(aes(x = a, y = b)) + 
+    geom_point() + 
+    geom_point(data = params_map, aes(x = a, y = b),
+               color = 'salmon', shape = 4, stroke = 2) + 
+    ggtitle('Muestras de la posterior')+ sin_lineas
+#+end_src
+
+#+RESULTS:
+[[file:../images/golf-logistico-dispersion.jpeg]]
+
+
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/golf-logistico-predictivo.jpeg :exports results :results output graphics file
+  logit <- qlogis
+  invlogit <- plogis
+
+  modelo_logistico <- function(a, b){
+    x <- seq(0, 1.1 * max(datos$x), length.out = 50)
+    tibble(x = x, y = invlogit(a *x + b))
+  }
+
+  curvas_regresion <- muestras |> 
+    mutate(curva = map2(a, b, modelo_logistico)) |> 
+    select(-a, -b) |> 
+    unnest(curva) |> 
+    group_by(x) |> 
+    summarise(mediana = median(y), 
+              q_low = quantile(y, .005), 
+              q_hi = quantile(y, .995), 
+              .groups = 'drop')
+
+  g_logistico <- datos |> 
+    ggplot(aes(x = x, y = y/n)) + 
+    geom_linerange(aes(ymin = y/n - 2 * se, ymax = y/n + 2*se)) + 
+    geom_point(colour = "steelblue", alpha = 1.) + 
+    geom_line(data = curvas_regresion, aes(x = x, y = mediana)) +
+    geom_ribbon(data = curvas_regresion, aes(x = x, ymin = q_low, ymax = q_hi), 
+                alpha = .2, inherit.aes = FALSE) +
+    ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito") + 
+    ggtitle("Regresion logística ajustada")+ sin_lineas
+
+  muestras_logistico <- muestras
+  g_logistico
+
+#+end_src
+
+#+RESULTS:
+[[file:../images/golf-logistico-predictivo.jpeg]]
+
+La línea solida representa la mediana de la curva de regresión calculada entre
+las muestras de la posterior obtenidas. La región sombreada corresponde a la
+banda del $99\%$ de credibilidad calculada a partir del mismo conjunto de
+muestras.
+
+El modelo es razonable, en el sentido de que los parámetros tienen los valores
+que esperaríamos. La pendiente del modelo de regresión logística es negativa, lo
+cual interpretamos como la falta de precisión del tirador mientras mas alejado
+del hoyo. Mientras que para el caso base ($x = 0$) el modelo da una probabilidad
+de éxito relativamente alta.
+
+En las siguientes secciones ilustraremos el procedimiento para complementar el
+modelo.
+
+** Análisis conceptual
+
+Podemos pensar en cada intento que hace un golfista como una prueba
+independiente que puede resultar en éxito o fracaso. El modelo anterior estable
+la probabilidad de éxito como una función no lineal de la distancia.
+
+El problema es considerablemente complicado conceptualmente (citep:Penner2002)
+si consideramos todas las fuentes de variación: ángulo de tiro, potencia de
+tiro, declive en /greens/ y así sucesivamente.
+
+Los supuestos que criticaremos son los siguientes. Seguiremos haciendo la
+simplificación de superficie plana, pero consideramos dos parámetros para el
+tiro con distintas condiciones de éxito:
+
+1. El ángulo del tiro.
+2. La velocidad con la que la pelota llega (o no llega) al hoyo.
+
+Los radios de una pelota de golf y el hoyo (en centímetros) son de
+#+begin_src R :exports results :results org
+  radios <- tibble(pelota = (1.68/2 * 2.54) |> round(1), 
+                    hoyo  = (4.25/2 * 2.54) |> round(1))
+  radios |> as.data.frame()
+#+end_src
+#+caption: Radios para pelota y hoyo en una configuración de golf profesional. 
+#+RESULTS:
+#+begin_src org
+  pelota hoyo
+1    2.1  5.4
+#+end_src
+
+Supondremos por el momento que los /greens/ de golf (áreas cerca del hoyo) 
+son perfectamente planos (lo cual no es cierto, pero refinaremos después),
+de modo que el éxito depende de:
+
+1. Tirar la pelota con un ángulo suficientemente cercano a cero con respecto a
+la línea que va del centro de la pelota al centro del hoyo.
+2. Tirar la pelota con una velocidad suficiente para que llegue al hoyo pero no
+tan alta que vuele por encima del hoyo.
+
+Mejores datos de los tipos de fallo sería útil, pero por el momento no los
+tenemos disponibles.
+
+** Angulo de tiro
+
+Supongamos que la distancia del centro de la pelota al centro del hoyo es $x.$
+Idealmente ésta es la trayectoria que el golfista tendría que ejecutar. Sin
+embargo, el tiro puede ser inexacto y denotamos por $\theta$ el ángulo del tiro
+realizado. El tiro es exitoso cuando el angulo de tiro satisface
+\begin{align}
+|\theta| < \tan^{-1}\left(\frac{R - r}{x}\right)\,.
+\end{align}
+Incorporamos un esquema de esta situación a continuación.
+
+#+caption: Esquema de tiro y condiciones para un tiro exitoso. 
+#+HEADER: :width 1200
+file:../images/tiro-golf.jpeg
+
+*Observación*: Aqui hemos hecho un supuesto importante. La ~distancia reportada~ en
+los datos, la cual hemos denotado por $x$, es la distancia entre el centro de la
+pelota y el centro del hoyo. ¿Cómo cambiaría nuestra condición de éxito si
+suponemos que la distancia que viaja la pelota es la registrada?
+
+Para nuestro problema, la condición de éxito es
+\begin{align}
+|\theta| < \tan^{-1}\left( \frac{3.3}{x} \right)\,.
+\end{align}
+Mejores golfistas tendrán mejor control sobre $\theta$, y conforme
+$x$ es más grande, la probabilidad de tener éxito baja:
+
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/golf-conceptual-pexito.jpeg :exports results :results output graphics file
+  tibble(x = seq(10, 1500, 1)) |> 
+    mutate(theta = (180 / pi) * atan(3.3 / x)) |> 
+  ggplot(aes(x, theta)) + geom_line() +
+    xlab("Distancia (cm)") +
+    ylab(expression(paste("Desviación máxima |", theta,"|"))) +
+    labs(subtitle = "Desviación máxima permitida para tener éxito a distintas distancias") +
+    scale_y_log10()+ sin_lineas
+#+end_src
+
+#+RESULTS:
+[[file:../images/golf-conceptual-pexito.jpeg]]
+
+*Observación.* Esta curva puede variar dependiendo del jugador, pero vamos a
+modelar el conjunto de tiros de jugadores profesionales. Suponemos homogeneidad,
+misma que podríamos checar con datos desagregados por jugador. Estos datos
+podrían tener sobre-representación de tiradores malos (pues quizá hacen más
+tiros).
+
+Para modelar $\theta$ de manera probabilista asumimos una distribución Gaussiana
+con media 0 y desviación estándar $\sigma$. Este modelo codifica nuestra
+suposición de que los jugadores en promedio tirarán en la dirección correcta,
+sin embargo puede haber diversos factores que afectarán este resultado.
+
+Siguiendo esta distribución, la probabilidad de éxito se calcula como 
+\begin{align}
+\mathbb{P}\left\{\,  |\theta| <  \tan^{-1}\left( \frac{R - r}{x} \right)\right\} = 2 \, \Phi\left[ \frac{\tan^{-1}((R - r)/x)}{\sigma}\right] - 1\,,
+\end{align}
+donde $\Phi$ es la función de acumulación de una Normal estándar.
+
+El parámetro $\sigma$ controla la desviación de los tiros en línea recta. Por lo
+tanto afecta la probabilidad de éxito conforme mas lejos estemos y más grande
+sea su valor. El gráfico siguiente muestra que si el golfista tiene mejor control
+sobre su tiro, entonces mayor será su resistencia a encontrarse lejos. 
+
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/golf-conceptual-pexito-vars.jpeg :exports results :results output graphics file
+  curva_angulo <- function(sigma){
+    x <- seq(0, 650, by = .5)
+    R.diff <- radios |> summarise(diff = hoyo - pelota) |> pull(diff)
+    tibble(x = x, y = 2 * pnorm( (180/pi) * atan(R.diff/x)/sigma) - 1)
+  }
+
+  tibble(sigma = 2**seq(0,5)) |> 
+    mutate(curva = map(sigma, curva_angulo), 
+           Sigma = as.factor(sigma)) |> 
+    unnest(curva) |> 
+    ggplot(aes(x = x, y = y)) + 
+      geom_line(aes(group = sigma, color = Sigma)) + 
+      scale_color_viridis_d() + ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Probabilidad de éxito") + 
+    ggtitle(expression(paste("Probabilidad de éxito para diferentes valores de ",
+                             sigma," (en grados ", ~degree, ").")), )+ sin_lineas +
+    theme(plot.title = element_text(size = 15))
+#+end_src
+
+#+RESULTS:
+[[file:../images/golf-conceptual-pexito-vars.jpeg]]
+
+
+Ahora veamos las distintas realizaciones de tiros a 1 metro de distancia bajo
+distintos valores de $\sigma$. Nota que estamos /traduciendo/ el impacto que tiene nuestro
+modelo previo en términos de observaciones tangibles del modelo. 
+
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/golf-conceptual-tiros.jpeg :exports results :results output graphics file
+  simula_tiros <- function(sigma){
+    distancia  <- 1
+    n_muestras <- 250
+    angulos_tiro <- (pi/180) * rnorm(n_muestras, 0, sigma)
+    tibble(x = distancia * cos(angulos_tiro), 
+           y = distancia * sin(angulos_tiro))
+  }
+
+  tibble(sigma_grados = c(1, 8, 32, 64)) |> 
+    mutate(tiros = map(sigma_grados, simula_tiros)) |> 
+    unnest(tiros) |> 
+    ggplot(aes(x = x, y = y)) + 
+      geom_point() +
+      geom_segment(aes(x = 0, y = 0, xend = x, yend = y), alpha = .1) + 
+      geom_point(aes(x = 0, y = 0), color = 'red') + 
+      facet_wrap(~sigma_grados, ncol = 4) + 
+      ylab("") + xlab("") + ggtitle("Posiciones finales de tiro")+ sin_lineas +
+    coord_equal()
+#+end_src
+
+#+RESULTS:
+[[file:../images/golf-conceptual-tiros.jpeg]]
+
+Notamos que los tiros en general tienen un buen comportamiento. Posiblemente
+valores de tiros con una desviación de $60^\circ$ dan lugar a tiros que no
+tienen sentido. Este punto lo veremos más adelante en caso de que tengamos que
+refinar. Por el momento, el modelo queda como sigue
+\begin{align}
+p_j & =  2 \, \Phi\left( \frac{\tan^{-1}((R - r)/x_j)}{\sigma}\right) - 1\,,\\
+y_j &\sim \mathsf{Binomial}\left(n_j, p_j\right)\,, 
+\end{align}
+para $j = 1, \ldots, J$. 
+
+#+BEGIN_NOTES
+La gran diferencia del modelo es asumir una relación distinta para la
+probabilidad de éxito de los experimentos binomiales. Este modelo se ha inferido
+de primeros principios y un poco de geometría.
+#+END_NOTES
+
+** Ajuste modelo
+
+El modelo en ~Stan~ queda como se muestra. Nota que utilizamos la función de acumulación de una normal estándar [[https://mc-stan.org/docs/2_29/functions-reference/Phi-function.html][Phi]]. 
+
+#+caption: Modelo con ángulo de tiro y su desviación estándar. 
+#+begin_src stan :eval never :tangle ../modelos/golf/modelo-angulo.stan
+  data {
+      int J;
+      int n[J];
+      vector[J] x;
+      int y[J];
+      real r;
+      real R;
+  }
+  transformed data {
+      vector[J] threshold_angle = atan((R-r) ./ x);
+  }
+  parameters {
+      real<lower=0> sigma;
+  }
+  model {
+      vector[J] p = 2*Phi(threshold_angle / sigma) - 1;
+      y ~ binomial(n, p);
+  }
+  generated quantities {
+      real sigma_degrees = sigma * 180 / pi();
+  }
+#+end_src
+
+#+begin_src R :exports results :results org
+  data_list$r = radios$pelota
+  data_list$R = radios$hoyo
+
+  ruta <- file.path("modelos/golf/modelo-angulo.stan")
+  modelo <- cmdstan_model(ruta, dir = modelos_files)
+
+  ajuste <- ajustar_modelo(modelo, data_list)
+  ajuste$summary() |> as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+Model executable is up to date!
+Running MCMC with 4 sequential chains...
+
+Chain 1 finished in 0.0 seconds.
+Chain 2 finished in 0.0 seconds.
+Chain 3 finished in 0.0 seconds.
+Chain 4 finished in 0.0 seconds.
+
+All 4 chains finished successfully.
+Mean chain execution time: 0.0 seconds.
+Total execution time: 0.7 seconds.
+       variable     mean   median      sd     mad       q5      q95 rhat
+1          lp__ -2.9e+03 -2.9e+03 0.67516 0.29652 -2.9e+03 -2.9e+03    1
+2         sigma  2.7e-02  2.7e-02 0.00039 0.00039  2.6e-02  2.8e-02    1
+3 sigma_degrees  1.5e+00  1.5e+00 0.02238 0.02237  1.5e+00  1.6e+00    1
+  ess_bulk ess_tail
+1     1994       NA
+2     1530     2002
+3     1530     2002
+#+end_src
+
+El muestreo del modelo posterior parece no tener problemas. Los diagnósticos se ven bien y las capacidades predictivas dan indicios que se ha podido ajustar un modelo satisfactorio. 
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/golf-angulo-trayectorias.jpeg :exports results :results output graphics file
+  muestras <- tibble(posterior::as_draws_df(ajuste$draws(c("sigma", "sigma_degrees"))))
+
+  muestras |> 
+    select(-sigma_degrees) |> 
+    pivot_longer(cols = c(sigma), names_to = 'parameter') |> 
+    mutate(Chain = as.factor(.chain)) |> 
+    ggplot(aes(x = .iteration, y = value)) + 
+      geom_line(aes(group = .chain, color = Chain)) + 
+      facet_wrap(~parameter, ncol = 1, scales = 'free', strip.position="right") + 
+    scale_color_viridis_d(option = 'plasma')+ sin_lineas
+#+end_src
+
+#+RESULTS:
+[[file:../images/golf-angulo-trayectorias.jpeg]]
+
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/golf-comparativa-angulo-logistico.jpeg :exports results :results output graphics file
+modelo_angulo <- function(sigma_radianes){
+  x <- seq(0, 1.1 * max(datos$x), length.out = 50)
+  R.diff <- radios |> summarise(diff = hoyo - pelota) |> pull(diff)
+  tibble(x = x, y = 2 * pnorm( atan(R.diff/x)/sigma_radianes) - 1)
+}
+
+curvas_regresion <- muestras |> 
+  mutate(curva = map(sigma, modelo_angulo)) |> 
+  select(-sigma_degrees, -sigma) |> 
+  unnest(curva) |> 
+  group_by(x) |> 
+  summarise(mediana = median(y), 
+            q_low = quantile(y, .005), 
+            q_hi = quantile(y, .995), 
+            .groups = 'drop')
+
+g_angulo <- datos |> 
+  ggplot(aes(x = x, y = y/n)) + 
+    geom_linerange(aes(ymin = y/n - 2 * se, ymax = y/n + 2*se)) + 
+    geom_point(colour = "steelblue", alpha = 1.) + 
+    geom_line(data = curvas_regresion, aes(x = x, y = mediana)) +
+    geom_ribbon(data = curvas_regresion, aes(x = x, ymin = q_low, ymax = q_hi), 
+                alpha = .2, inherit.aes = FALSE) +
+    ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito") + 
+    ggtitle("Modelo con ángulo de tiro")+ sin_lineas
+
+g_logistico + g_angulo
+#+end_src
+
+#+RESULTS:
+[[file:../images/golf-comparativa-angulo-logistico.jpeg]]
+
+** Nuevo conjunto de datos
+
+Después de algunos años se consiguieron mas registros. En particular, el
+profesor Broadie fue el que brindo dichos datos (comunicación con Andrew Gelman
+documentada en citep:Gelman2019). La cantidad de datos disponibles es
+impresionante, basta con observar la dispersión de la probabilidad de éxito bajo
+el supuesto normal. Los intervalos de confianza son casi imperceptibles para las
+nuevas observaciones (puntos salmón en el gráfico).
+
+Ajustando el modelo a los datos nuevos vemos que parece no haber un buen
+ajuste. Subestimamos las tasa de éxito cuando estamos cerca y sobre-estimamos
+cuando nos encontramos muy lejos.
+
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/golf-limitante-datos.jpeg :exports results :results output graphics file
+  datos_grande <- read_delim("datos/golf_grande.csv", delim = "\t")
+  datos_grande <- datos_grande |> 
+    mutate(x = dis * 30.48, n = count, y = exitos, se = sqrt((y/n)*(1-y/n)/n), fuente = "Nuevos") |> 
+    select(x, n, y, se, fuente)
+
+  datos <- rbind(datos |> mutate(fuente = "Original"), datos_grande)
+  datos <- datos |> mutate(fuente = as.factor(fuente))
+
+  curvas_regresion <- muestras |> 
+    mutate(curva = map(sigma, modelo_angulo)) |> 
+    select(-sigma_degrees, -sigma) |> 
+    unnest(curva) |> 
+    group_by(x) |> 
+    summarise(mediana = median(y), 
+              q_low = quantile(y, .005), 
+              q_hi = quantile(y, .995), 
+              .groups = 'drop')
+
+  datos |> 
+    ggplot(aes(x = x, y = y/n)) + 
+      geom_linerange(aes(ymin = y/n - 2 * se, ymax = y/n + 2 * se)) + 
+      geom_point(aes(colour = fuente), alpha = 1.) +
+      geom_line(data = curvas_regresion, aes(x = x, y = mediana)) +
+      geom_ribbon(data = curvas_regresion, aes(x = x, ymin = q_low, ymax = q_hi),
+                  alpha = .2, inherit.aes = FALSE) +
+      ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito") +
+      ggtitle("Modelo con ángulo de tiro")+ sin_lineas
+#+end_src
+
+#+RESULTS:
+[[file:../images/golf-limitante-datos.jpeg]]
+
+
+** Incorporando ángulo de tiro
+
+Para poder hacer un tiro exitoso no sólo es necesario controlar el ángulo de
+tiro. También es importante tirar con la fuerza suficiente. Siguiendo
+citep:Penner2002, existe un rango de velocidades iniciales que determinan la
+condición de éxito.
+
+La condición de éxito en un tiro recto es que la velocidad final $v_f$ (en
+metros por segundo) de la pelota cumpla con las siguientes condiciones
+$$0 < v_f < 1.63\,.$$
+
+Por otro lado, la aceleración de la pelota al rodar en el /green/ satisface
+$$a = \left(\frac{10}{7}\right) \, {\rho_r}\, g\,.$$
+donde $\rho_r = \rho/r$,  y $\rho$ depende de la superficie donde rueda la
+pelota, $r$ es el radio de la pelota y $g$ la fuerza de gravedad. Datos
+experimentales indican que la media en /greens/ es de $\rho_r = 0.131$, con un
+rango de 0.065 a 0.196. De momento, tomaremos $\rho_r = 0.131$.
+
+
+La velocidad final de la pelota, en términos de la velocidad inicial, utiliza 
+la aceleración en el /green/, lo cual da la siguiente cadenca de igualdades
+$$v_f^2 = v_0^2 - \left(\frac{10}{7}\right) \, {\rho_r}\, g \, x_m = v_0^2 - \left(\frac{10}{7}\right) (0.131) \, (9.81) \, x_m = v_0^2 -  1.835871 \, x_m$$
+donde $x_m$ es la distancia de la pelota al hoyo en metros. Ahora, podemos
+despejar para calcular las condiciones de éxito sobre la velocidad inicial $v_0$
+$$c\,  x_m < v_0^2 < (1.63)^2 + c \,  x_m\,,$$
+donde $c = 1.835871$. La condición de éxito se puede escribir en términos de la 
+distancia de la pelota al hoyo. Es decir podemos escribir 
+$$u \in \left [\, x, \, x + 145 \,  \right],$$
+donde $u = v_0^2/c \times 100$ es la distancia en centímetros que la pelota
+viajaría si no hubiera un hoyo en medio. Esto quiere decir que la pelota debe
+ser lanzada con fuerza suficiente para alcanzar el hoyo pero no tanta como para
+sobrepasarse.
+
+Ahora, siguiendo las recomendaciones de Mark Broadie en
+citep:Gelman2019. Suponemos que los golfistas tienden a tirar con fuerza
+suficiente para pasarse del hoyo por un pie (30.48 cm), sin embargo la fuerza
+tiene un error multiplicativo. La intuición es que errores de la misma magnitud
+afectan en proporción a la distancia de tiro.
+
+La distancia que recorre la pelota esta definida como 
+$$ u = (x + 30.48) \cdot (1 + \varepsilon)\,,$$
+donde
+$$ \varepsilon \sim \mathsf{N}(0, \sigma^2_f)\,,$$
+y hemos utilizado la notación $\sigma^2_f$ para hace énfasis en el error
+asociado a la fuerza de tiro. Esto implica que 
+$$u \sim \mathsf{N}\left(x + 30.48, (x + 30.48)^2  \sigma^2_f\right)\,,$$
+y por la tanto el ~éxito debido a la fuerza de tiro~ ---la condición $u \in \left
+[\, x, \, x + 145 \,  \right]$ --- tiene probabilidad de éxito igual a
+$$\Phi\left(\frac{114.52}{(x + 30.48)  \sigma_f}\right) - \Phi\left(\frac{-30.48}{(x + 30.48)  \sigma_f}\right)\,,$$
+que es un evento que asumimos ~independiente del ángulo de tiro~.
+
+Para finalizar, utilizamos las condiciones de éxito que definen ambos eventos
+que asumimos independientes, el ángulo de tiro y la fuerza. Por lo tanto, el
+modelo lo escribimos como
+\begin{subequations}
+\begin{align}
+p_j^u & = \Phi\left(\frac{114.52}{(x + 30.48)  \sigma_f}\right) - \Phi\left(\frac{-30.48}{(x + 30.48)  \sigma_f}\right), \\
+p_j^\theta & =  2 \, \Phi\left( \frac{\tan^{-1}((R - r)/x_j)}{\sigma_\theta}\right) - 1,\\
+p_j & = p_j^u \cdot p_j^\theta \\
+y_j & \sim \mathsf{Binomial}\left(n_j, p_j\right), 
+\end{align}
+\end{subequations}
+para $j = 1, \ldots, J$.
+
+#+BEGIN_NOTES
+Nota cómo el cambio que tenemos en nuestro modelo es la composición de dos eventos que esperamos sean independientes: la fuerza y dirección de tiro. 
+#+END_NOTES
+
+#+caption: Modelo con fuerza y ángulo de tiro. 
+#+begin_src stan :eval never :tangle ../modelos/golf/angulo-fuerza.stan
+  data {
+      int J;
+      int n[J];
+      vector[J] x;
+      int y[J];
+      real r;
+      real R;
+      real overshot;
+      real distance_tolerance;
+  }
+  transformed data {
+      vector[J] threshold_angle = atan((R-r) ./ x);
+      vector[J] raw_proportion  = to_vector(y) ./ to_vector(n);
+  }
+  parameters {
+      real<lower=0> sigma_angle;
+      real<lower=0> sigma_force;
+  }
+  transformed parameters {
+      vector[J] p_angle = 2*Phi(threshold_angle / sigma_angle) - 1;
+      vector[J] p_force = Phi((distance_tolerance - overshot) ./ ((x + overshot)*sigma_force)) -
+                 Phi((- overshot) ./ ((x + overshot)*sigma_force));
+      vector[J] p = p_angle .* p_force;
+  }
+  model {
+      y ~ binomial(n, p);
+  }
+  generated quantities {
+      real sigma_degrees = sigma_angle * 180 / pi();
+      vector[J] residual = raw_proportion - p;
+  }
+#+end_src
+
+#+begin_src R :exports code :results none
+  data_new <- list(x = datos$x, n = datos$n, y = datos$y, J = nrow(datos), 
+                   r = radios$pelota, R = radios$hoyo, 
+                   distance_tolerance = 4.5 * 30.48,# 145,
+                   overshot = 30.48)
+#+end_src
+
+#+begin_src R :exports results :results org
+  ruta <- file.path("modelos/golf/angulo-fuerza.stan")
+  modelo <- cmdstan_model(ruta, dir = modelos_files)
+
+  ajuste <- ajustar_modelo(modelo, data_new, seed = 108727)
+  ajuste$summary(c("sigma_angle", "sigma_degrees", "sigma_force")) |> as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+Model executable is up to date!
+Running MCMC with 4 sequential chains...
+
+Chain 1 finished in 0.2 seconds.
+Chain 2 finished in 0.2 seconds.
+Chain 3 finished in 0.2 seconds.
+Chain 4 finished in 0.2 seconds.
+
+All 4 chains finished successfully.
+Mean chain execution time: 0.2 seconds.
+Total execution time: 1.5 seconds.
+       variable  mean median      sd     mad    q5   q95 rhat ess_bulk ess_tail
+1   sigma_angle 0.015  0.015 4.3e-05 4.2e-05 0.015 0.015    1     1321     1536
+2 sigma_degrees 0.859  0.859 2.4e-03 2.4e-03 0.855 0.863    1     1321     1536
+3   sigma_force 0.136  0.136 4.9e-04 4.9e-04 0.135 0.137    1     1183     1261
+#+end_src
+
+#+BEGIN_NOTES
+Si utilizamos la semilla 2210 (al menos en mi máquina) veríamos que el ajuste
+del modelo parece indicar ciertos problemas. En particular notemos que podrían
+ser causados por un punto inicial en una cadena. Después de todo, con 4 cadenas
+tenemos $25\%$ del esfuerzo computacional en una sola. Además, tenemos alertas
+en los demás diagnósticos. Con tales resultados nos mostramos un poco escépticos
+sobre los siguientes resúmenes gráficos.
+#+END_NOTES
+
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/golf-angulo-fuerza-predictivo.jpeg :exports results :results output graphics file
+  modelo_angulo_fuerza <- function(sigma_radianes, sigma_fuerza){
+    x <- seq(0, 1.1 * max(datos$x), length.out = 50)
+    R.diff <- radios |> summarise(diff = hoyo - pelota) |> pull(diff)
+    tibble(x = x, 
+           p_angulo = 2 * pnorm( atan(R.diff/x)/sigma_radianes) - 1, 
+           p_fuerza = pnorm((data_new$distance_tolerance - data_new$overshot) /
+                            ((x + data_new$overshot)*sigma_fuerza)) - 
+             pnorm((- data_new$overshot) / ((x + data_new$overshot)*sigma_fuerza)), 
+           y = p_angulo * p_fuerza) |> 
+      select(x, y)
+  }
+
+  muestras <- tibble(posterior::as_draws_df(ajuste$draws(c("sigma_angle", "sigma_force"))))
+
+  curvas_regresion <- muestras |> 
+    mutate(curva = map2(sigma_angle, sigma_force, modelo_angulo_fuerza)) |> 
+    select(-sigma_angle, -sigma_force) |> 
+    unnest(curva) |> 
+    group_by(x) |> 
+    summarise(mediana = median(y), 
+              q_low = quantile(y, .005), 
+              q_hi = quantile(y, .995), 
+              .groups = 'drop')
+
+  datos |> 
+    ggplot(aes(x = x, y = y/n)) + 
+      geom_linerange(aes(ymin = y/n - 2 * se, ymax = y/n + 2 * se)) + 
+      geom_point(aes(colour = fuente), alpha = 1.) +
+      geom_line(data = curvas_regresion, aes(x = x, y = mediana)) +
+    geom_ribbon(data = curvas_regresion, aes(x = x, ymin = q_low, ymax = q_hi),
+                  alpha = .2, inherit.aes = FALSE) +
+      ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito") +
+    ggtitle("Modelo con ángulo de tiro y fuerza")+ sin_lineas
+#+end_src
+
+#+RESULTS:
+[[file:../images/golf-angulo-fuerza-predictivo.jpeg]]
+
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/golf-residuales-incertidumbre.jpeg :exports results :results output graphics file
+  muestras <- tibble(posterior::as_draws_df(ajuste$draws(c("residual"))))
+  medias <- muestras |> 
+    pivot_longer(cols = starts_with("residual"), names_to = 'parameters', values_to = 'residuals') |> 
+    group_by(parameters) |> 
+    summarise(media = mean(residuals), 
+              q_lo = quantile(residuals, 0.05),
+              q_hi = quantile(residuals, 0.95), groups = 'drop') |> 
+    mutate(cadena = str_replace_all(parameters, "\\[|\\]", "_")) |> 
+    separate(cadena, into = c("sufijo", "variable"), sep = "_", convert = TRUE) |> 
+    select(media, variable, q_lo, q_hi)
+
+  datos |> 
+    mutate(variable = seq(1, nrow(datos))) |> 
+    full_join(medias) |> 
+    ggplot(aes(x = x, y = media)) + 
+    geom_linerange(aes(x = x, ymin = q_lo, ymax = q_hi)) + 
+    geom_point(aes(color = fuente)) + 
+    geom_hline(yintercept = 0, linetype = 'dashed') + 
+    ylab('Residuales del modelo ajustado') + 
+    xlab('Distancia (cm)') + 
+    ggtitle("Modelo con angulo y fuerza de tiro.")+ sin_lineas
+#+end_src
+
+#+RESULTS:
+[[file:../images/golf-residuales-incertidumbre.jpeg]]
+
+Al explorar los residuales encontramos que parece haber cierto patrón. Mas aún,
+el modelo parece estar *muy* seguro de los valores esperados de probabilidad de
+éxito ---lo cual podemos apreciar al incorporar los intervalos de probabilidad
+de los residuales que se calculan de las muestras. Esto se puede deber a que el
+número elevado de registros que la nueva base de datos provee. 
+
+Alternativamente, podríamos ajustar sólo en los datos nuevos. Pero no tenemos
+alguna justificación específica para descartar los que ya teníamos. Por lo
+pronto usaremos ambos conjuntos sin distinción.
+
+** Otro modelo 
+
+Una estrategia es incorporar una ~aproximación continua~ a las proporciones
+reportadas, misma que podemos utilizar para incorporar un ~error de medición
+latente~ (que en este caso podría ser acertado). El modelo queda especificado
+como
+\begin{subequations}
+\begin{align}
+p_j^u & = \Phi\left(\frac{114.52}{(x + 30.48)  \sigma_f}\right) - \Phi\left(\frac{-30.48}{(x + 30.48)  \sigma_f}\right), \\
+p_j^\theta & =  2 \, \Phi\left( \frac{\tan^{-1}((R - r)/x_j)}{\sigma_\theta}\right) - 1,\\
+p_j & = p_j^u \cdot p_j^\theta \\
+\frac{y_j}{n_j} &\sim \mathsf{N}\left( p_j, \frac{p_j (1 - p_j)}{n_j} + \sigma^2_{\textsf{obs}} \right), 
+\end{align}
+\end{subequations}
+para $j = 1, \ldots, J$. 
+
+Por otro lado, el modelo en ~Stan~ no cambia mucho y se vuelve un poco mas
+flexible. Lo cual especificamos en el bloque de modelo
+
+#+caption: Modelo con error de medición. 
+#+begin_src stan :eval never :tangle ../modelos/golf/fuerza-normal-plano.stan
+  data {
+      int J;
+      int n[J];
+      vector[J] x;
+      int y[J];
+      real r;
+      real R;
+      real overshot;
+      real distance_tolerance;
+  }
+  transformed data {
+      vector[J] threshold_angle = atan((R-r) ./ x);
+      vector[J] raw_proportion  = to_vector(y) ./ to_vector(n);
+  }
+  parameters {
+      real<lower=0> sigma_angle;
+      real<lower=0> sigma_force;
+      real<lower=0> sigma_obs;
+  }
+  transformed parameters {
+      vector[J] p_angle = 2*Phi(threshold_angle / sigma_angle) - 1;
+      vector[J] p_force = Phi((distance_tolerance - overshot) ./ ((x + overshot)*sigma_force)) -
+                 Phi((- overshot) ./ ((x + overshot)*sigma_force));
+      vector[J] p = p_angle .* p_force;
+  }
+  model {
+      raw_proportion ~ normal(p, sqrt(p .* (1-p) ./ to_vector(n) + sigma_obs^2));
+  }
+  generated quantities {
+      real sigma_degrees = sigma_angle * 180 / pi();
+      vector[J] residual = raw_proportion - p;
+  }
+#+end_src
+
+Podríamos ajustar como lo hemos hecho antes, pero en este caso si tenemos
+problemas serios en el ajuste.
+
+#+begin_src R :exports code :results org
+  ruta <- file.path("modelos/golf/fuerza-normal-plano.stan")
+  modelo <- cmdstan_model(ruta, dir = modelos_files)
+
+  ajuste <- ajustar_modelo(modelo, data_new, iter_sampling = 1000, seed = 108727)
+  ajuste$summary(c("sigma_angle", "sigma_obs", "sigma_force")) |> as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+Model executable is up to date!
+Running MCMC with 4 sequential chains...
+
+Chain 1 finished in 0.9 seconds.
+Chain 2 finished in 0.8 seconds.
+Chain 3 finished in 0.7 seconds.
+Chain 4 finished in 0.6 seconds.
+
+All 4 chains finished successfully.
+Mean chain execution time: 0.7 seconds.
+Total execution time: 3.3 seconds.
+
+Warning: 1891 of 4000 (47.0%) transitions ended with a divergence.
+This may indicate insufficient exploration of the posterior distribution.
+Possible remedies include: 
+  ,* Increasing adapt_delta closer to 1 (default is 0.8) 
+  ,* Reparameterizing the model (e.g. using a non-centered parameterization)
+  ,* Using informative or weakly informative prior distributions
+     variable     mean   median   sd      mad    q5      q95 rhat ess_bulk
+1 sigma_angle 4.3e+307 3.2e+305  Inf 4.7e+305 0.013 1.6e+308  2.2      6.0
+2   sigma_obs  2.6e-01  2.0e-01 0.23  2.7e-01 0.026  5.5e-01  1.8      6.2
+3 sigma_force 4.3e+307 4.4e+305  Inf 6.5e+305 0.076 1.6e+308  2.2      6.1
+  ess_tail
+1      172
+2      136
+3       97
+#+end_src
+
+Podemos incorporar información *débil* en los parametros de escala, esto es por
+medio de normales truncadas en la región positiva. El modelo completo sería
+\begin{subequations}
+\begin{align}
+\sigma^2 &\sim \mathsf{N}^+(0, 1) \\
+p_j^u & = \Phi\left(\frac{114.52}{(x + 30.48)  \sigma_f}\right) - \Phi\left(\frac{-30.48}{(x + 30.48)  \sigma_f}\right), \\
+p_j^\theta & =  2 \, \Phi\left( \frac{\tan^{-1}((R - r)/x_j)}{\sigma_\theta}\right) - 1,\\
+p_j & = p_j^u \cdot p_j^\theta, \\
+\frac{y_j}{n_j} &\sim \mathsf{N}\left( p_j, \frac{p_j (1 - p_j)}{n_j} + \sigma^2_{\textsf{obs}} \right), 
+\end{align}
+\end{subequations}
+para $j = 1, \ldots, J$, donde $\sigma^2 = (\sigma^2_{\textsf{obs}}, \sigma^2_\theta, \sigma^2_f)$.
+
+#+caption: Modelo completo con información débil.
+#+begin_src stan :eval never :tangle ../modelos/golf/angulo-fuerza-normal.stan
+  data {
+      int J;
+      int n[J];
+      vector[J] x;
+      int y[J];
+      real r;
+      real R;
+      real overshot;
+      real distance_tolerance;
+  }
+  transformed data {
+      vector[J] threshold_angle = atan((R-r) ./ x);
+      vector[J] raw_proportion  = to_vector(y) ./ to_vector(n);
+  }
+  parameters {
+      real<lower=0> sigma_angle;
+      real<lower=0> sigma_force;
+      real<lower=0> sigma_obs;
+  }
+  transformed parameters {
+      vector[J] p_angle = 2*Phi(threshold_angle / sigma_angle) - 1;
+      vector[J] p_force = Phi((distance_tolerance - overshot) ./ ((x + overshot)*sigma_force)) -
+                 Phi((- overshot) ./ ((x + overshot)*sigma_force));
+      vector[J] p = p_angle .* p_force;
+  }
+  model {
+      raw_proportion ~ normal(p, sqrt(p .* (1-p) ./ to_vector(n) + sigma_obs^2));
+      [sigma_angle, sigma_force, sigma_obs] ~ normal(0, 1);
+  }
+  generated quantities {
+      real sigma_degrees = sigma_angle * 180 / pi();
+      vector[J] residual = raw_proportion - p;
+  }
+#+end_src
+
+
+#+begin_src R :exports results :results org
+  ruta <- file.path("modelos/golf/angulo-fuerza-normal.stan")
+  modelo <- cmdstan_model(ruta, dir = modelos_files)
+
+  ajuste <- ajustar_modelo(modelo, data_new, iter_sampling = 4000, seed = 108727)
+  ajuste$summary(c("sigma_angle", "sigma_degrees", "sigma_force", "sigma_obs")) |> as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+Model executable is up to date!
+Running MCMC with 4 sequential chains...
+
+Chain 1 finished in 2.5 seconds.
+Chain 2 finished in 2.4 seconds.
+Chain 3 finished in 2.3 seconds.
+Chain 4 finished in 2.4 seconds.
+
+All 4 chains finished successfully.
+Mean chain execution time: 2.4 seconds.
+Total execution time: 10.2 seconds.
+       variable  mean median     sd    mad    q5   q95 rhat ess_bulk ess_tail
+1   sigma_angle 0.015  0.014 0.0025 0.0013 0.012 0.021    1      922     1389
+2 sigma_degrees 0.849  0.802 0.1432 0.0762 0.704 1.180    1      922     1389
+3   sigma_force 0.167  0.180 0.0417 0.0232 0.072 0.211    1      927     1266
+4     sigma_obs 0.032  0.031 0.0046 0.0045 0.025 0.040    1     2450     4272
+#+end_src
+
+Los parámetros estimados los interpretamos como sigue: 
+
+- $\sigma_\theta$ tiene un valor cercano a 0.015 que corresponde a
+  $\sigma_{\textsf{grados}} = 0.8$. De acuerdo a los datos obtenidos los
+  jugadores de golf cometen errores de ángulo de *casi* un $1^\circ$. Si
+  comparamos este valor con el de modelos anteriores podemos notar que al
+  incluir errores de precisión en la fuerza de tiro ésta desviación
+  disminuye. Ya no es necesario corregir con ángulos lo que se puede explicar de
+  otra forma, esta correlación la podemos ver gráficamente por medio de un
+  diagrama de dispersión como abajo.
+-  $\sigma_f$ tiene un valor esperado de $0.17$, lo cual implica un error del
+  $17\%$ debido a la errores en distancia producto de la fuerza de tiro.
+- $\sigma_{\textsf{obs}}$ tiene un valor de $0.03$ lo cual incide en errores
+  atribuibles a medición del 3 puntos porcentuales.
+
+#+HEADER: :width 800 :height 800 :R-dev-args bg="transparent"
+#+begin_src R :file images/golf-dispersion-modelo.jpeg :exports results :results output graphics file 
+    color_scheme_set("darkgray")
+    muestras_sigma <- ajuste$draws(c("sigma_force", "sigma_obs", "sigma_degrees"))
+    mcmc_pairs(muestras_sigma, off_diag_fun = "hex", grid_args = list(size = 0))
+#+end_src
+
+#+RESULTS:
+[[file:../images/golf-dispersion-modelo.jpeg]]
+
+La aparente bimodalidad de los gráficos de dispersión se podría explicar a
+traves del efecto de tener mediciones de dos tipos. Un tipo son los datos
+originales en los que parece haber un número limitado de registrados, y las
+nuevas observaciones de Broadie que tienen un número muy grande observaciones a
+distintas distancias.
+
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/golf-residuales-completo.jpeg :exports results :results output graphics file
+  muestras <- tibble(posterior::as_draws_df(ajuste$draws(c("residual"))))
+  medias <- muestras |> 
+    pivot_longer(cols = starts_with("residual"), names_to = 'parameters', values_to = 'residuals') |> 
+    group_by(parameters) |> 
+    summarise(media = mean(residuals), 
+              q_lo = quantile(residuals, 0.05),
+              q_hi = quantile(residuals, 0.95), groups = 'drop') |> 
+    mutate(cadena = str_replace_all(parameters, "\\[|\\]", "_")) |> 
+    separate(cadena, into = c("sufijo", "variable"), sep = "_", convert = TRUE) |> 
+    select(media, variable, q_lo, q_hi)
+
+  datos |> 
+    mutate(variable = seq(1, nrow(datos))) |> 
+    full_join(medias) |> 
+    ggplot(aes(x = x, y = media)) + 
+      geom_linerange(aes(x = x, ymin = q_lo, ymax = q_hi)) + 
+      geom_point(aes(color = fuente)) + 
+      geom_hline(yintercept = 0, linetype = 'dashed') + 
+      ylab('Residuales del modelo ajustado') + 
+      xlab('Distancia (cm)') + 
+    ggtitle("Modelo con angulo y fuerza de tiro.")+ sin_lineas
+#+end_src
+
+#+RESULTS:
+[[file:../images/golf-residuales-completo.jpeg]]
+
+
+*** Tarea:
+:PROPERTIES:
+:reveal_background: #00468b
+:END:
+Exploraremos algunas rutas de mejora del modelo. 
+1. Por un lado exploraremos eliminar uno de los componentes redundantes. Para
+   esto elimina el supuesto de la fuerza de tiro y reajusta el modelo con la
+   aproximación continua.
+2. Incorpora un modelo jerárquico para ajustar el modelo que incorpore errores
+   observacionales para las dos poblaciones de datos. Es decir, un modelo que
+   tenga una $\sigma_{\mathsf{obs},1}$ para los datos del primer conjunto de
+   observaciones y $\sigma_{\mathsf{obs}, 2}$ para los datos del segundo.
+3. ¿Qué conclusiones obtienes? 
+
+* Mensaje
+
+- Es fácil escribir modelos Bayesianos y hacer inferencia.
+- Difícil mantener en producción: limitar el alcance del modelo.
+- Reparametrización, previas informativas.
+- El muestreo podría no escalar.
+
+# * Bibliografía                                                        :latex:
+
+bibliographystyle:abbrvnat
+bibliography:references.bib
