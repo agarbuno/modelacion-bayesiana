@@ -7,7 +7,7 @@ library(scales)
 theme_set(theme_linedraw(base_size = 25))
 
 ## Cambia el número de decimales para mostrar
-options(digits = 2)
+options(digits = 4)
 
 sin_lineas <- theme(panel.grid.major = element_blank(),
                     panel.grid.minor = element_blank())

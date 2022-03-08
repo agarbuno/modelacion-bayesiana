@@ -56,7 +56,7 @@
   theme_set(theme_linedraw(base_size = 25))
 
   ## Cambia el número de decimales para mostrar
-  options(digits = 2)
+  options(digits = 4)
 
   sin_lineas <- theme(panel.grid.major = element_blank(),
                       panel.grid.minor = element_blank())
@@ -81,7 +81,6 @@
 :END:
 :CONTENTS:
 - [[#introducción][Introducción]]
-- [[#ejemplo-tiempo-de-respuesta-a-reclamaciones][Ejemplo: tiempo de respuesta a reclamaciones]]
 - [[#ejemplo-tiros-de-golf][Ejemplo: tiros de golf]]
   - [[#modelo-logístico][Modelo logístico]]
   - [[#análisis-conceptual][Análisis conceptual]]
@@ -138,8 +137,6 @@ Do not be the Data Scientist and statistician that immediately reaches for Bayes
 #+caption: Tomada de [[https://twitter.com/bayesdose][@BayesDose]], Generable. 
 #+attr_html: :width 700 :align center
 file:../images/workflow.jpeg
-
-* Ejemplo: tiempo de respuesta a reclamaciones
 
 * Ejemplo: tiros de golf
 
@@ -1076,7 +1073,7 @@ p_j & = p_j^u \cdot p_j^\theta \\
 para $j = 1, \ldots, J$. 
 
 Por otro lado, el modelo en ~Stan~ no cambia mucho y se vuelve un poco mas
-flexible. Lo cual especificamos en el bloque de modelo
+flexible. Lo cual especificamos en el bloque de modelo. 
 
 #+caption: Modelo con error de medición. 
 #+begin_src stan :eval never :tangle ../modelos/golf/fuerza-normal-plano.stan
