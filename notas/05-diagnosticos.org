@@ -51,7 +51,7 @@
 - [[#introducción][Introducción]]
 - [[#diagnósticos-generales][Diagnósticos generales]]
   - [[#monitoreo-de-convergencia][Monitoreo de convergencia]]
-    - [[#datos][Datos:]]
+    - [[#datos-cantantes-de-ópera][Datos: Cantantes de ópera]]
   - [[#monitoreo-de-mezcla-dentro-y-entre-cadenas][Monitoreo de mezcla dentro y entre cadenas]]
   - [[#número-efectivo-de-simulaciones][Número efectivo de simulaciones]]
 - [[#referencias][Referencias]]
@@ -150,8 +150,8 @@ tener un criterio para considerar cadenas de ~longitud finita~ y ~evaluar la cal
 simulaciones.
 
 #+REVEAL: split
-Primero estudiaremos ~diagnósticos generales~! para métodos que utilicen MCMC y
-después estudiaremos particularidades del método de simulación HMC.
+Primero estudiaremos ~diagnósticos generales~ para métodos que utilicen MCMC y
+después mencionaremos particularidades del método de simulación HMC.
 
 * Diagnósticos generales
 
@@ -254,22 +254,38 @@ proceso estócastico (Markoviano).
 Para contrarrestar la dependencia en los distintos puntos iniciales se descarta 
 parte de la cadena en un periodo inicial (periodo de calentamiento).
 
-*** Datos: 
+*** Datos: Cantantes de ópera
 
+#+begin_src R :exports code :results none
+  ## Datos: cantantes de opera -----------------------
+  set.seed(3413)
+  cantantes <- lattice::singer |>
+    mutate(estatura_cm = round(2.54 * height)) |>
+    filter(str_detect(voice.part, "Tenor")) |>
+    select(voice.part, estatura_cm) |>
+    sample_n(20)
+#+end_src
+
+#+begin_src R :exports results :results org
+   cantantes |> head(3) |> as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+    voice.part estatura_cm
+139    Tenor 1         178
+150    Tenor 2         173
+140    Tenor 1         165
+#+end_src
+
+
+#+REVEAL: split
 Denotamos por $x_i$ la estatura de tenores (cantantas de ópera). Asumimos un modelo Normal con parámetros poblacionales no observados:  $\mu$ y $\sigma$. El modelo previo lo asumimos como
 \begin{gather}
 \mu | \sigma \sim \mathsf{Normal}\left(\mu_0, \frac{\sigma}{n_0}\right)\,,\\
 \sigma^{-1} \sim \mathsf{Gamma}(a_0, b_0)\,.
 \end{gather}
 
-#+begin_src R :exports code :results none
-  ## Datos: cantantes de opera -----------------------
-  set.seed(3413)
-  cantantes <- lattice::singer %>% 
-    mutate(estatura_cm = round(2.54 * height)) %>% 
-    filter(str_detect(voice.part, "Tenor")) %>% 
-    sample_n(20)
-#+end_src
 
 #+begin_src R :exports none :results none
   ModeloNormal <-
@@ -318,9 +334,9 @@ Denotamos por $x_i$ la estatura de tenores (cantantas de ópera). Asumimos un mo
  #+RESULTS:
  [[file:../images/cantantes-muestras.jpeg]]
 
-#+REVEAL: split
 En esta simulación es evidente$^\dagger$ que necesitamos descartar una parte inicial de la simulación.
 
+#+REVEAL: split
 citet:Gelman2014a recomiendan descartar la mitad de las iteraciones de cada una de las cadenas
 que se simularon. Para problemas en dimensiones altas, incluso se podría esperar 
 descartar hasta un $80\%$ de simulaciones (en especial para métodos basados en
@@ -616,7 +632,7 @@ V_\tau = \mathbb{E}[(Y_{t+\tau} - Y_t)^2]\,.
 
 #+REVEAL: split
 Regresando a nuestro contexto... para estimar $\rho_t$ partimos de nuestro estimador $\hat{\mathbb{V}}(\phi)^+;$
-y utilizamos el *variograma* $V_t$ para cada retraso $t$
+y utilizamos el *variograma* $V_t$ para ~cada retraso~ $t$
 $$V_t = \frac{1}{m (n - t)} \sum_{j = 1}^m \sum_{i = t + 1}^n (\phi_{i,j} - \phi_{i-t, j})^2\,.$$
 
 #+REVEAL: split
@@ -639,7 +655,7 @@ simulaciones es
 $$\hat N_{\mathsf{eff}} = \frac{m \, n}{1 + 2 \sum_{t = 1}^T \hat  \rho_t}\,.$$
 
 #+REVEAL: split
-El *tamaño efectivo de simulaciones* nos ayuda a monitorear lo siguiente. Si las
+El ~tamaño efectivo de simulaciones~ nos ayuda a monitorear lo siguiente. Si las
 simulaciones fueran independientes $N_{\textsf{eff}}$ sería el número total de
 simulaciones; sin embargo, las simulaciones de MCMC suelen estar
 correlacionadas, de modo que cada iteración de MCMC es menos informativa que si
