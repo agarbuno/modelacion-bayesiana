@@ -41,9 +41,17 @@
 #+EXCLUDE_TAGS: toc
 
 #+BEGIN_NOTES
-*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Flujo de trabajo bayesiano.\\
-*Objetivo*: Ya hemos estudiado la herramienta por excelencia de cómputo bayesiano. Ahora, ilustraremos con ejemplos casos de aplicación con un enfoque bayesiano. Estableceremos las bases para continuar nuestro proceso de aprendizaje a temas que se requerirá estudiar con mayor cuidado para navegar el camino de un modelado iterativo. \\
-*Lectura recomendada*: El Capítulo 9 de citep:Martin2021 muestra un caso del proceso iterativo de modelado bayesiano. El artículo citep:Gelman2020 busca explorar los diversos componentes del proceso de construcción de modelos en los cuales profundizaremos en esta segunda parte del curso. 
+*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Flujo de trabajo
+ bayesiano.\\
+*Objetivo*: Ya hemos estudiado la herramienta por excelencia de cómputo
+ bayesiano. Ahora, ilustraremos con ejemplos casos de aplicación con un enfoque
+ bayesiano. Estableceremos las bases para continuar nuestro proceso de
+ aprendizaje a temas que se requerirá estudiar con mayor cuidado para navegar el
+ camino de un modelado iterativo. \\
+*Lectura recomendada*: El Capítulo 9 de citep:Martin2021 muestra un caso del
+ proceso iterativo de modelado bayesiano. El artículo citep:Gelman2020 busca
+ explorar los diversos componentes del proceso de construcción de modelos en los
+ cuales profundizaremos en esta segunda parte del curso.
 #+END_NOTES
 
 #+begin_src R :exports none :results none
@@ -196,7 +204,7 @@ nos concentraremos en el periodo de Octubre y Noviembre del 2017.
 #+begin_src R :file images/reclamos-histograma.jpeg :exports results :results output graphics file
   reclamos |>
     ggplot(aes(atendidos)) +
-    geom_histogram() 
+    geom_histogram() + sin_lineas 
 #+end_src
 #+caption: Conteos de reclamos diarios atendidos por las aerolíneas. 
 #+RESULTS:
@@ -291,7 +299,7 @@ Total execution time: 0.6 seconds.
 #+end_src
 
 #+BEGIN_NOTES
-Nota que para muestrear de la previa utilizamos un bloque de datos vacío. 
+Nota que para muestrear de la previa utilizamos un ~bloque de datos vacío~. 
 #+END_NOTES
 
 Podemos extraer resúmenes como sigue
@@ -377,7 +385,8 @@ Finalmente, hacemos una comparación con el histograma de los datos.
 [[file:../images/reclamos-poisson-predictiva-datos.jpeg]]
 
 *** Conclusiones:
-Lo que observamos en [[fig:poisson-preds-datos]] es un fenómeno muy común con modelos de conteo. En Promedio nuestras estimaciones funcionan bien. La media posterior es cercana al estimador de máxima verosimilitud. Sin embargo, el modelo no es capaz de controlar la variabilidad de las observaciones. Esto es por que bajo un modelo Poisson la media y varianza están contorladas con el mismo parámetro. Cuando esto sucede --los datos tienen mayor variabilidad que la sugerida por un modelo Poisson (o Binomial)-- hablamos de datos de conteo con ~sobre-dispersión~. 
+Lo que observamos en [[fig:poisson-preds-datos]] es un fenómeno muy común con modelos de conteo. En Promedio nuestras estimaciones funcionan bien. La media posterior es cercana al estimador de máxima verosimilitud. Sin embargo, el modelo no es capaz de controlar la variabilidad de las observaciones. Esto es por que bajo un modelo Poisson la media y varianza están controladas con el mismo parámetro. Cuando esto sucede --los datos tienen mayor variabilidad que la sugerida por un modelo Poisson (o Binomial)-- hablamos de datos de conteo con ~sobre-dispersión~. 
+
 
 ** Sobre-dispersión
 
@@ -430,8 +439,9 @@ pensemos en que si marginalizamos una $\mathsf{Poisson}(Y|\lambda)$ con respecto
 a una $\mathsf{Gamma}(\lambda|\alpha, \beta)$ obtenemos la ~binomial
 negativa~. Esto quiere decir que el componente adicional de dispersión del modelo
 ~poisson~ es el resultado de marginalizar bajo distintas configuraciones
-provenientes de una ~gamma~ el parámetro que controla la media del modelo de conteo. Es por
-esto que también a una binomial negativa se le conoce como ~Poisson-Gamma~ citep:McElreath2020. 
+provenientes de una ~gamma~ el parámetro que controla la media del modelo de
+conteo. Es por esto que también a una binomial negativa se le conoce como
+~Poisson-Gamma~ citep:McElreath2020.
 #+END_NOTES
 
 Escribimos el modelo donde igual que antes utilizamos una distribución previa
@@ -628,7 +638,10 @@ utilizamos la función ~binomial negativa~ parametrizada con $\log \lambda$ .
   posterior <- modelo$sample(data = data_list, refresh = 0)
 #+end_src
 
-Seguimos teniendo alertas pero estas no son de preocuparse debido a que se concentran en el periodo de calentamiento y los resultados parecen indicar problemas severos en la simulación. Incluso para las $\hat R$ no hay motivos de preocupación [[https://discourse.mc-stan.org/t/rhat-1-as-low-as-9-94e-01-why/9252/3][(discusión)]]. 
+Seguimos teniendo alertas pero estas no son de preocuparse debido a que se
+concentran en el periodo de calentamiento y los resultados parecen indicar
+problemas severos en la simulación. Incluso para las $\hat R$ no hay motivos de
+preocupación [[https://discourse.mc-stan.org/t/rhat-1-as-low-as-9-94e-01-why/9252/3][(discusión)]].
 
 #+begin_src R :exports results :results org
   posterior$summary() |> as.data.frame()
@@ -686,11 +699,11 @@ Seguimos teniendo alertas pero estas no son de preocuparse debido a que se conce
 
 ** Modelo jerárquico
 
-No lo hemos mencionado pero por lo que vemos en [[fig:negbinom-preds]] parece existir la presencia
-de un proceso adicional de generación de reclamos no explicado (dos modas
-aparentes en el histograma). ~Una solución~ posible es considerar distintos grupos
-dentro de la población de reclamos y modelar lso reclamos de manear jerárquica
-de acuerdo a la aerolínea.
+No lo hemos mencionado pero por lo que vemos en [[fig:negbinom-preds]] parece
+existir la presencia de un proceso adicional de generación de reclamos no
+explicado (dos modas aparentes en el histograma). ~Una solución~ posible es
+considerar distintos grupos dentro de la población de reclamos y modelar lso
+reclamos de manear jerárquica de acuerdo a la aerolínea.
 
 #+begin_src R :exports results :results org
   reclamos |>
@@ -1581,8 +1594,12 @@ rango de 0.065 a 0.196. De momento, tomaremos $\rho_r = 0.131$.
 
 
 La velocidad final de la pelota, en términos de la velocidad inicial, utiliza 
-la aceleración en el /green/, lo cual da la siguiente cadenca de igualdades
-$$v_f^2 = v_0^2 - \left(\frac{10}{7}\right) \, {\rho_r}\, g \, x_m = v_0^2 - \left(\frac{10}{7}\right) (0.131) \, (9.81) \, x_m = v_0^2 -  1.835871 \, x_m$$
+la aceleración en el /green/, lo cual da la siguiente cadena de igualdades
+\begin{align}
+v_f^2 &= v_0^2 - \left(\frac{10}{7}\right) \, {\rho_r}\, g \, x_m \\
+&= v_0^2 - \left(\frac{10}{7}\right) (0.131) \, (9.81) \, x_m \\
+&= v_0^2 -  1.835871 \, x_m\,,
+\end{align}
 donde $x_m$ es la distancia de la pelota al hoyo en metros. Ahora, podemos
 despejar para calcular las condiciones de éxito sobre la velocidad inicial $v_0$
 $$c\,  x_m < v_0^2 < (1.63)^2 + c \,  x_m\,,$$
