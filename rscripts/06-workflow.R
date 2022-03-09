@@ -21,6 +21,155 @@ library(cmdstanr)
 library(posterior)
 library(bayesplot)
 
+tweets   <- read_csv("datos/response_times.csv")
+tweets   <- tweets |>
+  mutate(compania = author_id_y,
+         fecha = created_at_x,
+         anio  = lubridate::year(fecha),
+         mes   = lubridate::month(fecha),
+         dia   = lubridate::day(fecha))
+
+reclamos <- tweets |>
+  select(anio, mes, dia, compania, response_time) |>
+  filter(anio == 2017, mes %in% c(10, 11),
+         !(compania %in% c("AmericanAir", "Delta", "SouthwestAir"))) |>
+  group_by(anio, mes, dia, compania) |>
+  summarise(atendidos = n(),
+            respuesta = mean(response_time)) |>
+  mutate(compania = factor(compania)) |> 
+  ungroup()
+
+reclamos |>
+  ggplot(aes(atendidos)) +
+  geom_histogram()
+
+reclamos |>
+ungroup()|>
+  summarise(reclamos = mean(atendidos)) |>
+  as.data.frame()
+
+modelos_files <- "modelos/compilados/reclamaciones"
+ruta <- file.path("modelos/reclamaciones/modelo-poisson.stan")
+modelo <- cmdstan_model(ruta, dir = modelos_files)
+
+ajustar_modelo <- function(modelo, datos, iter_sampling = 1000, iter_warmup = 1000, seed = 2210){ 
+  ajuste <- modelo$sample(data = datos, 
+                          seed = seed,
+                          iter_sampling = iter_sampling, 
+                          iter_warmup = iter_sampling,
+                          refresh = 0, 
+                          show_messages = FALSE)
+  ajuste
+}
+
+data_list <- list(N = nrow(reclamos), y = reclamos$atendidos)
+previa <- modelo$sample(data = list(N = 0, y = c()), refresh = 0)
+posterior <- modelo$sample(data = data_list, refresh = 0)
+
+posterior$summary() |> as.data.frame()
+
+simulaciones <- previa$draws(format = "df") |>
+  mutate(dist = "previa") |>
+  rbind(posterior$draws(format = "df") |>
+        mutate(dist = "posterior"))
+
+simulaciones |>
+  ggplot(aes(lambda, fill = dist)) +
+  geom_histogram(position = "identity", alpha = .6) +
+  ggtitle("Simulaciones de parámetro desconocido")
+
+simulaciones |>
+  as_tibble() |>
+  mutate(y_tilde = map_dbl(lambda, function(x){
+    rpois(1, x)
+  })) |>
+  ggplot(aes(y_tilde, fill = dist)) +
+  geom_histogram(position = "identity", alpha = .6) +
+  ggtitle("Simulaciones de predictivas")
+
+g1 <- simulaciones |>
+  as_tibble() |>
+  mutate(y_tilde = map_dbl(lambda, function(x){
+    rpois(1, x)
+  })) |>
+  ggplot(aes(y_tilde, fill = dist)) +
+  geom_histogram(position = "identity", alpha = .6) +
+  xlab("atendidos*") +
+  ggtitle("Simulaciones de predictivas") + sin_lineas +
+  xlim(0, 300)
+
+g2 <- reclamos |>
+  ggplot(aes(atendidos)) +
+  geom_histogram(position = "identity", alpha = .6) +
+  ggtitle("Histograma datos") + sin_lineas + xlim(0, 300)
+
+g2 + g1
+
+reclamos |>
+  summarise(promedio = mean(atendidos),
+            varianza = var(atendidos)) |>
+as.data.frame()
+
+modelos_files <- "modelos/compilados/reclamaciones"
+ruta <- file.path("modelos/reclamaciones/modelo-negbinom.stan")
+modelo <- cmdstan_model(ruta, dir = modelos_files)
+
+data_list <- list(N = nrow(reclamos), y = reclamos$atendidos)
+previa <- modelo$sample(data = list(N = 0, y = c()), refresh = 0)
+posterior <- modelo$sample(data = data_list, refresh = 0, seed = 108727)
+
+posterior$summary() |> as.data.frame()
+
+modelos_files <- "modelos/compilados/reclamaciones"
+ruta <- file.path("modelos/reclamaciones/modelo-negbinom-log.stan")
+modelo <- cmdstan_model(ruta, dir = modelos_files)
+
+data_list <- list(N = nrow(reclamos), y = reclamos$atendidos)
+previa <- modelo$sample(data = list(N = 0, y = c()), refresh = 0)
+posterior <- modelo$sample(data = data_list, refresh = 0)
+
+posterior$summary() |> as.data.frame()
+
+g1 <- mcmc_trace(posterior$draws(), pars = c("log_lambda", "phi"))
+g2 <- mcmc_hist(posterior$draws(), pars = c("log_lambda", "phi"))
+
+g1 / g2
+
+g1 <- previa$draws(format = "df") |>
+  rbind(posterior$draws(format = "df")) |>
+  as_tibble() |>
+  mutate(dist = rep(c("previa", "posterior"), each = 4000)) |>
+  ggplot(aes(y_tilde, fill = dist)) +
+  geom_histogram(position = "identity", alpha = .4) +
+  sin_lineas + xlim(0, 300) +
+  ggtitle("Simulaciones de predictivas")
+
+g2 <- reclamos |>
+  ggplot(aes(atendidos)) +
+  geom_histogram(position = "identity", alpha = .6) +
+  ggtitle("Histograma datos") + sin_lineas + xlim(0, 300)
+
+g2 + g1
+
+reclamos |>
+  group_by(compania) |>
+  summarise(promedio = mean(atendidos),
+            varianza = var(atendidos)) |>
+  as.data.frame()
+
+modelos_files <- "modelos/compilados/reclamaciones"
+ruta <- file.path("modelos/reclamaciones/modelo-negbinom-jerarquico.stan")
+modelo <- cmdstan_model(ruta, dir = modelos_files)
+
+data_list <- list(N = nrow(reclamos),
+                  y = reclamos$atendidos,
+                   compania = as.numeric(reclamos$compania))
+posterior <- modelo$sample(data = data_list, refresh = 0)
+
+posterior$summary() |> as.data.frame()
+
+
+
 datos <- read_delim("datos/golf.csv", delim = " ")
 datos <- datos |> 
   mutate(x = round(30.48  * x, 0), 

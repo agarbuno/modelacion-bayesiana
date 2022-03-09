@@ -81,6 +81,11 @@
 :END:
 :CONTENTS:
 - [[#introducción][Introducción]]
+- [[#ejemplo-datos-de-conteo][Ejemplo: datos de conteo]]
+  - [[#primer-modelo][Primer modelo]]
+  - [[#sobre-dispersión][Sobre-dispersión]]
+  - [[#reparametrizando][Reparametrizando]]
+  - [[#modelo-jerarquico][Modelo jerarquico]]
 - [[#ejemplo-tiros-de-golf][Ejemplo: tiros de golf]]
   - [[#modelo-logístico][Modelo logístico]]
   - [[#análisis-conceptual][Análisis conceptual]]
@@ -137,6 +142,504 @@ Do not be the Data Scientist and statistician that immediately reaches for Bayes
 #+caption: Tomada de [[https://twitter.com/bayesdose][@BayesDose]], Generable. 
 #+attr_html: :width 700 :align center
 file:../images/workflow.jpeg
+
+
+* Ejemplo: datos de conteo
+
+
+#+begin_src R :exports code :results none
+  tweets   <- read_csv("datos/response_times.csv")
+  tweets   <- tweets |>
+    mutate(compania = author_id_y,
+           fecha = created_at_x,
+           anio  = lubridate::year(fecha),
+           mes   = lubridate::month(fecha),
+           dia   = lubridate::day(fecha))
+
+  reclamos <- tweets |>
+    select(anio, mes, dia, compania, response_time) |>
+    filter(anio == 2017, mes %in% c(10, 11),
+           !(compania %in% c("AmericanAir", "Delta", "SouthwestAir"))) |>
+    group_by(anio, mes, dia, compania) |>
+    summarise(atendidos = n(),
+              respuesta = mean(response_time)) |>
+    mutate(compania = factor(compania)) |> 
+    ungroup()
+#+end_src
+
+#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/reclamos-histograma.jpeg :exports results :results output graphics file
+  reclamos |>
+    ggplot(aes(atendidos)) +
+    geom_histogram() 
+#+end_src
+
+#+RESULTS:
+[[file:../images/reclamos-histograma.jpeg]]
+
+#+begin_src R :exports code :results org
+    reclamos |>
+    ungroup()|>
+      summarise(reclamos = mean(atendidos)) |>
+      as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+  reclamos
+1    54.88
+#+end_src
+
+** Primer modelo 
+
+#+begin_src stan :eval never :tangle ../modelos/reclamaciones/modelo-poisson.stan
+  data {
+    int N;
+    int y[N];
+  }
+
+  parameters {
+    real<lower=0> lambda; 
+  }
+
+  model {
+    lambda ~ gamma(100, 2);
+    y ~ poisson(lambda);
+  }
+#+end_src
+
+
+#+begin_src R :exports code :results none
+  modelos_files <- "modelos/compilados/reclamaciones"
+  ruta <- file.path("modelos/reclamaciones/modelo-poisson.stan")
+  modelo <- cmdstan_model(ruta, dir = modelos_files)
+#+end_src
+
+#+begin_src R :exports none :results none
+  ajustar_modelo <- function(modelo, datos, iter_sampling = 1000, iter_warmup = 1000, seed = 2210){ 
+    ajuste <- modelo$sample(data = datos, 
+                            seed = seed,
+                            iter_sampling = iter_sampling, 
+                            iter_warmup = iter_sampling,
+                            refresh = 0, 
+                            show_messages = FALSE)
+    ajuste
+  }
+#+end_src
+
+#+begin_src R :exports results :results org
+  data_list <- list(N = nrow(reclamos), y = reclamos$atendidos)
+  previa <- modelo$sample(data = list(N = 0, y = c()), refresh = 0)
+  posterior <- modelo$sample(data = data_list, refresh = 0)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+Running MCMC with 4 sequential chains...
+
+Chain 1 finished in 0.0 seconds.
+Chain 2 finished in 0.0 seconds.
+Chain 3 finished in 0.0 seconds.
+Chain 4 finished in 0.0 seconds.
+
+All 4 chains finished successfully.
+Mean chain execution time: 0.0 seconds.
+Total execution time: 0.6 seconds.
+Running MCMC with 4 sequential chains...
+
+Chain 1 finished in 0.0 seconds.
+Chain 2 finished in 0.0 seconds.
+Chain 3 finished in 0.0 seconds.
+Chain 4 finished in 0.0 seconds.
+
+All 4 chains finished successfully.
+Mean chain execution time: 0.0 seconds.
+Total execution time: 0.6 seconds.
+#+end_src
+
+#+begin_src R :exports results :results org
+  posterior$summary() |> as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+  variable     mean   median     sd    mad       q5      q95  rhat ess_bulk
+1     lp__ 57355.52 57355.80 0.7127 0.2965 57354.20 57356.00 1.000     2047
+2   lambda    54.85    54.85 0.4065 0.4164    54.18    55.52 1.002     1487
+  ess_tail
+1     2432
+2     2123
+#+end_src
+
+#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/reclamos-poisson-media.jpeg :exports results :results output graphics file
+  simulaciones <- previa$draws(format = "df") |>
+    mutate(dist = "previa") |>
+    rbind(posterior$draws(format = "df") |>
+          mutate(dist = "posterior"))
+
+  simulaciones |>
+    ggplot(aes(lambda, fill = dist)) +
+    geom_histogram(position = "identity", alpha = .6) +
+    ggtitle("Simulaciones de parámetro desconocido")
+#+end_src
+
+#+RESULTS:
+[[file:../images/reclamos-poisson-media.jpeg]]
+
+#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/reclamos-poisson-predictiva.jpeg :exports results :results output graphics file
+  simulaciones |>
+    as_tibble() |>
+    mutate(y_tilde = map_dbl(lambda, function(x){
+      rpois(1, x)
+    })) |>
+    ggplot(aes(y_tilde, fill = dist)) +
+    geom_histogram(position = "identity", alpha = .6) +
+    ggtitle("Simulaciones de predictivas")
+#+end_src
+
+#+RESULTS:
+[[file:../images/reclamos-poisson-predictiva.jpeg]]
+
+#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/reclamos-poisson-predictiva-datos.jpeg :exports results :results output graphics file
+  g1 <- simulaciones |>
+    as_tibble() |>
+    mutate(y_tilde = map_dbl(lambda, function(x){
+      rpois(1, x)
+    })) |>
+    ggplot(aes(y_tilde, fill = dist)) +
+    geom_histogram(position = "identity", alpha = .6) +
+    xlab("atendidos*") +
+    ggtitle("Simulaciones de predictivas") + sin_lineas +
+    xlim(0, 300)
+
+  g2 <- reclamos |>
+    ggplot(aes(atendidos)) +
+    geom_histogram(position = "identity", alpha = .6) +
+    ggtitle("Histograma datos") + sin_lineas + xlim(0, 300)
+
+  g2 + g1
+#+end_src
+
+#+RESULTS:
+[[file:../images/reclamos-poisson-predictiva-datos.jpeg]]
+
+** Sobre-dispersión
+
+#+begin_src R :exports results :results org
+  reclamos |>
+    summarise(promedio = mean(atendidos),
+              varianza = var(atendidos)) |>
+  as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+  promedio varianza
+1    54.88     1230
+#+end_src
+
+[[https://mc-stan.org/docs/2_29/functions-reference/nbalt.html][Neg-Binom]]
+
+#+begin_src stan :eval never :tangle ../modelos/reclamaciones/modelo-negbinom.stan
+  data {
+    int N;
+    int y[N];
+  }
+
+  parameters {
+    real<lower=0> lambda;
+    real<lower=0> phi; 
+  }
+
+  model {
+    lambda ~ normal(50, 10);
+    phi    ~ gamma(1, 1); 
+    y      ~ neg_binomial_2(lambda, phi);
+  }
+
+  generated quantities {
+    int y_tilde = neg_binomial_2_rng(lambda, phi); 
+  }
+#+end_src
+
+
+#+begin_src R :exports code :results none
+  modelos_files <- "modelos/compilados/reclamaciones"
+  ruta <- file.path("modelos/reclamaciones/modelo-negbinom.stan")
+  modelo <- cmdstan_model(ruta, dir = modelos_files)
+#+end_src
+
+#+begin_src R :exports none :results none
+  data_list <- list(N = nrow(reclamos), y = reclamos$atendidos)
+  previa <- modelo$sample(data = list(N = 0, y = c()), refresh = 0)
+  posterior <- modelo$sample(data = data_list, refresh = 0, seed = 108727)
+#+end_src
+
+#+begin_src R :exports results :results org
+  posterior$summary() |> as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+  variable     mean    median      sd     mad        q5       q95  rhat
+1     lp__ -1685.89 -1685.560  1.0410  0.7116 -1688.010 -1684.920 1.002
+2   lambda    54.80    54.742  2.0128  1.9360    51.567    58.189 1.001
+3      phi     2.23     2.225  0.1705  0.1681     1.963     2.517 1.000
+4  y_tilde    54.56    46.000 37.7221 32.6172    11.000   127.000 1.000
+  ess_bulk ess_tail
+1     1906     2185
+2     3469     2510
+3     3610     2486
+4     3710     3616
+#+end_src
+
+** Reparametrizando
+
+[[https://discourse.mc-stan.org/t/negative-binomial-2-should-i-be-worried-about-metropolis-proposal-rejection-in-warmup-phase/5368][ayuda]]. 
+
+#+begin_src stan :eval never :tangle ../modelos/reclamaciones/modelo-negbinom-log.stan
+  data {
+    int N;
+    int y[N];
+  }
+
+  parameters {
+    real log_lambda;
+    real log_phi; 
+  }
+
+  transformed parameters {
+    real phi;
+    phi = exp(log_phi);
+  }
+
+  model {
+    log_lambda ~ normal(4, 0.5);
+    log_phi    ~ normal(0, .5); 
+    y      ~ neg_binomial_2_log(log_lambda, phi);
+  }
+
+  generated quantities {
+    int y_tilde = neg_binomial_2_log_rng(log_lambda, phi); 
+  }
+#+end_src
+
+
+#+begin_src R :exports code :results none
+  modelos_files <- "modelos/compilados/reclamaciones"
+  ruta <- file.path("modelos/reclamaciones/modelo-negbinom-log.stan")
+  modelo <- cmdstan_model(ruta, dir = modelos_files)
+#+end_src
+
+#+begin_src R :exports none :results none
+  data_list <- list(N = nrow(reclamos), y = reclamos$atendidos)
+  previa <- modelo$sample(data = list(N = 0, y = c()), refresh = 0)
+  posterior <- modelo$sample(data = data_list, refresh = 0)
+#+end_src
+
+#+begin_src R :exports results :results org
+  posterior$summary() |> as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+    variable       mean     median       sd      mad         q5        q95
+1       lp__ -1689.6061 -1689.3100  0.95923  0.74130 -1691.5605 -1688.6600
+2 log_lambda     4.0067     4.0065  0.03728  0.03861     3.9461     4.0674
+3    log_phi     0.7889     0.7898  0.07535  0.07429     0.6616     0.9119
+4        phi     2.2073     2.2029  0.16614  0.16402     1.9379     2.4890
+5    y_tilde    54.9763    46.0000 38.51644 34.09980    10.0000   131.0000
+   rhat ess_bulk ess_tail
+1 1.002     1885     2541
+2 1.000     3326     2482
+3 1.003     3178     2618
+4 1.003     3178     2618
+5 1.000     4153     3948
+#+end_src
+
+#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/reclamos-negbinom-trayectorias.jpeg :exports results :results output graphics file
+  g1 <- mcmc_trace(posterior$draws(), pars = c("log_lambda", "phi"))
+  g2 <- mcmc_hist(posterior$draws(), pars = c("log_lambda", "phi"))
+
+  g1 / g2
+#+end_src
+
+#+RESULTS:
+[[file:../images/reclamos-negbinom-trayectorias.jpeg]]
+
+#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/reclamos-negbinom-predictiva.jpeg :exports results :results output graphics file
+  g1 <- previa$draws(format = "df") |>
+    rbind(posterior$draws(format = "df")) |>
+    as_tibble() |>
+    mutate(dist = rep(c("previa", "posterior"), each = 4000)) |>
+    ggplot(aes(y_tilde, fill = dist)) +
+    geom_histogram(position = "identity", alpha = .4) +
+    sin_lineas + xlim(0, 300) +
+    ggtitle("Simulaciones de predictivas")
+
+  g2 <- reclamos |>
+    ggplot(aes(atendidos)) +
+    geom_histogram(position = "identity", alpha = .6) +
+    ggtitle("Histograma datos") + sin_lineas + xlim(0, 300)
+
+  g2 + g1
+#+end_src
+
+#+RESULTS:
+[[file:../images/reclamos-negbinom-predictiva.jpeg]]
+
+** Modelo jerarquico
+
+#+begin_src R :exports results :results org
+
+  reclamos |>
+    group_by(compania) |>
+    summarise(promedio = mean(atendidos),
+              varianza = var(atendidos)) |>
+    as.data.frame()
+
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+         compania promedio varianza
+1  AirAsiaSupport    41.61   1718.4
+2       AlaskaAir    83.59   1341.1
+3 British_Airways    46.45    734.0
+4         JetBlue    85.20    637.3
+5   VirginAmerica    32.28    154.2
+6  VirginAtlantic    36.44    185.9
+#+end_src
+
+#+begin_src stan :eval never :tangle ../modelos/reclamaciones/modelo-negbinom-jerarquico.stan
+  data {
+    int N;
+    int y[N];
+    int compania[N]; 
+  }
+
+  parameters {
+    real log_lambda[6];
+    real log_phi[6]; 
+  }
+
+  transformed parameters {
+    real phi[6];
+    for (ii in 1:6)
+      phi[ii] = exp(-log_phi[ii]);
+  }
+
+  model {
+    log_lambda ~ normal(4, 0.5);
+    log_phi    ~ normal(0, 0.5); 
+    y      ~ neg_binomial_2_log(log_lambda[compania], phi[compania]);
+  }
+
+  generated quantities {
+    int y_tilde[6];
+    for (ii in 1:6){
+      y_tilde[ii] = neg_binomial_2_log_rng(log_lambda[ii], phi[ii]);
+    }
+  }
+#+end_src
+
+
+#+begin_src R :exports code :results none
+  modelos_files <- "modelos/compilados/reclamaciones"
+  ruta <- file.path("modelos/reclamaciones/modelo-negbinom-jerarquico.stan")
+  modelo <- cmdstan_model(ruta, dir = modelos_files)
+#+end_src
+
+#+begin_src R :exports none :results none
+  data_list <- list(N = nrow(reclamos),
+                    y = reclamos$atendidos,
+                     compania = as.numeric(reclamos$compania))
+  posterior <- modelo$sample(data = data_list, refresh = 0)
+#+end_src
+
+#+begin_src R :exports results :results org
+  posterior$summary() |> as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+        variable       mean     median       sd      mad         q5        q95
+1           lp__ -1609.2470 -1608.9000  2.50209  2.35733 -1613.7700 -1605.7995
+2  log_lambda[1]     4.4198     4.4186  0.07129  0.07046     4.3060     4.5371
+3  log_lambda[2]     3.6042     3.6037  0.06542  0.06260     3.4994     3.7133
+4  log_lambda[3]     3.8489     3.8487  0.09136  0.08988     3.7021     3.9995
+5  log_lambda[4]     4.4400     4.4397  0.05683  0.05552     4.3479     4.5333
+6  log_lambda[5]     3.4818     3.4814  0.05312  0.05265     3.3947     3.5688
+7  log_lambda[6]     3.7567     3.7565  0.14283  0.13795     3.5236     3.9894
+8     log_phi[1]    -1.2183    -1.2225  0.19652  0.19604    -1.5379    -0.8777
+9     log_phi[2]    -1.5059    -1.5078  0.21774  0.21396    -1.8616    -1.1499
+10    log_phi[3]    -0.7459    -0.7507  0.18661  0.18646    -1.0467    -0.4305
+11    log_phi[4]    -1.7124    -1.7164  0.21783  0.21699    -2.0577    -1.3529
+12    log_phi[5]    -1.9398    -1.9406  0.22909  0.23156    -2.3081    -1.5584
+13    log_phi[6]    -0.1148    -0.1186  0.18975  0.18742    -0.4195     0.2096
+14        phi[1]     3.4470     3.3958  0.67649  0.66600     2.4055     4.6549
+15        phi[2]     4.6163     4.5167  1.01538  0.96339     3.1580     6.4340
+16        phi[3]     2.1451     2.1185  0.40056  0.39304     1.5380     2.8484
+17        phi[4]     5.6741     5.5642  1.23248  1.21907     3.8684     7.8283
+18        phi[5]     7.1412     6.9632  1.64205  1.60129     4.7511    10.0553
+19        phi[6]     1.1419     1.1259  0.21642  0.21243     0.8109     1.5211
+20    y_tilde[1]    84.1642    76.0000 48.34948 44.47800    23.0000   173.0500
+21    y_tilde[2]    37.0097    34.0000 19.07833 17.79120    11.0000    71.0000
+22    y_tilde[3]    47.9062    40.0000 34.89723 29.65200     8.0000   117.0000
+23    y_tilde[4]    84.9873    79.0000 39.01052 37.06500    33.0000   156.0000
+24    y_tilde[5]    32.2597    31.0000 13.78391 13.34340    13.0000    58.0000
+25    y_tilde[6]    44.1125    31.0000 43.40299 31.13460     2.0000   130.0000
+     rhat ess_bulk ess_tail
+1  1.0028     1893     2026
+2  1.0020     7757     3032
+3  0.9995     7985     2967
+4  1.0018     7547     3100
+5  1.0006     6710     2868
+6  1.0027     7225     2839
+7  1.0023     8608     2966
+8  1.0025     7622     3089
+9  1.0002     7082     3568
+10 1.0009     7527     2990
+11 1.0006     8128     3084
+12 1.0021     7591     3262
+13 1.0006     5759     3042
+14 1.0022     7622     3089
+15 1.0001     7082     3568
+16 1.0010     7527     2990
+17 1.0005     8128     3084
+18 1.0019     7591     3262
+19 1.0005     5760     3042
+20 0.9997     4002     3926
+21 1.0005     3817     4026
+22 1.0004     4075     3919
+23 1.0007     4247     3987
+24 0.9999     3995     3963
+25 1.0008     4080     3778
+#+end_src
+
+#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/reclamos-negbinom-jerar-histogramas.jpeg :exports results :results output graphics file
+  mcmc_hist(posterior$draws(),
+            regex_pars = "lambda",
+            transformations = "exp")
+#+end_src
+
+#+RESULTS:
+[[file:../images/reclamos-negbinom-jerar-histogramas.jpeg]]
+
+#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/reclamos-negbinom-jerar-predictivas.jpeg :exports results :results output graphics file
+  mcmc_hist(posterior$draws(),
+            regex_pars = "tilde")
+#+end_src
+
+#+RESULTS:
+[[file:../images/reclamos-negbinom-jerar-predictivas.jpeg]]
 
 * Ejemplo: tiros de golf
 
