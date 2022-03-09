@@ -83,9 +83,10 @@
 - [[#introducción][Introducción]]
 - [[#ejemplo-datos-de-conteo][Ejemplo: datos de conteo]]
   - [[#primer-modelo][Primer modelo]]
+    - [[#conclusiones][Conclusiones:]]
   - [[#sobre-dispersión][Sobre-dispersión]]
   - [[#reparametrizando][Reparametrizando]]
-    - [[#calibración-de-previa][Calibración de previa]]
+    - [[#calibración-de-previa][Calibración de previa:]]
   - [[#definición-del-modelo][Definición del modelo]]
   - [[#modelo-jerarquico][Modelo jerarquico]]
 - [[#ejemplo-tiros-de-golf][Ejemplo: tiros de golf]]
@@ -148,8 +149,14 @@ file:../images/workflow.jpeg
 
 * Ejemplo: datos de conteo
 
+Con este ejemplo veremos la aplicación de modelos bayesianos en el contexto de
+/customer service/. Los datos disponibles son /tweets/ sobre reclamos a compañías y
+además contamos con los /tweets/ de respuesta para dichas reclamaciones. Nos
+concentraremos en compañías áreas pero se puede extender el modelo a otras. El
+objetivo de este análisis es poder definir qué compañía responde a mayor número
+de /tweets/ por reclamaciones de manera diaria.
 
-#+begin_src R :exports code :results none
+#+begin_src R :exports none :results none
   tweets   <- read_csv("datos/response_times.csv")
   tweets   <- tweets |>
     mutate(compania = author_id_y,
@@ -166,7 +173,22 @@ file:../images/workflow.jpeg
     summarise(atendidos = n(),
               respuesta = mean(response_time)) |>
     mutate(compania = factor(compania)) |> 
-    ungroup()
+    ungroup() 
+#+end_src
+
+La variable de interés es el número de mensajes atendidos diario (~atendidos~) y
+nos concentraremos en el periodo de Octubre y Noviembre del 2017. 
+
+#+begin_src R :exports code :results org
+   reclamos |> head(3) |> as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+  anio mes dia       compania atendidos respuesta
+1 2017  10   1      AlaskaAir         1      2.10
+2 2017  10   1 VirginAtlantic         1     58.07
+3 2017  10   2      AlaskaAir         1     10.72
 #+end_src
 
 #+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
@@ -175,14 +197,15 @@ file:../images/workflow.jpeg
     ggplot(aes(atendidos)) +
     geom_histogram() 
 #+end_src
-
+#+caption: Conteos de reclamos diarios atendidos por las aerolíneas. 
 #+RESULTS:
 [[file:../images/reclamos-histograma.jpeg]]
 
-#+begin_src R :exports code :results org
+Donde vemos que el número promedio de reclamos es el siguiente. 
+
+#+begin_src R :exports results :results org
     reclamos |>
-    ungroup()|>
-      summarise(reclamos = mean(atendidos)) |>
+      summarise(promedio = mean(atendidos)) |>
       as.data.frame()
 #+end_src
 
@@ -193,6 +216,24 @@ file:../images/workflow.jpeg
 #+end_src
 
 ** Primer modelo 
+
+Dado que nuestro objetivo es modelo el ~número de reclamos atendidos~ lo natural es pensar en una variable /aleatoria de conteo/. Dentro de las opciones naturales tenemos como candidatos:
+- ~Binomial~: el número de éxitos que suceden con una tasa $\theta$ dentro de una colección de $n$ observaciones.
+- ~Poisson~: el número de eventos que suceden con una tasa de ocurrencia $\lambda$.
+
+
+El modelo ~poisson~ es el candidato natural para este modelo. El cual tiene una función de masa de probabilidad igual a
+\begin{align}
+\mathbb{P}(X = k | \lambda) = \frac{\lambda^k e^{-\lambda}}{k!}\,,
+\end{align}
+cuando $X |\lambda \sim \mathsf{Poisson}(\lambda)$ con $\lambda >0$. 
+
+Dada nuestra ignorancia sobre el problema escogemos una distribución previa para
+$\lambda$ como una $\mathsf{Gamma}(100,2)$ que es una distribución inicial ~poco
+informativa~. En promedio con esta distribución esperamos 50 reclamos atendidos
+por twitter al día con una dispersión de 25 reclamos.
+
+El modelo lo escribimos como sigue:
 
 #+begin_src stan :eval never :tangle ../modelos/reclamaciones/modelo-poisson.stan
   data {
@@ -210,26 +251,15 @@ file:../images/workflow.jpeg
   }
 #+end_src
 
-
 #+begin_src R :exports code :results none
   modelos_files <- "modelos/compilados/reclamaciones"
   ruta <- file.path("modelos/reclamaciones/modelo-poisson.stan")
   modelo <- cmdstan_model(ruta, dir = modelos_files)
 #+end_src
+ 
+Lo utilizamos para muestrear de la previa y la posterior
 
-#+begin_src R :exports none :results none
-  ajustar_modelo <- function(modelo, datos, iter_sampling = 1000, iter_warmup = 1000, seed = 2210){ 
-    ajuste <- modelo$sample(data = datos, 
-                            seed = seed,
-                            iter_sampling = iter_sampling, 
-                            iter_warmup = iter_sampling,
-                            refresh = 0, 
-                            show_messages = FALSE)
-    ajuste
-  }
-#+end_src
-
-#+begin_src R :exports results :results org
+#+begin_src R :exports both :results org
   data_list <- list(N = nrow(reclamos), y = reclamos$atendidos)
   previa <- modelo$sample(data = list(N = 0, y = c()), refresh = 0)
   posterior <- modelo$sample(data = data_list, refresh = 0)
@@ -259,6 +289,12 @@ Mean chain execution time: 0.0 seconds.
 Total execution time: 0.6 seconds.
 #+end_src
 
+#+BEGIN_NOTES
+Nota que para muestrear de la previa utilizamos un bloque de datos vacío. 
+#+END_NOTES
+
+Podemos extraer resúmenes como sigue
+
 #+begin_src R :exports results :results org
   posterior$summary() |> as.data.frame()
 #+end_src
@@ -273,6 +309,8 @@ Total execution time: 0.6 seconds.
 2     2123
 #+end_src
 
+Y finalmente podemos crear histogramas para comparar la distribución previa contra la posterior sobre el parámetro de interés
+
 #+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/reclamos-poisson-media.jpeg :exports results :results output graphics file
   simulaciones <- previa$draws(format = "df") |>
@@ -283,11 +321,15 @@ Total execution time: 0.6 seconds.
   simulaciones |>
     ggplot(aes(lambda, fill = dist)) +
     geom_histogram(position = "identity", alpha = .6) +
-    ggtitle("Simulaciones de parámetro desconocido")
+    ggtitle("Simulaciones de parámetro desconocido") +
+  sin_lineas
 #+end_src
-
+#+caption: Histograma de $\lambda$ bajo la distribución previa (azul) y posterior (salmón). 
 #+RESULTS:
 [[file:../images/reclamos-poisson-media.jpeg]]
+
+También podemos obtener histogramas de la distribución predictiva (previa y
+posterior) para comparar las inferencias sobre ~observables~ bajo nuestro modelo.
 
 #+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/reclamos-poisson-predictiva.jpeg :exports results :results output graphics file
@@ -298,11 +340,13 @@ Total execution time: 0.6 seconds.
     })) |>
     ggplot(aes(y_tilde, fill = dist)) +
     geom_histogram(position = "identity", alpha = .6) +
-    ggtitle("Simulaciones de predictivas")
+    ggtitle("Simulaciones de predictivas") + sin_lineas
 #+end_src
-
+#+caption: Histogramas de observaciones hipotéticas del modelo bajo la distribución previa (azul) y posterior (salmón). 
 #+RESULTS:
 [[file:../images/reclamos-poisson-predictiva.jpeg]]
+
+Finalmente, hacemos una comparación con el histograma de los datos. 
 
 #+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/reclamos-poisson-predictiva-datos.jpeg :exports results :results output graphics file
@@ -324,11 +368,16 @@ Total execution time: 0.6 seconds.
 
   g2 + g1
 #+end_src
-
+#+caption: Histogramas de observaciones hipotéticas del modelo bajo la distribución previa (azul) y posterior (salmón). 
 #+RESULTS:
 [[file:../images/reclamos-poisson-predictiva-datos.jpeg]]
 
+*** Conclusiones:
+Lo que observamos es un fenómeno muy común con modelos de conteo. En Promedio nuestras estimaciones funcionan bien. La media posterior es cercana al estimador de máxima verosimilitud. Sin embargo, el modelo no es capaz de controlar la variabilidad de las observaciones. Esto es por que bajo un modelo Poisson la media y varianza están contorladas con el mismo parámetro. Cuando esto sucede --los datos tienen mayor variabilidad que la sugerida por un modelo Poisson (o Binomial)-- hablamos de datos de conteo con ~sobre-dispersión~. 
+
 ** Sobre-dispersión
+
+Calculemos la media y varianza de nuestro datos: 
 
 #+begin_src R :exports results :results org
   reclamos |>
@@ -343,7 +392,46 @@ Total execution time: 0.6 seconds.
 1    54.88     1230
 #+end_src
 
-[[https://mc-stan.org/docs/2_29/functions-reference/nbalt.html][Neg-Binom]]
+Claramente no podremos modelar la variabilidad de nuestros datos con un modelo
+Poisson. Así que necesitamos buscar qué distribución es la adecuada para nuestro
+problema (ver Sección 17.2 de citep:Gelman2014a). Una variable aleatoria
+~Binomial Negativa~ es la sugerida donde la función de masa de probabilidad está
+definida por
+\begin{align}
+\mathbb{P}(Y = k | \alpha, \beta) = {k + \alpha -1 \choose \alpha - 1 } \left( \frac{\beta}{\beta+1} \right)^\alpha \left( \frac{1}{\beta+1} \right)^k\,,
+\end{align}
+donde $Y|\alpha, \beta \sim \mathsf{NegBinom}(\alpha, \beta)$ y cuyos estadísticos básicos están definidos como
+\begin{align}
+\mathbb{E}[Y] = \frac{\alpha}{\beta}, \qquad \mathbb{V}(Y) = \frac{\alpha}{\beta^2}(\beta+1)\,.
+\end{align}
+
+Lo cual es informativo, pero poco útil para generar un poco de intuición. Asi
+que optamos por una segunda ~parametrización~ [[https://mc-stan.org/docs/2_29/functions-reference/nbalt.html][(Neg-Binom)]] la cual tiene como masa de
+probabilidad
+\begin{align}
+\mathbb{P}(Y = k | \mu, \phi) = {k + \phi -1 \choose k } \left( \frac{\mu}{\mu + \phi} \right)^k \left( \frac{\phi}{\mu + \phi} \right)^\phi\,,
+\end{align}
+donde $Y|\mu, \phi \sim \mathsf{NegBinom}(\mu, \phi)$ y cuyos estadísticos básicos están definidos como
+\begin{align}
+\mathbb{E}[Y] = \mu, \qquad \mathbb{V}(Y) = \mu + \frac{\mu^2}{\phi}\,,
+\end{align}
+donde $\mu>0$ es el número esperado de casos y $\phi >0$ controla el factor
+adicional de dispersión de la ~binomial negativa~. Al parámetro $\phi$ le llamamos
+precisión del modelo.
+
+#+BEGIN_NOTES
+Para entender una conexión adicional entre la ~binomial negativa~ y la ~poisson~
+pensemos en que si marginalizamos una $\mathsf{Poisson}(Y|\lambda)$ con respecto
+a una $\mathsf{Gamma}(\lambda|\alpha, \beta)$ obtenemos la ~binomial
+negativa~. Esto quiere decir que el componente adicional de dispersión del modelo
+~poisson~ es el resultado de marginalizar bajo distintas configuraciones
+provenientes de una ~gamma~ el parámetro que controla la media del modelo de conteo. Es por
+esto que también a una binomial negativa se le conoce como ~Poisson-Gamma~ citep:McElreath2020. 
+#+END_NOTES
+
+Escribimos el modelo donde igual que antes utilizamos una distribución previa
+sobre el parámetro adicional poco informativa.  En este momento lo que queremos
+es probar si podemos ajustar este modelo a nuestros datos.
 
 #+begin_src stan :eval never :tangle ../modelos/reclamaciones/modelo-negbinom.stan
   data {
@@ -377,8 +465,13 @@ Total execution time: 0.6 seconds.
 #+begin_src R :exports none :results none
   data_list <- list(N = nrow(reclamos), y = reclamos$atendidos)
   previa <- modelo$sample(data = list(N = 0, y = c()), refresh = 0)
-  posterior <- modelo$sample(data = data_list, refresh = 0, seed = 108727)
+  posterior <- modelo$sample(data = data_list, refresh = 500, seed = 108727)
 #+end_src
+
+Vemos algunas alertas en el ajuste de la posterior. Las cuales podemos explorar
+mejor utilizando la opción ~refresh~ del muestreador. Con esto vemor que las
+alertas suceden en el periodo de calentamiento del muestreador. Podemos ver los
+resúmenes y ver que efectivamente parece no haber problemas con el ajuste. 
 
 #+begin_src R :exports results :results org
   posterior$summary() |> as.data.frame()
@@ -400,7 +493,12 @@ Total execution time: 0.6 seconds.
 
 ** Reparametrizando
 
-#+begin_src R :exports results :results org
+Posiblemente nos sintamos incómodos por las alertas asi que podemos buscar la parametrización del modelo. Como siempre, buscamos [[https://discourse.mc-stan.org/t/negative-binomial-2-should-i-be-worried-about-metropolis-proposal-rejection-in-warmup-phase/5368][ayuda]] y encontramos que se puede parametrizar distinto con $\log \mu$ dadas las inicializaciones del modelo. 
+Al tener un modelo previo normal truncado para $\lambda$ es natural pensar que podemos asumir una distribución para $\log \lambda$ como alternativa.
+
+Es buen momento para refinar la distribución previa de los demás parámetros (en este caso $\phi$).  
+
+#+begin_src R :exports none :results none
   reclamos |>
     summarise(promedio = mean(atendidos),
               varianza = var(atendidos),
@@ -409,15 +507,11 @@ Total execution time: 0.6 seconds.
     as.data.frame()
 #+end_src
 
-#+RESULTS:
-#+begin_src org
-  promedio varianza exceso precision
-1    54.88     1230 0.3901     2.563
-#+end_src
+*** Calibración de previa:
 
-[[https://discourse.mc-stan.org/t/negative-binomial-2-should-i-be-worried-about-metropolis-proposal-rejection-in-warmup-phase/5368][ayuda]].
-
-*** Calibración de previa
+Parte de las alertas tienen que ver con la restricción misma del modelo. Asi que
+podemos utilizar ~Stan~ para ~elicitar~ (proceso de calibración de una distribución
+de probabilidad) la previa.
 
 #+begin_src stan :eval never :tangle ../modelos/reclamaciones/elicita-gamma.stan
   functions {
@@ -431,8 +525,8 @@ Total execution time: 0.6 seconds.
   }
 
   transformed data {
-    vector[2] y_guess = [log(9), log(0.5)]'; // Valores iniciales
-    vector[2] theta = [1.5, 15]';          // Cotas del intervalo
+    vector[2] y_guess = [log(9), log(0.5)]';//Valores iniciales
+    vector[2] theta = [1.5, 15]';           //Cotas del intervalo
     vector[2] y;
     real x_r[0];
     int x_i[0];
@@ -451,15 +545,31 @@ Total execution time: 0.6 seconds.
   }
 #+end_src
 
-#+begin_src R :exports code :results none
+#+begin_src R :exports none :results none
   modelos_files <- "modelos/compilados/reclamaciones"
   ruta <- file.path("modelos/reclamaciones/elicita-gamma.stan")
   modelo <- cmdstan_model(ruta, dir = modelos_files)
 #+end_src
 
-#+begin_src R :exports code :results none
-  solucion <- modelo$sample(iter = 1, iter_warmup = 0, chains = 1, fixed_param = TRUE)
+#+begin_src R :exports both :results org
+  solucion <- modelo$sample(iter = 1, iter_warmup = 0,
+                            chains = 1, fixed_param = TRUE)
   previa.params <- solucion$draws(format = "df")
+  previa.params
+#+end_src
+#+caption: Resultados de la elicitación. 
+#+RESULTS:
+#+begin_src org
+Running MCMC with 1 chain...
+
+Chain 1 alpha = 5.61803 
+Chain 1 beta = 0.904107 
+Chain 1 Iteration: 1 / 1 [100%]  (Sampling) 
+Chain 1 finished in 0.0 seconds.
+# A draws_df: 1 iterations, 1 chains, and 2 variables
+  alpha beta
+1   5.6  0.9
+# ... hidden reserved variables {'.chain', '.iteration', '.draw'}
 #+end_src
 
 ** Definición del modelo
