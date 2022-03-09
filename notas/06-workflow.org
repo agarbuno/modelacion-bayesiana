@@ -85,6 +85,8 @@
   - [[#primer-modelo][Primer modelo]]
   - [[#sobre-dispersión][Sobre-dispersión]]
   - [[#reparametrizando][Reparametrizando]]
+    - [[#calibración-de-previa][Calibración de previa]]
+  - [[#definición-del-modelo][Definición del modelo]]
   - [[#modelo-jerarquico][Modelo jerarquico]]
 - [[#ejemplo-tiros-de-golf][Ejemplo: tiros de golf]]
   - [[#modelo-logístico][Modelo logístico]]
@@ -398,28 +400,87 @@ Total execution time: 0.6 seconds.
 
 ** Reparametrizando
 
-[[https://discourse.mc-stan.org/t/negative-binomial-2-should-i-be-worried-about-metropolis-proposal-rejection-in-warmup-phase/5368][ayuda]]. 
+#+begin_src R :exports results :results org
+  reclamos |>
+    summarise(promedio = mean(atendidos),
+              varianza = var(atendidos),
+              exceso   = (varianza - promedio)/promedio**2,
+              precision = 1/exceso) |>
+    as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+  promedio varianza exceso precision
+1    54.88     1230 0.3901     2.563
+#+end_src
+
+[[https://discourse.mc-stan.org/t/negative-binomial-2-should-i-be-worried-about-metropolis-proposal-rejection-in-warmup-phase/5368][ayuda]].
+
+*** Calibración de previa
+
+#+begin_src stan :eval never :tangle ../modelos/reclamaciones/elicita-gamma.stan
+  functions {
+    // Diferencias para las colas de una Gamma
+    vector tail_delta(vector y, vector theta, real[] x_r, int[] x_i) {
+      vector[2] deltas;
+      deltas[1] = gamma_cdf(theta[1] | exp(y[1]), exp(y[2])) - 0.005;
+      deltas[2] = 1 - gamma_cdf(theta[2] | exp(y[1]), exp(y[2])) - 0.005;
+      return deltas;
+    }
+  }
+
+  transformed data {
+    vector[2] y_guess = [log(9), log(0.5)]'; // Valores iniciales
+    vector[2] theta = [1.5, 15]';          // Cotas del intervalo
+    vector[2] y;
+    real x_r[0];
+    int x_i[0];
+
+    // Encuentra los parametros de la Gamma para satisfacer que
+    // con 1% de probabilidad estemos en el intervalo [0.5, 20]
+    y = algebra_solver(tail_delta, y_guess, theta, x_r, x_i);
+
+    print("alpha = ", exp(y[1]));
+    print("beta = ", exp(y[2]));
+  }
+
+  generated quantities {
+    real alpha = exp(y[1]);
+    real beta = exp(y[2]);
+  }
+#+end_src
+
+#+begin_src R :exports code :results none
+  modelos_files <- "modelos/compilados/reclamaciones"
+  ruta <- file.path("modelos/reclamaciones/elicita-gamma.stan")
+  modelo <- cmdstan_model(ruta, dir = modelos_files)
+#+end_src
+
+#+begin_src R :exports code :results none
+  solucion <- modelo$sample(iter = 1, iter_warmup = 0, chains = 1, fixed_param = TRUE)
+  previa.params <- solucion$draws(format = "df")
+#+end_src
+
+** Definición del modelo
 
 #+begin_src stan :eval never :tangle ../modelos/reclamaciones/modelo-negbinom-log.stan
   data {
     int N;
     int y[N];
+    real<lower=0> gamma_alpha;
+    real<lower=0> gamma_beta;
   }
 
   parameters {
     real log_lambda;
-    real log_phi; 
-  }
-
-  transformed parameters {
-    real phi;
-    phi = exp(log_phi);
+    real<lower=0> phi; 
   }
 
   model {
     log_lambda ~ normal(4, 0.5);
-    log_phi    ~ normal(0, .5); 
-    y      ~ neg_binomial_2_log(log_lambda, phi);
+    phi ~ gamma(gamma_alpha, gamma_beta);
+    y   ~ neg_binomial_2_log(log_lambda, phi);
   }
 
   generated quantities {
@@ -435,8 +496,12 @@ Total execution time: 0.6 seconds.
 #+end_src
 
 #+begin_src R :exports none :results none
-  data_list <- list(N = nrow(reclamos), y = reclamos$atendidos)
-  previa <- modelo$sample(data = list(N = 0, y = c()), refresh = 0)
+  data_list <- list(N = nrow(reclamos), y = reclamos$atendidos,
+                    gamma_alpha = previa.params$alpha, gamma_beta = previa.params$beta)
+  previa <- modelo$sample(
+                     data = list(N = 0, y = c(),
+                     gamma_alpha = previa.params$alpha,
+                     gamma_beta = previa.params$beta), refresh = 0)
   posterior <- modelo$sample(data = data_list, refresh = 0)
 #+end_src
 
@@ -446,26 +511,26 @@ Total execution time: 0.6 seconds.
 
 #+RESULTS:
 #+begin_src org
-    variable       mean     median       sd      mad         q5        q95
-1       lp__ -1689.6061 -1689.3100  0.95923  0.74130 -1691.5605 -1688.6600
-2 log_lambda     4.0067     4.0065  0.03728  0.03861     3.9461     4.0674
-3    log_phi     0.7889     0.7898  0.07535  0.07429     0.6616     0.9119
-4        phi     2.2073     2.2029  0.16614  0.16402     1.9379     2.4890
-5    y_tilde    54.9763    46.0000 38.51644 34.09980    10.0000   131.0000
-   rhat ess_bulk ess_tail
-1 1.002     1885     2541
-2 1.000     3326     2482
-3 1.003     3178     2618
-4 1.003     3178     2618
-5 1.000     4153     3948
+    variable      mean    median       sd      mad        q5       q95   rhat
+1       lp__ -1685.744 -1685.440  0.97671  0.69682 -1687.740 -1684.820 0.9998
+2 log_lambda     4.006     4.005  0.03623  0.03632     3.946     4.067 1.0001
+3        phi     2.301     2.296  0.17166  0.17109     2.033     2.587 1.0004
+4    y_tilde    54.439    46.000 36.56166 32.61720    10.000   125.000 0.9999
+  ess_bulk ess_tail
+1     1802     2272
+2     3484     2314
+3     3516     2420
+4     4097     3915
 #+end_src
 
-#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/reclamos-negbinom-trayectorias.jpeg :exports results :results output graphics file
-  g1 <- mcmc_trace(posterior$draws(), pars = c("log_lambda", "phi"))
-  g2 <- mcmc_hist(posterior$draws(), pars = c("log_lambda", "phi"))
+  g1 <- mcmc_hist(previa$draws(), pars = c("log_lambda", "phi")) +
+    ggtitle("Histogramas distribución previa")
+  g2 <- mcmc_hist(posterior$draws(), pars = c("log_lambda", "phi")) +
+    ggtitle("Histogramas distribución posterior")
 
-  g1 / g2
+  (g1 / g2)
 #+end_src
 
 #+RESULTS:
@@ -496,47 +561,44 @@ Total execution time: 0.6 seconds.
 ** Modelo jerarquico
 
 #+begin_src R :exports results :results org
-
   reclamos |>
     group_by(compania) |>
     summarise(promedio = mean(atendidos),
-              varianza = var(atendidos)) |>
+              varianza = var(atendidos),
+              exceso   = (varianza - promedio)/promedio**2,
+              precision = 1/exceso) |>
     as.data.frame()
 
 #+end_src
 
 #+RESULTS:
 #+begin_src org
-         compania promedio varianza
-1  AirAsiaSupport    41.61   1718.4
-2       AlaskaAir    83.59   1341.1
-3 British_Airways    46.45    734.0
-4         JetBlue    85.20    637.3
-5   VirginAmerica    32.28    154.2
-6  VirginAtlantic    36.44    185.9
+         compania promedio varianza  exceso precision
+1       AlaskaAir    83.59   1341.1 0.17997     5.557
+2  VirginAtlantic    36.44    185.9 0.11255     8.885
+3 British_Airways    46.45    734.0 0.31867     3.138
+4         JetBlue    85.20    637.3 0.07606    13.148
+5   VirginAmerica    32.28    154.2 0.11698     8.548
+6  AirAsiaSupport    41.61   1718.4 0.96831     1.033
 #+end_src
 
 #+begin_src stan :eval never :tangle ../modelos/reclamaciones/modelo-negbinom-jerarquico.stan
   data {
     int N;
     int y[N];
-    int compania[N]; 
+    int compania[N];
+    real<lower=0> gamma_alpha;
+    real<lower=0> gamma_beta;
   }
 
   parameters {
     real log_lambda[6];
-    real log_phi[6]; 
-  }
-
-  transformed parameters {
-    real phi[6];
-    for (ii in 1:6)
-      phi[ii] = exp(-log_phi[ii]);
+    real<lower=0> phi[6]; 
   }
 
   model {
     log_lambda ~ normal(4, 0.5);
-    log_phi    ~ normal(0, 0.5); 
+    phi    ~ gamma(gamma_alpha, gamma_beta); 
     y      ~ neg_binomial_2_log(log_lambda[compania], phi[compania]);
   }
 
@@ -558,8 +620,10 @@ Total execution time: 0.6 seconds.
 #+begin_src R :exports none :results none
   data_list <- list(N = nrow(reclamos),
                     y = reclamos$atendidos,
-                     compania = as.numeric(reclamos$compania))
-  posterior <- modelo$sample(data = data_list, refresh = 0)
+                    compania = as.numeric(reclamos$compania),
+                    gamma_alpha = previa.params$alpha,
+                    gamma_beta  = previa.params$beta)
+  posterior <- modelo$sample(data = data_list, refresh = 500, seed = 108727)
 #+end_src
 
 #+begin_src R :exports results :results org
@@ -568,58 +632,46 @@ Total execution time: 0.6 seconds.
 
 #+RESULTS:
 #+begin_src org
-        variable       mean     median       sd      mad         q5        q95
-1           lp__ -1609.2470 -1608.9000  2.50209  2.35733 -1613.7700 -1605.7995
-2  log_lambda[1]     4.4198     4.4186  0.07129  0.07046     4.3060     4.5371
-3  log_lambda[2]     3.6042     3.6037  0.06542  0.06260     3.4994     3.7133
-4  log_lambda[3]     3.8489     3.8487  0.09136  0.08988     3.7021     3.9995
-5  log_lambda[4]     4.4400     4.4397  0.05683  0.05552     4.3479     4.5333
-6  log_lambda[5]     3.4818     3.4814  0.05312  0.05265     3.3947     3.5688
-7  log_lambda[6]     3.7567     3.7565  0.14283  0.13795     3.5236     3.9894
-8     log_phi[1]    -1.2183    -1.2225  0.19652  0.19604    -1.5379    -0.8777
-9     log_phi[2]    -1.5059    -1.5078  0.21774  0.21396    -1.8616    -1.1499
-10    log_phi[3]    -0.7459    -0.7507  0.18661  0.18646    -1.0467    -0.4305
-11    log_phi[4]    -1.7124    -1.7164  0.21783  0.21699    -2.0577    -1.3529
-12    log_phi[5]    -1.9398    -1.9406  0.22909  0.23156    -2.3081    -1.5584
-13    log_phi[6]    -0.1148    -0.1186  0.18975  0.18742    -0.4195     0.2096
-14        phi[1]     3.4470     3.3958  0.67649  0.66600     2.4055     4.6549
-15        phi[2]     4.6163     4.5167  1.01538  0.96339     3.1580     6.4340
-16        phi[3]     2.1451     2.1185  0.40056  0.39304     1.5380     2.8484
-17        phi[4]     5.6741     5.5642  1.23248  1.21907     3.8684     7.8283
-18        phi[5]     7.1412     6.9632  1.64205  1.60129     4.7511    10.0553
-19        phi[6]     1.1419     1.1259  0.21642  0.21243     0.8109     1.5211
-20    y_tilde[1]    84.1642    76.0000 48.34948 44.47800    23.0000   173.0500
-21    y_tilde[2]    37.0097    34.0000 19.07833 17.79120    11.0000    71.0000
-22    y_tilde[3]    47.9062    40.0000 34.89723 29.65200     8.0000   117.0000
-23    y_tilde[4]    84.9873    79.0000 39.01052 37.06500    33.0000   156.0000
-24    y_tilde[5]    32.2597    31.0000 13.78391 13.34340    13.0000    58.0000
-25    y_tilde[6]    44.1125    31.0000 43.40299 31.13460     2.0000   130.0000
+        variable      mean    median       sd      mad         q5       q95
+1           lp__ -1561.142 -1560.810  2.49926  2.40181 -1565.7410 -1557.720
+2  log_lambda[1]     4.421     4.421  0.06188  0.05912     4.3196     4.525
+3  log_lambda[2]     3.601     3.602  0.05583  0.05598     3.5115     3.692
+4  log_lambda[3]     3.846     3.845  0.07883  0.07965     3.7189     3.975
+5  log_lambda[4]     4.443     4.442  0.05118  0.05135     4.3578     4.528
+6  log_lambda[5]     3.479     3.479  0.04844  0.04876     3.3978     3.558
+7  log_lambda[6]     3.757     3.754  0.13021  0.12758     3.5439     3.975
+8         phi[1]     4.519     4.461  0.83398  0.81118     3.2707     6.038
+9         phi[2]     6.392     6.294  1.32577  1.27740     4.4290     8.763
+10        phi[3]     2.702     2.664  0.49926  0.47912     1.9402     3.591
+11        phi[4]     7.546     7.452  1.47012  1.45133     5.3441    10.094
+12        phi[5]     9.437     9.290  1.91648  1.89374     6.5655    12.851
+13        phi[6]     1.368     1.348  0.25863  0.25124     0.9832     1.831
+14    y_tilde[1]    83.304    76.000 42.10947 38.54760    28.0000   162.000
+15    y_tilde[2]    36.572    34.000 16.48838 14.82600    14.0000    66.000
+16    y_tilde[3]    46.980    41.000 30.21969 26.68680    11.0000   104.000
+17    y_tilde[4]    85.118    81.000 33.93328 32.61720    39.0000   147.000
+18    y_tilde[5]    32.483    31.000 12.37788 11.86080    15.0000    55.000
+19    y_tilde[6]    43.594    33.000 39.31701 29.65200     4.0000   119.000
      rhat ess_bulk ess_tail
-1  1.0028     1893     2026
-2  1.0020     7757     3032
-3  0.9995     7985     2967
-4  1.0018     7547     3100
-5  1.0006     6710     2868
-6  1.0027     7225     2839
-7  1.0023     8608     2966
-8  1.0025     7622     3089
-9  1.0002     7082     3568
-10 1.0009     7527     2990
-11 1.0006     8128     3084
-12 1.0021     7591     3262
-13 1.0006     5759     3042
-14 1.0022     7622     3089
-15 1.0001     7082     3568
-16 1.0010     7527     2990
-17 1.0005     8128     3084
-18 1.0019     7591     3262
-19 1.0005     5760     3042
-20 0.9997     4002     3926
-21 1.0005     3817     4026
-22 1.0004     4075     3919
-23 1.0007     4247     3987
-24 0.9999     3995     3963
-25 1.0008     4080     3778
+1  1.0013     1499     2238
+2  1.0010     8523     2855
+3  1.0004     7864     3024
+4  1.0006     6136     2849
+5  1.0000     7305     3165
+6  1.0012     7819     2843
+7  0.9996     7997     2674
+8  1.0011     7244     2829
+9  1.0002     7781     2356
+10 1.0016     7090     3164
+11 0.9998     8263     2965
+12 1.0031     9427     2987
+13 1.0017     9598     3014
+14 0.9997     3871     3714
+15 0.9999     3861     3929
+16 0.9996     3799     3721
+17 0.9999     3763     3453
+18 0.9995     4171     3791
+19 1.0002     4232     3463
 #+end_src
 
 #+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
@@ -631,6 +683,17 @@ Total execution time: 0.6 seconds.
 
 #+RESULTS:
 [[file:../images/reclamos-negbinom-jerar-histogramas.jpeg]]
+
+#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/reclamos-negbinom-jerar-histogramas-precision.jpeg :exports results :results output graphics file
+  mcmc_hist(posterior$draws(),
+            regex_pars = "phi")
+#+end_src
+
+#+RESULTS:
+[[file:../images/reclamos-negbinom-jerar-histogramas-precision.jpeg]]
+
+
 
 #+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/reclamos-negbinom-jerar-predictivas.jpeg :exports results :results output graphics file
