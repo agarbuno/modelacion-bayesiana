@@ -97,7 +97,7 @@
   - [[#ajuste-modelo][Ajuste modelo]]
   - [[#nuevo-conjunto-de-datos][Nuevo conjunto de datos]]
   - [[#incorporando-ángulo-de-tiro][Incorporando ángulo de tiro]]
-  - [[#otro-modelo][Otro modelo]]
+  - [[#errores-latentes][Errores latentes]]
     - [[#tarea][Tarea:]]
 - [[#mensaje][Mensaje]]
 :END:
@@ -868,9 +868,10 @@ la distancia del /putt/ y $y$ indica si se logró o no. Sin embargo, los datos q
 tenemos son agregados: para cada distancia aproximada $x_j$ tendremos un conteo
 de intentos $n_j$ y éxitos $y_j$ sobre los tiros de los jugadores
 profesionales. En total las distancias han sido redondeadas y obtenemos $J = 19$
-distancias distintas.
+distancias distintas. En [[fig:golf-datos]] se muestran los datos disponibles. 
 
-#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+
+#+Header: :width 900 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/golf-observaciones.jpeg :exports results :results output graphics file
   datos <- read_delim("datos/golf.csv", delim = " ")
   datos <- datos |> 
@@ -888,14 +889,26 @@ distancias distintas.
 #+end_src
 
 #+RESULTS:
+#+caption: Datos disponibles para análisis de éxitos de tiros.
+#+name: fig:golf-datos
 [[file:../images/golf-observaciones.jpeg]]
 
 ** Modelo logístico 
 
 Un primer intento es modelar la probabilidad de éxito a través de una regresión
 logística.
-$$y_j \sim \mathsf{Binomial}\left(n_j, \text{logit}^{-1}(a + b x_j)\right),$$
-para cada $j = 1, \ldots, J$. Este modelo lo escribimos en ~Stan~ como sigue
+\begin{subequations}
+\begin{gather}
+p_j =  \text{logit}^{-1}(a + b x_j)\,,\\
+y_j \sim \mathsf{Binomial}\left(n_j,p_j\right)\,,
+\end{gather}
+\end{subequations}
+para cada $j = 1, \ldots, J$. Esto es equivalente a
+\begin{align}
+\log \left(  \frac{p_j}{ 1 - p_j}\right) = a + b \, x_j\,.
+\end{align}
+
+Este modelo lo escribimos en ~Stan~ como sigue
 
 #+caption: Modelo logístico para tasa de éxito de tiros de golf. 
 #+begin_src stan :tangle ../modelos/golf/modelo-logistico.stan
@@ -928,7 +941,7 @@ naturaleza.
 
 Utilicemos la siguiente función para evitar /overhead/ en el ajuste del modelo. 
 
-#+begin_src R :exports none :results none
+#+begin_src R :exports code :results none
   ajustar_modelo <- function(modelo, datos, iter_sampling = 1000, iter_warmup = 1000, seed = 2210){ 
     ajuste <- modelo$sample(data = datos, 
                             seed = seed,
@@ -1082,7 +1095,7 @@ A pesar de los problemas en la semillas iniciales parece ser que no hay problema
 3      763
 #+end_src
 
-Podemos explorar las trayectorias marginales. Todo indica que el ajuste está bien y no hay problemas aparentes con el modelo. 
+Podemos explorar las trayectorias marginales en [[fig:golf-traceplot]] . Todo indica que el ajuste está bien y no hay problemas aparentes con el modelo. 
 
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/golf-trayectorias-logistico.jpeg :exports results :results output graphics file
@@ -1095,11 +1108,12 @@ Podemos explorar las trayectorias marginales. Todo indica que el ajuste está bi
     facet_wrap(~parameter, ncol = 1, scales = 'free', strip.position="right") + 
     scale_color_viridis_d(option = 'plasma')+ sin_lineas
 #+end_src
-
+#+caption: Trayectorias de simulación.
+#+name: fig:golf-traceplot
 #+RESULTS:
 [[file:../images/golf-trayectorias-logistico.jpeg]]
 
-/Fun fact/: como exploraron en la tarea podemos extraer los puntos que maximizan la distribución posterior, ¿en serio?
+/Fun fact/: ¿cómo exploraron en la tarea podemos extraer los puntos que maximizan la distribución posterior?
 
 #+begin_src R :exports code :results org
   params_map <- modelo$optimize(data = data_list, seed = 108)
@@ -1135,7 +1149,7 @@ Finished in  0.2 seconds.
 
 Podríamos explorar un gráfico de dispersión para visualizar la correlación
 posterior de nuestros parámetros y ubicar el valor que maximiza la
-pseudo-posterior.
+pseudo-posterior, [[fig:golf-dispersion]].
 
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/golf-logistico-dispersion.jpeg :exports results :results output graphics file
@@ -1146,7 +1160,8 @@ pseudo-posterior.
                color = 'salmon', shape = 4, stroke = 2) + 
     ggtitle('Muestras de la posterior')+ sin_lineas
 #+end_src
-
+#+caption: Gráfico de dispersión.
+#+name: fig:golf-dispersion
 #+RESULTS:
 [[file:../images/golf-logistico-dispersion.jpeg]]
 
@@ -1185,14 +1200,15 @@ pseudo-posterior.
   g_logistico
 
 #+end_src
-
+#+caption: Predictiva posterior del modelo logístico.
+#+name: fig:golf-predictiva
 #+RESULTS:
 [[file:../images/golf-logistico-predictivo.jpeg]]
 
-La línea solida representa la mediana de la curva de regresión calculada entre
-las muestras de la posterior obtenidas. La región sombreada corresponde a la
-banda del $99\%$ de credibilidad calculada a partir del mismo conjunto de
-muestras.
+En [[fig:golf-predictiva]] la línea solida representa la mediana de la curva de
+regresión calculada entre las muestras de la posterior obtenidas. La región
+sombreada corresponde a la banda del $99\%$ de credibilidad calculada a partir
+del mismo conjunto de muestras.
 
 El modelo es razonable, en el sentido de que los parámetros tienen los valores
 que esperaríamos. La pendiente del modelo de regresión logística es negativa, lo
@@ -1238,9 +1254,9 @@ son perfectamente planos (lo cual no es cierto, pero refinaremos después),
 de modo que el éxito depende de:
 
 1. Tirar la pelota con un ángulo suficientemente cercano a cero con respecto a
-la línea que va del centro de la pelota al centro del hoyo.
+   la línea que va del centro de la pelota al centro del hoyo.
 2. Tirar la pelota con una velocidad suficiente para que llegue al hoyo pero no
-tan alta que vuele por encima del hoyo.
+   tan alta que vuele por encima del hoyo.
 
 Mejores datos de los tipos de fallo sería útil, pero por el momento no los
 tenemos disponibles.
@@ -1254,9 +1270,10 @@ realizado. El tiro es exitoso cuando el angulo de tiro satisface
 \begin{align}
 |\theta| < \tan^{-1}\left(\frac{R - r}{x}\right)\,.
 \end{align}
-Incorporamos un esquema de esta situación a continuación.
+Incorporamos un esquema de esta situación en [[fig:golf-esquema]].
 
-#+caption: Esquema de tiro y condiciones para un tiro exitoso. 
+#+caption: Esquema de tiro y condiciones para un tiro exitoso.
+#+name: fig:golf-esquema
 #+HEADER: :width 1200
 file:../images/tiro-golf.jpeg
 
@@ -1270,7 +1287,7 @@ Para nuestro problema, la condición de éxito es
 |\theta| < \tan^{-1}\left( \frac{3.3}{x} \right)\,.
 \end{align}
 Mejores golfistas tendrán mejor control sobre $\theta$, y conforme
-$x$ es más grande, la probabilidad de tener éxito baja:
+$x$ es más grande, la probabilidad de tener éxito baja, ver [[fig:golf-desviacion]]
 
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/golf-conceptual-pexito.jpeg :exports results :results output graphics file
@@ -1279,10 +1296,10 @@ $x$ es más grande, la probabilidad de tener éxito baja:
   ggplot(aes(x, theta)) + geom_line() +
     xlab("Distancia (cm)") +
     ylab(expression(paste("Desviación máxima |", theta,"|"))) +
-    labs(subtitle = "Desviación máxima permitida para tener éxito a distintas distancias") +
     scale_y_log10()+ sin_lineas
 #+end_src
-
+#+caption: Desviación máxima permitida para tener éxito a distintas distancias.
+#+name: fig:golf-desviacion
 #+RESULTS:
 [[file:../images/golf-conceptual-pexito.jpeg]]
 
@@ -1305,7 +1322,7 @@ donde $\Phi$ es la función de acumulación de una Normal estándar.
 
 El parámetro $\sigma$ controla la desviación de los tiros en línea recta. Por lo
 tanto afecta la probabilidad de éxito conforme mas lejos estemos y más grande
-sea su valor. El gráfico siguiente muestra que si el golfista tiene mejor control
+sea su valor. [[fig:golf-exito]] muestra que si el golfista tiene mejor control
 sobre su tiro, entonces mayor será su resistencia a encontrarse lejos. 
 
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
@@ -1327,13 +1344,14 @@ sobre su tiro, entonces mayor será su resistencia a encontrarse lejos.
                              sigma," (en grados ", ~degree, ").")), )+ sin_lineas +
     theme(plot.title = element_text(size = 15))
 #+end_src
-
+#+caption: Cómo cambia la probabilidad de éxito con la precisión del jugador.
+#+name: fig:golf-exito
 #+RESULTS:
 [[file:../images/golf-conceptual-pexito-vars.jpeg]]
 
 
 Ahora veamos las distintas realizaciones de tiros a 1 metro de distancia bajo
-distintos valores de $\sigma$. Nota que estamos /traduciendo/ el impacto que tiene nuestro
+distintos valores de $\sigma$, [[fig:golf-tiros]]. Nota que estamos /traduciendo/ el impacto que tiene nuestro
 modelo previo en términos de observaciones tangibles del modelo. 
 
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
@@ -1357,7 +1375,8 @@ modelo previo en términos de observaciones tangibles del modelo.
       ylab("") + xlab("") + ggtitle("Posiciones finales de tiro")+ sin_lineas +
     coord_equal()
 #+end_src
-
+#+caption: Tiros aleatorios.
+#+name: fig:golf-tiros
 #+RESULTS:
 [[file:../images/golf-conceptual-tiros.jpeg]]
 
@@ -1503,7 +1522,7 @@ el supuesto normal. Los intervalos de confianza son casi imperceptibles para las
 nuevas observaciones (puntos salmón en el gráfico).
 
 Ajustando el modelo a los datos nuevos vemos que parece no haber un buen
-ajuste. Subestimamos las tasa de éxito cuando estamos cerca y sobre-estimamos
+ajuste, [[fig:nuevos-datos]]. Subestimamos las tasa de éxito cuando estamos cerca y sobre-estimamos
 cuando nos encontramos muy lejos.
 
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
@@ -1536,7 +1555,8 @@ cuando nos encontramos muy lejos.
       ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito") +
       ggtitle("Modelo con ángulo de tiro")+ sin_lineas
 #+end_src
-
+#+caption: Ajuste a nuevo conjunto de datos.
+#+name: fig:nuevos-datos
 #+RESULTS:
 [[file:../images/golf-limitante-datos.jpeg]]
 
@@ -1684,7 +1704,7 @@ del modelo parece indicar ciertos problemas. En particular notemos que podrían
 ser causados por un punto inicial en una cadena. Después de todo, con 4 cadenas
 tenemos $25\%$ del esfuerzo computacional en una sola. Además, tenemos alertas
 en los demás diagnósticos. Con tales resultados nos mostramos un poco escépticos
-sobre los siguientes resúmenes gráficos.
+sobre los siguientes resúmenes gráficos, [[fig:angulo-ajuste]] y [[fig:angulo-residuales]]. 
 #+END_NOTES
 
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
@@ -1723,7 +1743,8 @@ sobre los siguientes resúmenes gráficos.
       ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito") +
     ggtitle("Modelo con ángulo de tiro y fuerza")+ sin_lineas
 #+end_src
-
+#+caption: Predicciones del modelo.
+#+name: fig:angulo-ajuste
 #+RESULTS:
 [[file:../images/golf-angulo-fuerza-predictivo.jpeg]]
 
@@ -1751,7 +1772,8 @@ sobre los siguientes resúmenes gráficos.
     xlab('Distancia (cm)') + 
     ggtitle("Modelo con angulo y fuerza de tiro.")+ sin_lineas
 #+end_src
-
+#+caption: Residuales del modelo ajustado. 
+#+name: fig:angulo-residuales
 #+RESULTS:
 [[file:../images/golf-residuales-incertidumbre.jpeg]]
 
@@ -1765,7 +1787,7 @@ Alternativamente, podríamos ajustar sólo en los datos nuevos. Pero no tenemos
 alguna justificación específica para descartar los que ya teníamos. Por lo
 pronto usaremos ambos conjuntos sin distinción.
 
-** Otro modelo 
+** Errores latentes
 
 Una estrategia es incorporar una ~aproximación continua~ a las proporciones
 reportadas, misma que podemos utilizar para incorporar un ~error de medición
@@ -1781,8 +1803,12 @@ p_j & = p_j^u \cdot p_j^\theta \\
 \end{subequations}
 para $j = 1, \ldots, J$. 
 
+#+BEGIN_NOTES
+Hemos hecho una aproximación normal para un modelo binomial. Esto se satisface cuando $n$ es grande, $n\cdot p$ y $n \cdot p (1-p)$ son grandes.
+#+END_NOTES
+
 Por otro lado, el modelo en ~Stan~ no cambia mucho y se vuelve un poco mas
-flexible. Lo cual especificamos en el bloque de modelo. 
+flexible. Lo cual especificamos en el bloque de modelo.
 
 #+caption: Modelo con error de medición. 
 #+begin_src stan :eval never :tangle ../modelos/golf/fuerza-normal-plano.stan
@@ -1961,15 +1987,16 @@ Los parámetros estimados los interpretamos como sigue:
     muestras_sigma <- ajuste$draws(c("sigma_force", "sigma_obs", "sigma_degrees"))
     mcmc_pairs(muestras_sigma, off_diag_fun = "hex", grid_args = list(size = 0))
 #+end_src
-
+#+caption: Gráficos de dispersión bivariada.
+#+name: fig:golf-full
 #+RESULTS:
 [[file:../images/golf-dispersion-modelo.jpeg]]
 
-La aparente bimodalidad de los gráficos de dispersión se podría explicar a
-traves del efecto de tener mediciones de dos tipos. Un tipo son los datos
-originales en los que parece haber un número limitado de registrados, y las
-nuevas observaciones de Broadie que tienen un número muy grande observaciones a
-distintas distancias.
+La aparente bimodalidad de los gráficos de dispersión ([[fig:golf-full]]) se podría
+explicar a traves del efecto de tener mediciones de dos tipos. Un tipo son los
+datos originales en los que parece haber un número limitado de registrados, y
+las nuevas observaciones de Broadie que tienen un número muy grande
+observaciones a distintas distancias.
 
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/golf-residuales-completo.jpeg :exports results :results output graphics file
