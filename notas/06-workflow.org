@@ -42,8 +42,8 @@
 
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Flujo de trabajo bayesiano.\\
-*Objetivo*. Que veremos.\\
-*Lectura recomendada*: Leer Capítulo 9 de citep:Martin2021 y el artículo citep:Gelman2020. 
+*Objetivo*: Ya hemos estudiado la herramienta por excelencia de cómputo bayesiano. Ahora, ilustraremos con ejemplos casos de aplicación con un enfoque bayesiano. Estableceremos las bases para continuar nuestro proceso de aprendizaje a temas que se requerirá estudiar con mayor cuidado para navegar el camino de un modelado iterativo. \\
+*Lectura recomendada*: El Capítulo 9 de citep:Martin2021 muestra un caso del proceso iterativo de modelado bayesiano. El artículo citep:Gelman2020 busca explorar los diversos componentes del proceso de construcción de modelos en los cuales profundizaremos en esta segunda parte del curso. 
 #+END_NOTES
 
 #+begin_src R :exports none :results none
@@ -88,7 +88,8 @@
   - [[#reparametrizando][Reparametrizando]]
     - [[#calibración-de-previa][Calibración de previa:]]
   - [[#definición-del-modelo][Definición del modelo]]
-  - [[#modelo-jerarquico][Modelo jerarquico]]
+  - [[#modelo-jerárquico][Modelo jerárquico]]
+  - [[#conclusiones][Conclusiones]]
 - [[#ejemplo-tiros-de-golf][Ejemplo: tiros de golf]]
   - [[#modelo-logístico][Modelo logístico]]
   - [[#análisis-conceptual][Análisis conceptual]]
@@ -150,7 +151,7 @@ file:../images/workflow.jpeg
 * Ejemplo: datos de conteo
 
 Con este ejemplo veremos la aplicación de modelos bayesianos en el contexto de
-/customer service/. Los datos disponibles son /tweets/ sobre reclamos a compañías y
+/customer service/. Los [[https://www.kaggle.com/soaxelbrooke/first-inbound-and-response-tweets/data][datos disponibles]] son /tweets/ sobre reclamos a compañías y
 además contamos con los /tweets/ de respuesta para dichas reclamaciones. Nos
 concentraremos en compañías áreas pero se puede extender el modelo a otras. El
 objetivo de este análisis es poder definir qué compañía responde a mayor número
@@ -309,7 +310,7 @@ Podemos extraer resúmenes como sigue
 2     2123
 #+end_src
 
-Y finalmente podemos crear histogramas para comparar la distribución previa contra la posterior sobre el parámetro de interés
+Y finalmente podemos crear histogramas para comparar la distribución previa contra la posterior sobre el parámetro de interés, ver [[fig:poisson-lambda]].
 
 #+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/reclamos-poisson-media.jpeg :exports results :results output graphics file
@@ -324,12 +325,13 @@ Y finalmente podemos crear histogramas para comparar la distribución previa con
     ggtitle("Simulaciones de parámetro desconocido") +
   sin_lineas
 #+end_src
-#+caption: Histograma de $\lambda$ bajo la distribución previa (azul) y posterior (salmón). 
+#+caption: Histograma de $\lambda$ bajo la distribución previa (azul) y posterior (salmón).
+#+name: fig:poisson-lambda
 #+RESULTS:
 [[file:../images/reclamos-poisson-media.jpeg]]
 
 También podemos obtener histogramas de la distribución predictiva (previa y
-posterior) para comparar las inferencias sobre ~observables~ bajo nuestro modelo.
+posterior) para comparar las inferencias sobre ~observables~ bajo nuestro modelo, ver [[fig:poisson-preds]]. 
 
 #+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/reclamos-poisson-predictiva.jpeg :exports results :results output graphics file
@@ -342,7 +344,8 @@ posterior) para comparar las inferencias sobre ~observables~ bajo nuestro modelo
     geom_histogram(position = "identity", alpha = .6) +
     ggtitle("Simulaciones de predictivas") + sin_lineas
 #+end_src
-#+caption: Histogramas de observaciones hipotéticas del modelo bajo la distribución previa (azul) y posterior (salmón). 
+#+caption: Histogramas de observaciones hipotéticas del modelo bajo la distribución previa (azul) y posterior (salmón).
+#+name: fig:poisson-preds
 #+RESULTS:
 [[file:../images/reclamos-poisson-predictiva.jpeg]]
 
@@ -368,12 +371,13 @@ Finalmente, hacemos una comparación con el histograma de los datos.
 
   g2 + g1
 #+end_src
-#+caption: Histogramas de observaciones hipotéticas del modelo bajo la distribución previa (azul) y posterior (salmón). 
+#+caption: Histogramas de observaciones hipotéticas del modelo bajo la distribución previa (azul) y posterior (salmón).
+#+name: fig:poisson-preds-datos
 #+RESULTS:
 [[file:../images/reclamos-poisson-predictiva-datos.jpeg]]
 
 *** Conclusiones:
-Lo que observamos es un fenómeno muy común con modelos de conteo. En Promedio nuestras estimaciones funcionan bien. La media posterior es cercana al estimador de máxima verosimilitud. Sin embargo, el modelo no es capaz de controlar la variabilidad de las observaciones. Esto es por que bajo un modelo Poisson la media y varianza están contorladas con el mismo parámetro. Cuando esto sucede --los datos tienen mayor variabilidad que la sugerida por un modelo Poisson (o Binomial)-- hablamos de datos de conteo con ~sobre-dispersión~. 
+Lo que observamos en [[fig:poisson-preds-datos]] es un fenómeno muy común con modelos de conteo. En Promedio nuestras estimaciones funcionan bien. La media posterior es cercana al estimador de máxima verosimilitud. Sin embargo, el modelo no es capaz de controlar la variabilidad de las observaciones. Esto es por que bajo un modelo Poisson la media y varianza están contorladas con el mismo parámetro. Cuando esto sucede --los datos tienen mayor variabilidad que la sugerida por un modelo Poisson (o Binomial)-- hablamos de datos de conteo con ~sobre-dispersión~. 
 
 ** Sobre-dispersión
 
@@ -417,7 +421,8 @@ donde $Y|\mu, \phi \sim \mathsf{NegBinom}(\mu, \phi)$ y cuyos estadísticos bás
 \end{align}
 donde $\mu>0$ es el número esperado de casos y $\phi >0$ controla el factor
 adicional de dispersión de la ~binomial negativa~. Al parámetro $\phi$ le llamamos
-precisión del modelo.
+precisión del modelo. Si $\phi$ es pequeño entonces el modelo tiene que
+compensar más con sobre-dispersión para los conteos.
 
 #+BEGIN_NOTES
 Para entender una conexión adicional entre la ~binomial negativa~ y la ~poisson~
@@ -493,10 +498,15 @@ resúmenes y ver que efectivamente parece no haber problemas con el ajuste.
 
 ** Reparametrizando
 
-Posiblemente nos sintamos incómodos por las alertas asi que podemos buscar la parametrización del modelo. Como siempre, buscamos [[https://discourse.mc-stan.org/t/negative-binomial-2-should-i-be-worried-about-metropolis-proposal-rejection-in-warmup-phase/5368][ayuda]] y encontramos que se puede parametrizar distinto con $\log \mu$ dadas las inicializaciones del modelo. 
-Al tener un modelo previo normal truncado para $\lambda$ es natural pensar que podemos asumir una distribución para $\log \lambda$ como alternativa.
+Posiblemente nos sintamos incómodos por las alertas asi que podemos buscar una
+parametrización alternativa del modelo. Como siempre, buscamos [[https://discourse.mc-stan.org/t/negative-binomial-2-should-i-be-worried-about-metropolis-proposal-rejection-in-warmup-phase/5368][ayuda]] y
+encontramos que se puede parametrizar distinto con $\log \mu$ dadas las
+inicializaciones del modelo.  Al tener un modelo previo normal truncado para
+$\lambda$ es natural pensar que podemos asumir una distribución para $\log
+\lambda$ como alternativa.
 
-Es buen momento para refinar la distribución previa de los demás parámetros (en este caso $\phi$).  
+Es buen momento para refinar la distribución previa de los demás parámetros (en
+este caso $\phi$).
 
 #+begin_src R :exports none :results none
   reclamos |>
@@ -574,6 +584,9 @@ Chain 1 finished in 0.0 seconds.
 
 ** Definición del modelo
 
+Con las previas elicitadas podemos definir nuestro modelo en ~Stan~. Nota que
+utilizamos la función ~binomial negativa~ parametrizada con $\log \lambda$ .
+
 #+begin_src stan :eval never :tangle ../modelos/reclamaciones/modelo-negbinom-log.stan
   data {
     int N;
@@ -599,7 +612,7 @@ Chain 1 finished in 0.0 seconds.
 #+end_src
 
 
-#+begin_src R :exports code :results none
+#+begin_src R :exports none :results none
   modelos_files <- "modelos/compilados/reclamaciones"
   ruta <- file.path("modelos/reclamaciones/modelo-negbinom-log.stan")
   modelo <- cmdstan_model(ruta, dir = modelos_files)
@@ -615,36 +628,38 @@ Chain 1 finished in 0.0 seconds.
   posterior <- modelo$sample(data = data_list, refresh = 0)
 #+end_src
 
+Seguimos teniendo alertas pero estas no son de preocuparse debido a que se concentran en el periodo de calentamiento y los resultados parecen indicar problemas severos en la simulación. Incluso para las $\hat R$ no hay motivos de preocupación [[https://discourse.mc-stan.org/t/rhat-1-as-low-as-9-94e-01-why/9252/3][(discusión)]]. 
+
 #+begin_src R :exports results :results org
   posterior$summary() |> as.data.frame()
 #+end_src
 
 #+RESULTS:
 #+begin_src org
-    variable      mean    median       sd      mad        q5       q95   rhat
-1       lp__ -1685.744 -1685.440  0.97671  0.69682 -1687.740 -1684.820 0.9998
-2 log_lambda     4.006     4.005  0.03623  0.03632     3.946     4.067 1.0001
-3        phi     2.301     2.296  0.17166  0.17109     2.033     2.587 1.0004
-4    y_tilde    54.439    46.000 36.56166 32.61720    10.000   125.000 0.9999
+    variable      mean    median       sd     mad        q5       q95  rhat
+1       lp__ -1685.753 -1685.430  1.01067  0.6968 -1687.770 -1684.810 1.000
+2 log_lambda     4.007     4.006  0.03546  0.0344     3.949     4.066 1.001
+3        phi     2.294     2.289  0.17596  0.1725     2.011     2.589 1.001
+4    y_tilde    55.538    48.000 37.56362 34.0998    10.000   127.000 1.000
   ess_bulk ess_tail
-1     1802     2272
-2     3484     2314
-3     3516     2420
-4     4097     3915
+1     1782     2199
+2     3387     2713
+3     3449     2621
+4     4054     3882
 #+end_src
 
-#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
-#+begin_src R :file images/reclamos-negbinom-trayectorias.jpeg :exports results :results output graphics file
+#+HEADER: :width 900 :height 600 :R-dev-args bg="transparent"
+#+begin_src R :file images/reclamos-negbinom-histogramas.jpeg :exports results :results output graphics file
   g1 <- mcmc_hist(previa$draws(), pars = c("log_lambda", "phi")) +
-    ggtitle("Histogramas distribución previa")
+    ggtitle("Histogramas distribución previa") + sin_lineas
   g2 <- mcmc_hist(posterior$draws(), pars = c("log_lambda", "phi")) +
-    ggtitle("Histogramas distribución posterior")
+    ggtitle("Histogramas distribución posterior") + sin_lineas
 
   (g1 / g2)
 #+end_src
-
+#+caption: Histogramas sobre los parámetros del modelo. 
 #+RESULTS:
-[[file:../images/reclamos-negbinom-trayectorias.jpeg]]
+[[file:../images/reclamos-negbinom-histogramas.jpeg]]
 
 #+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/reclamos-negbinom-predictiva.jpeg :exports results :results output graphics file
@@ -664,11 +679,18 @@ Chain 1 finished in 0.0 seconds.
 
   g2 + g1
 #+end_src
-
+#+caption: Histogramas sobre cantidades observables del modelo. 
+#+name: fig:negbinom-preds
 #+RESULTS:
 [[file:../images/reclamos-negbinom-predictiva.jpeg]]
 
-** Modelo jerarquico
+** Modelo jerárquico
+
+No lo hemos mencionado pero por lo que vemos en [[fig:negbinom-preds]] parece existir la presencia
+de un proceso adicional de generación de reclamos no explicado (dos modas
+aparentes en el histograma). ~Una solución~ posible es considerar distintos grupos
+dentro de la población de reclamos y modelar lso reclamos de manear jerárquica
+de acuerdo a la aerolínea.
 
 #+begin_src R :exports results :results org
   reclamos |>
@@ -680,8 +702,8 @@ Chain 1 finished in 0.0 seconds.
     as.data.frame()
 
 #+end_src
-
-#+RESULTS:
+#+caption: Estadisticos por aerolínea. 
+#+results:
 #+begin_src org
          compania promedio varianza  exceso precision
 1       AlaskaAir    83.59   1341.1 0.17997     5.557
@@ -691,6 +713,9 @@ Chain 1 finished in 0.0 seconds.
 5   VirginAmerica    32.28    154.2 0.11698     8.548
 6  AirAsiaSupport    41.61   1718.4 0.96831     1.033
 #+end_src
+
+Vemos que las aerolíneas tienen descriptivos distintos entre ellas. Asi que
+optaremos por un modelo que utilice una estructura por niveles.
 
 #+begin_src stan :eval never :tangle ../modelos/reclamaciones/modelo-negbinom-jerarquico.stan
   data {
@@ -721,7 +746,7 @@ Chain 1 finished in 0.0 seconds.
 #+end_src
 
 
-#+begin_src R :exports code :results none
+#+begin_src R :exports none :results none
   modelos_files <- "modelos/compilados/reclamaciones"
   ruta <- file.path("modelos/reclamaciones/modelo-negbinom-jerarquico.stan")
   modelo <- cmdstan_model(ruta, dir = modelos_files)
@@ -735,6 +760,8 @@ Chain 1 finished in 0.0 seconds.
                     gamma_beta  = previa.params$beta)
   posterior <- modelo$sample(data = data_list, refresh = 500, seed = 108727)
 #+end_src
+
+El modelo parece ajustar bien y podemos explorar los dianósticos. 
 
 #+begin_src R :exports results :results org
   posterior$summary() |> as.data.frame()
@@ -784,35 +811,41 @@ Chain 1 finished in 0.0 seconds.
 19 1.0002     4232     3463
 #+end_src
 
-#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/reclamos-negbinom-jerar-histogramas.jpeg :exports results :results output graphics file
   mcmc_hist(posterior$draws(),
             regex_pars = "lambda",
-            transformations = "exp")
+            transformations = "exp") + sin_lineas
 #+end_src
-
+#+caption: Histogramas del parámetro de media. 
 #+RESULTS:
 [[file:../images/reclamos-negbinom-jerar-histogramas.jpeg]]
 
-#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/reclamos-negbinom-jerar-histogramas-precision.jpeg :exports results :results output graphics file
   mcmc_hist(posterior$draws(),
-            regex_pars = "phi")
+            regex_pars = "phi") + sin_lineas
 #+end_src
-
+#+caption: Histogramas del parámetro de sobredispersión (precisión). 
 #+RESULTS:
 [[file:../images/reclamos-negbinom-jerar-histogramas-precision.jpeg]]
 
 
-
-#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/reclamos-negbinom-jerar-predictivas.jpeg :exports results :results output graphics file
   mcmc_hist(posterior$draws(),
-            regex_pars = "tilde")
+            regex_pars = "tilde") + sin_lineas
 #+end_src
-
+#+caption: Histogramas de cantidades observables. 
 #+RESULTS:
 [[file:../images/reclamos-negbinom-jerar-predictivas.jpeg]]
+
+** Conclusiones
+
+Ajustamos un modelo con complejidad cada vez mayor. Identificando problemas
+(conceptuales y algorítmicas) en el desarrollo. No hemos discutido cómo comparar
+estos modelos pues podríamos estar cayendo en problemas de ~sobre-ajuste~ o de
+~sobre-parametrización~. ¿Cuántos parámetros tiene el último modelo?
 
 * Ejemplo: tiros de golf
 
