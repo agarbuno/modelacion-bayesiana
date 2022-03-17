@@ -1,0 +1,193 @@
+#+TITLE: EST-46115: Modelación Bayesiana
+#+AUTHOR: Prof. Alfredo Garbuno Iñigo
+#+EMAIL:  agarbuno@itam.mx
+#+DATE: ~Muestreo predictivo~
+#+STARTUP: showall
+:REVEAL_PROPERTIES:
+#+LANGUAGE: es
+#+OPTIONS: num:nil toc:nil timestamp:nil
+#+REVEAL_REVEAL_JS_VERSION: 4
+#+REVEAL_THEME: night
+#+REVEAL_SLIDE_NUMBER: t
+#+REVEAL_HEAD_PREAMBLE: <meta name="description" content="Modelación Bayesiana">
+#+REVEAL_INIT_OPTIONS: width:1600, height:900, margin:.2
+#+REVEAL_EXTRA_CSS: ./mods.css
+#+REVEAL_PLUGINS: (notes)
+:END:
+:LATEX_PROPERTIES:
+#+OPTIONS: toc:nil date:nil author:nil tasks:nil
+#+LANGUAGE: sp
+#+LATEX_CLASS: handout
+#+LATEX_HEADER: \usepackage[spanish]{babel}
+#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
+#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
+#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
+#+LATEX_HEADER: \decimalpoint
+#+LATEX_HEADER:\usepackage{framed}
+#+LaTeX_HEADER: \usepackage{listings}
+#+LATEX_HEADER: \usepackage{fancyvrb}
+#+LATEX_HEADER: \usepackage{xcolor}
+#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
+#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
+#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
+#+LaTeX_HEADER: {}
+#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
+#+LaTeX_HEADER: {}
+#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
+#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
+#+EXPORT_FILE_NAME: ../docs/07-muestreo-predictivo.pdf
+:END:
+#+EXCLUDE_TAGS: toc
+#+PROPERTY: header-args:R :session predictivo :exports both :results output org :tangle ../rscripts/07-muestreo-predictivo.R :mkdirp yes :dir ../
+
+
+#+BEGIN_NOTES
+*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Muestreo predictivo.\\
+*Objetivo*: Que veremos.\\
+*Lectura recomendada*: Referencia.
+#+END_NOTES
+
+
+#+begin_src R :exports none :results none
+  ## Setup --------------------------------------------
+  library(tidyverse)
+  library(patchwork)
+  library(scales)
+  ## Cambia el default del tamaño de fuente 
+  theme_set(theme_linedraw(base_size = 25))
+
+  ## Cambia el número de decimales para mostrar
+  options(digits = 2)
+
+  sin_lineas <- theme(panel.grid.major = element_blank(),
+                      panel.grid.minor = element_blank())
+  color.itam  <- c("#00362b","#004a3b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f", NA)
+
+  sin_lineas <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+  sin_leyenda <- theme(legend.position = "none")
+  sin_ejes <- theme(axis.ticks = element_blank(), axis.text = element_blank())
+#+end_src
+
+#+begin_src R :exports none :results none
+  ## Librerias para modelacion bayesiana
+  library(cmdstanr)
+  library(posterior)
+  library(bayesplot)
+#+end_src
+
+ 
+* Contenido                                                             :toc:
+:PROPERTIES:
+:TOC:      :include all  :ignore this :depth 3
+:END:
+:CONTENTS:
+- [[#introducción][Introducción]]
+- [[#muestreo-predictivo----previa][Muestreo predictivo -- previa]]
+  - [[#muestreo-predictivo][Muestreo predictivo]]
+    - [[#para-pensar][Para pensar:]]
+  - [[#interpretación][Interpretación]]
+  - [[#en-la-práctica][En la práctica]]
+- [[#muestreo-predictivo----posterior][Muestreo predictivo -- posterior]]
+:END:
+
+* Introducción
+
+Como hemos visto podemos utilizar la distribución predictiva para traducir nuestros supuestos distribucionales (estado de conocimiento) en cantidades observables. En esta sección del curso usaremos la ~distribución predictiva previa~ para evaluar consistencia de cómo matematizamos nuestro conocimiento previo con respecto al de un experto. Por otro lado, utilizaremos la ~distribución predictiva posterior~ con el objetivo de evaluar y criticar el ajuste del modelo propuesto.
+
+* Muestreo predictivo -- previa
+
+Usualmente definimos la distribución predictiva previa de manera que refleje lo que sabemos del problema que estamos modelando. Esperaríamos que fuera fácil en situaciones sencillas. Pero incluso en modelos medianamente complejos es difícil 1) poder definir dicha distribución y 2) entender las consecuencias de esa elección.
+
+** Muestreo predictivo 
+Recordemos que la distribución predictiva previa es
+\begin{align}
+\pi(y) = \int \pi(y | \theta )\, \pi(\theta)\, \text{d}\theta\,.
+\end{align}
+
+El mecanismo que utilizamos para generar muestras de dicha distribución es el siguiente:
+- Para $i = 1, \ldots, N$:
+  1. Generar $\tilde \theta_i \sim \pi(\theta)$ . 
+  2. Generar $\tilde y_i \sim \pi(y | \tilde \theta_i)$. 
+
+Al final de este proceso podemos descartar las simulaciones de $\tilde \theta$  y obtener una colección de realizaciones aleatorias de $\tilde y \sim \pi(y)$.
+
+*** Para pensar:
+:PROPERTIES:
+:reveal_background: #00468b
+:END:
+¿Por qué este proceso iterativo nos deja muestras de la marginal? /Hint/: considera el caso para dos variables y consider los gráficos de dispersión y los histogramas individuales. 
+
+** Interpretación 
+
+El objetivo de utilizar la distribución predictiva previa es evaluar la interacción de la previa con la verosimilitud. 
+
+** En la práctica
+
+Usualmente consideramos algún resumen informativo de los datos. Es decir, un resumen a través de un ~estadístico~ de nuestra distribución, y en consecuencia lo que nos interesaría es evaluar la ~distribución de muestreo~ de dicho estadístico. La idea es poder definir regiones donde esperaríamos ver nuestra simulación de posibles estadísticos. 
+
+Por ejemplo, consideremos el caso de los cantantes de ópera. El modelo asume una distribución previa de la forma
+\begin{gather}
+\mu | \sigma \sim \mathsf{Normal}\left(\mu_0, \frac{\sigma}{n_0}\right)\,,\\
+\sigma^{-1} \sim \mathsf{Gamma}(a_0, b_0)\,.
+\end{gather}
+
+Donde los parámetros tienen la siguiente especificación:
+#+begin_src R :exports code :results none
+  data.list  <- within(list(),
+  {
+    mu <- 175
+    n  <- 5
+    a  <- 3
+    b  <- 140
+  })
+#+end_src
+
+#+begin_src stan :tangle ../modelos/predictivos/cantantes.stan
+  data {
+    // Datos
+    int N;
+    real y[N];
+    // Hiper-parametros previa
+    real mu0;
+    real<lower=0> n0;
+    real<lower=0> a0;
+    real<lower=0> b0;
+  }
+
+  parameters {
+    real mu_tilde;
+    real<lower=0> tau;
+  }
+
+  transformed parameters {
+    real sigma = 1/tau;
+    real mu  = mu0 + (sigma/n0) * mu_tilde;
+  }
+
+  model {
+    y ~ normal(mu, sigma);
+    mu_tilde ~ normal(0, 1);
+    tau ~ gamma(a0, b0);
+  }
+
+  generated quantities {
+    real y_tilde = normal_rng(mu, sigma);
+  }
+#+end_src
+
+#+begin_src R :exports none :results none
+  modelos_files <- "modelos/compilados/predictivos"
+  ruta <- file.path("modelos/predictivos/cantantes.stan")
+  modelo <- cmdstan_model(ruta, dir = modelos_files)
+#+end_src
+
+
+* Muestreo predictivo -- posterior
+
+
+
+
+# * Referencias                                                         :latex:
+
+bibliographystyle:abbrvnat
+bibliography:references.bib
