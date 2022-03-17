@@ -120,6 +120,8 @@ En general cuenta con tres pasos:
 2. Exploración y mejora de modelos.
 3. Comparación de modelos. 
 
+\newpage
+
 #+BEGIN_NOTES
 En este contexto ~no necesariamente queremos escoger el mejor modelo~. Lo que
 buscamos es generar un ~mejor entendimiento del modelo~ y esto lo podemos lograr
@@ -223,7 +225,7 @@ Donde vemos que el número promedio de reclamos es el siguiente.
 
 #+RESULTS:
 #+begin_src org
-  reclamos
+  promedio
 1    54.88
 #+end_src
 
@@ -290,7 +292,7 @@ Chain 4 finished in 0.0 seconds.
 
 All 4 chains finished successfully.
 Mean chain execution time: 0.0 seconds.
-Total execution time: 0.6 seconds.
+Total execution time: 0.5 seconds.
 Running MCMC with 4 sequential chains...
 
 Chain 1 finished in 0.0 seconds.
@@ -300,7 +302,7 @@ Chain 4 finished in 0.0 seconds.
 
 All 4 chains finished successfully.
 Mean chain execution time: 0.0 seconds.
-Total execution time: 0.6 seconds.
+Total execution time: 0.5 seconds.
 #+end_src
 
 #+BEGIN_NOTES
@@ -315,12 +317,12 @@ Podemos extraer resúmenes como sigue
 
 #+RESULTS:
 #+begin_src org
-  variable     mean   median     sd    mad       q5      q95  rhat ess_bulk
-1     lp__ 57355.52 57355.80 0.7127 0.2965 57354.20 57356.00 1.000     2047
-2   lambda    54.85    54.85 0.4065 0.4164    54.18    55.52 1.002     1487
+  variable     mean   median     sd    mad      q5      q95  rhat ess_bulk
+1     lp__ 57355.55 57355.80 0.6934 0.2965 57354.1 57356.00 1.003     2088
+2   lambda    54.87    54.87 0.3973 0.4047    54.2    55.52 1.002     1573
   ess_tail
-1     2432
-2     2123
+1     2457
+2     2112
 #+end_src
 
 Y finalmente podemos crear histogramas para comparar la distribución previa contra la posterior sobre el parámetro de interés, ver [[fig:poisson-lambda]].
@@ -347,7 +349,7 @@ También podemos obtener histogramas de la distribución predictiva (previa y
 posterior) para comparar las inferencias sobre ~observables~ bajo nuestro modelo, ver [[fig:poisson-preds]]. 
 
 #+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
-#+begin_src R :file images/reclamos-poisson-predictiva.jpeg :exports results :results output graphics file
+#+begin_src R :file images/reclamos-poisson-predictiva.jpeg :exports results :results output graphics file :eval never
   simulaciones |>
     as_tibble() |>
     mutate(y_tilde = map_dbl(lambda, function(x){
@@ -733,7 +735,7 @@ reclamos de manear jerárquica de acuerdo a la aerolínea.
     summarise(promedio = mean(atendidos),
               varianza = var(atendidos),
               exceso   = (varianza - promedio)/promedio**2,
-              precision = 1/exceso) |>
+              precision = 1/exceso, ) |>
     as.data.frame()
 
 #+end_src
@@ -922,10 +924,9 @@ distancias distintas. En [[fig:golf-datos]] se muestran los datos disponibles.
 
   g_datos
 #+end_src
-
-#+RESULTS:
 #+caption: Datos disponibles para análisis de éxitos de tiros.
 #+name: fig:golf-datos
+#+RESULTS:
 [[file:../images/golf-observaciones.jpeg]]
 
 ** Modelo logístico 
@@ -2048,7 +2049,7 @@ Los parámetros estimados los interpretamos como sigue:
   atribuibles a medición del 3 puntos porcentuales.
 
 #+HEADER: :width 800 :height 800 :R-dev-args bg="transparent"
-#+begin_src R :file images/golf-dispersion-modelo.jpeg :exports results :results output graphics file 
+#+begin_src R :file images/golf-dispersion-modelo.jpeg :exports results :results output graphics file :eval never
     color_scheme_set("darkgray")
     muestras_sigma <- ajuste$draws(c("sigma_force", "sigma_obs", "sigma_degrees"))
     mcmc_pairs(muestras_sigma, off_diag_fun = "hex", grid_args = list(size = 0))
@@ -2116,7 +2117,7 @@ Exploraremos algunas rutas de mejora del modelo.
 
 * Bibliografía                                                        :latex:
 
-# bibliographystyle:abbrvnat
-# bibliography:references.bib
+bibliographystyle:abbrvnat
+bibliography:references.bib
 
 
