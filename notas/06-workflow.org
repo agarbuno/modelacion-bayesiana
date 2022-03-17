@@ -14,29 +14,6 @@
 #+REVEAL_EXTRA_CSS: ./mods.css
 #+REVEAL_PLUGINS: (notes)
 :END:
-:LATEX_PROPERTIES:
-#+OPTIONS: toc:nil date:nil author:nil tasks:nil
-#+LANGUAGE: sp
-#+LATEX_CLASS: handout
-#+LATEX_HEADER: \usepackage[spanish]{babel}
-#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
-#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
-#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
-#+LATEX_HEADER: \decimalpoint
-#+LATEX_HEADER:\usepackage{framed}
-#+LaTeX_HEADER: \usepackage{listings}
-#+LATEX_HEADER: \usepackage{fancyvrb}
-#+LATEX_HEADER: \usepackage{xcolor}
-#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
-#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
-#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
-#+LaTeX_HEADER: {}
-#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
-#+LaTeX_HEADER: {}
-#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
-#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
-#+EXPORT_FILE_NAME: ../docs/06-workflow.pdf
-:END:
 #+PROPERTY: header-args:R :session workflow :exports both :results output org :tangle ../rscripts/06-workflow.R :mkdirp yes :dir ../
 #+EXCLUDE_TAGS: toc
 
@@ -108,27 +85,35 @@
   - [[#errores-latentes][Errores latentes]]
     - [[#tarea][Tarea:]]
 - [[#mensaje][Mensaje]]
+- [[#bibliografía][Bibliografía]]
 :END:
 
 * Introducción 
 
-El desarrollo de algoritmos de muestreo nos permiten ~explorar computacionalmente~ una distribución de probabilidad de interés $\pi(\cdot)$. En el contexto bayesiano $\pi(\cdot)$ denota la distribución (previa o posterior)  para un problema de inferencia, donde  queremos reportar resúmenes
+El desarrollo de algoritmos de muestreo nos permiten ~explorar computacionalmente~
+una distribución de probabilidad de interés $\pi(\cdot)$. En el contexto
+bayesiano $\pi(\cdot)$ denota la distribución (previa o posterior) para un
+problema de inferencia, donde queremos reportar resúmenes
 \begin{align}
 \pi(f) = \mathbb{E}[f(\theta)] = \int_{\Theta} f(\theta) \, \pi(\theta | y) \, \text{d}\theta\,.
 \end{align}
 
 #+BEGIN_NOTES
-Para resolver un problema de modelado en el contexto bayesiano debemos de tener en mente los distintos componentes del ~modelo~ /y/ las ~herramientas computacionales~.
+Para resolver un problema de modelado en el contexto bayesiano debemos de tener
+en mente los distintos componentes del ~modelo~ /y/ las ~herramientas
+computacionales~.
 
-- Los datos con los que contamos (o podemos contar), $y$.
-- Nuestra abstracción del modelo generativo, $\pi(y|\theta)$.
-- Nuestra matematización de nuestro conocimiento sobre el problema, $\pi(\theta)$.
-- Los resúmenes que reportaremos, $f(\theta)$ ó $f(\hat y)$.
-- El mecanismo computacional para resolver integrales,  $\int_\Theta \, \cdot \, \pi(\theta|y) \, \text{d}\theta$. 
+- Los ~datos~ con los que contamos (o podemos contar), $y$.
+- Nuestra ~abstracción del modelo generativo~, $\pi(y|\theta)$.
+- Nuestra matematización de nuestro ~conocimiento sobre el problema~, $\pi(\theta)$.
+- Los ~resúmenes~ que reportaremos, $f(\theta)$ ó $f(\hat y)$.
+- El ~mecanismo computacional~ para resolver integrales,  $\int_\Theta \, \cdot \, \pi(\theta|y) \, \text{d}\theta$. 
 #+END_NOTES
 
 #+REVEAL: split
-Exploraremos la idea general de un marco de trabajo bayesiano para después enfocarnos en cada uno de los componentes del proceso. Esto con el objetivo de entender los pasos de este proceso iterativo.
+Exploraremos la idea general de un marco de trabajo bayesiano para después
+enfocarnos en cada uno de los componentes del proceso. Esto con el objetivo de
+entender los pasos de este proceso iterativo.
 
 En general cuenta con tres pasos:
 1. Inferencia.
@@ -136,24 +121,42 @@ En general cuenta con tres pasos:
 3. Comparación de modelos. 
 
 #+BEGIN_NOTES
-En este contexto no necesariamente queremos escoger el mejor modelo. Lo que buscamos es generar un mejor entendimiento del modelo y esto lo podemos lograr al evaluar las bondades de uno sobre otro. El computo asociado con modelación bayesiana es muy complejo y puede tomar varias iteraciones en lo que estamos seguros de lo que esta realizando. Es decir, nos puede tomar varios pasos estar seguros que podemos confiar en nuestro modelo en relación a los datos que estamos analizando.
+En este contexto ~no necesariamente queremos escoger el mejor modelo~. Lo que
+buscamos es generar un ~mejor entendimiento del modelo~ y esto lo podemos lograr
+al evaluar las bondades de uno sobre otro. El cómputo asociado con modelación
+bayesiana es muy complejo y puede tomar varias iteraciones en lo que estamos
+seguros de lo que esta realizando. Es decir, nos puede tomar varios pasos estar
+seguros que podemos confiar en nuestro modelo en relación a los datos que
+estamos analizando.
 #+END_NOTES
 
 #+REVEAL: split
-Lo importante es considerar la ~pregunta objetivo~. Es decir, encontrar la pregunta que esperamos nuestro análisis pueda resolver. Por supuesto en el camino encontraremos preguntas sobre los datos, los modelos, la inferencia. Tener en mente la respuesta que queremos proveer nos permitirá definir muchos de los componentes del flujo que seguirá nuestro trabajo. 
+Lo importante es considerar la ~pregunta objetivo~. Es decir, encontrar la
+pregunta que esperamos nuestro análisis pueda resolver. Por supuesto en el
+camino encontraremos preguntas sobre los datos, los modelos, la
+inferencia. Tener en mente la respuesta que queremos proveer nos permitirá
+definir muchos de los componentes del flujo que seguirá nuestro trabajo.
 
 #+REVEAL: split
-Es decir, nos permitirá acotar la colección de modelos apropiados, cómo escoger previas, qué esperar de la distribución posterior, cómo seleccionar entre modelos, qué reportar, cómo resumir la información de nuestro modelo, qué conclusiones comunicar.
+Es decir, nos permitirá acotar la colección de modelos apropiados, cómo escoger
+previas, qué esperar de la distribución posterior, cómo seleccionar entre
+modelos, qué reportar, cómo resumir la información de nuestro modelo, qué
+conclusiones comunicar.
 
 #+begin_quote
-Do not be the Data Scientist and statistician that immediately reaches for Bayesian Methods, Neural Networks, Distributed Computing Clusters, or other complex tools before truly understanding the need
----citet:Martin2021.
+Do not be the Data Scientist and statistician that immediately reaches for
+Bayesian Methods, Neural Networks, Distributed Computing Clusters, or other
+complex tools before truly /understanding the need/.  ---citet:Martin2021.
+
 #+end_quote
 
 #+REVEAL: split
 #+caption: Tomada de [[https://twitter.com/bayesdose][@BayesDose]], Generable. 
+
+
 #+attr_html: :width 700 :align center
 file:../images/workflow.jpeg
+
 
 
 * Ejemplo: datos de conteo
@@ -232,9 +235,11 @@ Dado que nuestro objetivo es modelo el ~número de reclamos atendidos~ lo natura
 
 
 El modelo ~poisson~ es el candidato natural para este modelo. El cual tiene una función de masa de probabilidad igual a
+
 \begin{align}
 \mathbb{P}(X = k | \lambda) = \frac{\lambda^k e^{-\lambda}}{k!}\,,
 \end{align}
+
 cuando $X |\lambda \sim \mathsf{Poisson}(\lambda)$ con $\lambda >0$. 
 
 Dada nuestra ignorancia sobre el problema escogemos una distribución previa para
@@ -385,7 +390,17 @@ Finalmente, hacemos una comparación con el histograma de los datos.
 [[file:../images/reclamos-poisson-predictiva-datos.jpeg]]
 
 *** Conclusiones:
-Lo que observamos en [[fig:poisson-preds-datos]] es un fenómeno muy común con modelos de conteo. En Promedio nuestras estimaciones funcionan bien. La media posterior es cercana al estimador de máxima verosimilitud. Sin embargo, el modelo no es capaz de controlar la variabilidad de las observaciones. Esto es por que bajo un modelo Poisson la media y varianza están controladas con el mismo parámetro. Cuando esto sucede --los datos tienen mayor variabilidad que la sugerida por un modelo Poisson (o Binomial)-- hablamos de datos de conteo con ~sobre-dispersión~. 
+Lo que observamos en [[fig:poisson-preds-datos]], recurrir a ~sobre-dispersión~ es un
+~fenómeno muy común~ con modelos de conteo.
+
+En promedio nuestras estimaciones funcionan bien. La media posterior es cercana
+al estimador de máxima verosimilitud.
+
+Sin embargo, el modelo no es capaz de controlar la variabilidad de las
+observaciones. Esto es por que bajo un modelo Poisson la media y varianza están
+controladas con el mismo parámetro. Cuando esto sucede --los datos tienen mayor
+variabilidad que la sugerida por un modelo Poisson (o Binomial)-- hablamos de
+datos de conteo con ~sobre-dispersión~.
 
 
 ** Sobre-dispersión
@@ -410,10 +425,13 @@ Poisson. Así que necesitamos buscar qué distribución es la adecuada para nues
 problema (ver Sección 17.2 de citep:Gelman2014a). Una variable aleatoria
 ~Binomial Negativa~ es la sugerida donde la función de masa de probabilidad está
 definida por
+
 \begin{align}
 \mathbb{P}(Y = k | \alpha, \beta) = {k + \alpha -1 \choose \alpha - 1 } \left( \frac{\beta}{\beta+1} \right)^\alpha \left( \frac{1}{\beta+1} \right)^k\,,
 \end{align}
+
 donde $Y|\alpha, \beta \sim \mathsf{NegBinom}(\alpha, \beta)$ y cuyos estadísticos básicos están definidos como
+
 \begin{align}
 \mathbb{E}[Y] = \frac{\alpha}{\beta}, \qquad \mathbb{V}(Y) = \frac{\alpha}{\beta^2}(\beta+1)\,.
 \end{align}
@@ -421,13 +439,17 @@ donde $Y|\alpha, \beta \sim \mathsf{NegBinom}(\alpha, \beta)$ y cuyos estadísti
 Lo cual es informativo, pero poco útil para generar un poco de intuición. Asi
 que optamos por una segunda ~parametrización~ [[https://mc-stan.org/docs/2_29/functions-reference/nbalt.html][(Neg-Binom)]] la cual tiene como masa de
 probabilidad
+
 \begin{align}
 \mathbb{P}(Y = k | \mu, \phi) = {k + \phi -1 \choose k } \left( \frac{\mu}{\mu + \phi} \right)^k \left( \frac{\phi}{\mu + \phi} \right)^\phi\,,
 \end{align}
+
 donde $Y|\mu, \phi \sim \mathsf{NegBinom}(\mu, \phi)$ y cuyos estadísticos básicos están definidos como
+
 \begin{align}
 \mathbb{E}[Y] = \mu, \qquad \mathbb{V}(Y) = \mu + \frac{\mu^2}{\phi}\,,
 \end{align}
+
 donde $\mu>0$ es el número esperado de casos y $\phi >0$ controla el factor
 adicional de dispersión de la ~binomial negativa~. Al parámetro $\phi$ le llamamos
 precisión del modelo. Si $\phi$ es pequeño entonces el modelo tiene que
@@ -910,13 +932,16 @@ distancias distintas. En [[fig:golf-datos]] se muestran los datos disponibles.
 
 Un primer intento es modelar la probabilidad de éxito a través de una regresión
 logística.
+
 \begin{subequations}
 \begin{gather}
 p_j =  \text{logit}^{-1}(a + b x_j)\,,\\
 y_j \sim \mathsf{Binomial}\left(n_j,p_j\right)\,,
 \end{gather}
 \end{subequations}
+
 para cada $j = 1, \ldots, J$. Esto es equivalente a
+
 \begin{align}
 \log \left(  \frac{p_j}{ 1 - p_j}\right) = a + b \, x_j\,.
 \end{align}
@@ -973,121 +998,121 @@ Utilicemos la siguiente función para evitar /overhead/ en el ajuste del modelo.
 
 #+RESULTS:
 #+begin_src org
-Running MCMC with 4 sequential chains...
+  Running MCMC with 4 sequential chains...
 
-Chain 1 Rejecting initial value:
-Chain 1   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 1   Stan can't start sampling from this initial value.
-Chain 1 Rejecting initial value:
-Chain 1   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 1   Stan can't start sampling from this initial value.
-Chain 1 finished in 1.5 seconds.
-Chain 2 Rejecting initial value:
-Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 2   Stan can't start sampling from this initial value.
-Chain 2 Rejecting initial value:
-Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 2   Stan can't start sampling from this initial value.
-Chain 2 Rejecting initial value:
-Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 2   Stan can't start sampling from this initial value.
-Chain 2 Rejecting initial value:
-Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 2   Stan can't start sampling from this initial value.
-Chain 2 Rejecting initial value:
-Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 2   Stan can't start sampling from this initial value.
-Chain 2 Rejecting initial value:
-Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 2   Stan can't start sampling from this initial value.
-Chain 2 Rejecting initial value:
-Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 2   Stan can't start sampling from this initial value.
-Chain 2 Rejecting initial value:
-Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 2   Stan can't start sampling from this initial value.
-Chain 2 Rejecting initial value:
-Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 2   Stan can't start sampling from this initial value.
-Chain 2 finished in 0.1 seconds.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 Rejecting initial value:
-Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 3   Stan can't start sampling from this initial value.
-Chain 3 finished in 0.1 seconds.
-Chain 4 Rejecting initial value:
-Chain 4   Log probability evaluates to log(0), i.e. negative infinity.
-Chain 4   Stan can't start sampling from this initial value.
-Chain 4 finished in 0.1 seconds.
+  Chain 1 Rejecting initial value:
+  Chain 1   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 1   Stan can't start sampling from this initial value.
+  Chain 1 Rejecting initial value:
+  Chain 1   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 1   Stan can't start sampling from this initial value.
+  Chain 1 finished in 1.5 seconds.
+  Chain 2 Rejecting initial value:
+  Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 2   Stan can't start sampling from this initial value.
+  Chain 2 Rejecting initial value:
+  Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 2   Stan can't start sampling from this initial value.
+  Chain 2 Rejecting initial value:
+  Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 2   Stan can't start sampling from this initial value.
+  Chain 2 Rejecting initial value:
+  Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 2   Stan can't start sampling from this initial value.
+  Chain 2 Rejecting initial value:
+  Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 2   Stan can't start sampling from this initial value.
+  Chain 2 Rejecting initial value:
+  Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 2   Stan can't start sampling from this initial value.
+  Chain 2 Rejecting initial value:
+  Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 2   Stan can't start sampling from this initial value.
+  Chain 2 Rejecting initial value:
+  Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 2   Stan can't start sampling from this initial value.
+  Chain 2 Rejecting initial value:
+  Chain 2   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 2   Stan can't start sampling from this initial value.
+  Chain 2 finished in 0.1 seconds.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 Rejecting initial value:
+  Chain 3   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 3   Stan can't start sampling from this initial value.
+  Chain 3 finished in 0.1 seconds.
+  Chain 4 Rejecting initial value:
+  Chain 4   Log probability evaluates to log(0), i.e. negative infinity.
+  Chain 4   Stan can't start sampling from this initial value.
+  Chain 4 finished in 0.1 seconds.
 
-All 4 chains finished successfully.
-Mean chain execution time: 0.5 seconds.
-Total execution time: 2.2 seconds.
+  All 4 chains finished successfully.
+  Mean chain execution time: 0.5 seconds.
+  Total execution time: 2.2 seconds.
 #+end_src
 
 A pesar de los problemas en la semillas iniciales parece ser que no hay problema en muestrear del modelo posterior. 
@@ -1280,14 +1305,16 @@ Supongamos que la distancia del centro de la pelota al centro del hoyo es $x.$
 Idealmente ésta es la trayectoria que el golfista tendría que ejecutar. Sin
 embargo, el tiro puede ser inexacto y denotamos por $\theta$ el ángulo del tiro
 realizado. El tiro es exitoso cuando el angulo de tiro satisface
+
 \begin{align}
 |\theta| < \tan^{-1}\left(\frac{R - r}{x}\right)\,.
 \end{align}
+
 Incorporamos un esquema de esta situación en [[fig:golf-esquema]].
 
 #+caption: Esquema de tiro y condiciones para un tiro exitoso.
 #+name: fig:golf-esquema
-#+HEADER: :width 1200
+#+HEADER: :width 700
 file:../images/tiro-golf.jpeg
 
 *Observación*: Aqui hemos hecho un supuesto importante. La ~distancia reportada~ en
@@ -1296,9 +1323,11 @@ pelota y el centro del hoyo. ¿Cómo cambiaría nuestra condición de éxito si
 suponemos que la distancia que viaja la pelota es la registrada?
 
 Para nuestro problema, la condición de éxito es
+
 \begin{align}
 |\theta| < \tan^{-1}\left( \frac{3.3}{x} \right)\,.
 \end{align}
+
 Mejores golfistas tendrán mejor control sobre $\theta$, y conforme
 $x$ es más grande, la probabilidad de tener éxito baja, ver [[fig:golf-desviacion]]
 
@@ -1328,9 +1357,11 @@ suposición de que los jugadores en promedio tirarán en la dirección correcta,
 sin embargo puede haber diversos factores que afectarán este resultado.
 
 Siguiendo esta distribución, la probabilidad de éxito se calcula como 
+
 \begin{align}
 \mathbb{P}\left\{\,  |\theta| <  \tan^{-1}\left( \frac{R - r}{x} \right)\right\} = 2 \, \Phi\left[ \frac{\tan^{-1}((R - r)/x)}{\sigma}\right] - 1\,,
 \end{align}
+
 donde $\Phi$ es la función de acumulación de una Normal estándar.
 
 El parámetro $\sigma$ controla la desviación de los tiros en línea recta. Por lo
@@ -1397,6 +1428,7 @@ Notamos que los tiros en general tienen un buen comportamiento. Posiblemente
 valores de tiros con una desviación de $60^\circ$ dan lugar a tiros que no
 tienen sentido. Este punto lo veremos más adelante en caso de que tengamos que
 refinar. Por el momento, el modelo queda como sigue
+
 \begin{align}
 p_j & =  2 \, \Phi\left( \frac{\tan^{-1}((R - r)/x_j)}{\sigma}\right) - 1\,,\\
 y_j &\sim \mathsf{Binomial}\left(n_j, p_j\right)\,, 
@@ -1493,33 +1525,33 @@ El muestreo del modelo posterior parece no tener problemas. Los diagnósticos se
 
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/golf-comparativa-angulo-logistico.jpeg :exports results :results output graphics file
-modelo_angulo <- function(sigma_radianes){
-  x <- seq(0, 1.1 * max(datos$x), length.out = 50)
-  R.diff <- radios |> summarise(diff = hoyo - pelota) |> pull(diff)
-  tibble(x = x, y = 2 * pnorm( atan(R.diff/x)/sigma_radianes) - 1)
-}
+  modelo_angulo <- function(sigma_radianes){
+    x <- seq(0, 1.1 * max(datos$x), length.out = 50)
+    R.diff <- radios |> summarise(diff = hoyo - pelota) |> pull(diff)
+    tibble(x = x, y = 2 * pnorm( atan(R.diff/x)/sigma_radianes) - 1)
+  }
 
-curvas_regresion <- muestras |> 
-  mutate(curva = map(sigma, modelo_angulo)) |> 
-  select(-sigma_degrees, -sigma) |> 
-  unnest(curva) |> 
-  group_by(x) |> 
-  summarise(mediana = median(y), 
-            q_low = quantile(y, .005), 
-            q_hi = quantile(y, .995), 
-            .groups = 'drop')
+  curvas_regresion <- muestras |> 
+    mutate(curva = map(sigma, modelo_angulo)) |> 
+    select(-sigma_degrees, -sigma) |> 
+    unnest(curva) |> 
+    group_by(x) |> 
+    summarise(mediana = median(y), 
+              q_low = quantile(y, .005), 
+              q_hi = quantile(y, .995), 
+              .groups = 'drop')
 
-g_angulo <- datos |> 
-  ggplot(aes(x = x, y = y/n)) + 
-    geom_linerange(aes(ymin = y/n - 2 * se, ymax = y/n + 2*se)) + 
-    geom_point(colour = "steelblue", alpha = 1.) + 
-    geom_line(data = curvas_regresion, aes(x = x, y = mediana)) +
-    geom_ribbon(data = curvas_regresion, aes(x = x, ymin = q_low, ymax = q_hi), 
-                alpha = .2, inherit.aes = FALSE) +
-    ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito") + 
-    ggtitle("Modelo con ángulo de tiro")+ sin_lineas
+  g_angulo <- datos |> 
+    ggplot(aes(x = x, y = y/n)) + 
+      geom_linerange(aes(ymin = y/n - 2 * se, ymax = y/n + 2*se)) + 
+      geom_point(colour = "steelblue", alpha = 1.) + 
+      geom_line(data = curvas_regresion, aes(x = x, y = mediana)) +
+      geom_ribbon(data = curvas_regresion, aes(x = x, ymin = q_low, ymax = q_hi), 
+                  alpha = .2, inherit.aes = FALSE) +
+      ylim(c(0,1)) + xlab("Distancia (cm)") + ylab("Tasa de éxito") + 
+      ggtitle("Modelo con ángulo de tiro")+ sin_lineas
 
-g_logistico + g_angulo
+  g_logistico + g_angulo
 #+end_src
 
 #+RESULTS:
@@ -1586,7 +1618,9 @@ metros por segundo) de la pelota cumpla con las siguientes condiciones
 $$0 < v_f < 1.63\,.$$
 
 Por otro lado, la aceleración de la pelota al rodar en el /green/ satisface
+
 $$a = \left(\frac{10}{7}\right) \, {\rho_r}\, g\,.$$
+
 donde $\rho_r = \rho/r$,  y $\rho$ depende de la superficie donde rueda la
 pelota, $r$ es el radio de la pelota y $g$ la fuerza de gravedad. Datos
 experimentales indican que la media en /greens/ es de $\rho_r = 0.131$, con un
@@ -1595,14 +1629,17 @@ rango de 0.065 a 0.196. De momento, tomaremos $\rho_r = 0.131$.
 
 La velocidad final de la pelota, en términos de la velocidad inicial, utiliza 
 la aceleración en el /green/, lo cual da la siguiente cadena de igualdades
-\begin{align}
+\begin{align*}
 v_f^2 &= v_0^2 - \left(\frac{10}{7}\right) \, {\rho_r}\, g \, x_m \\
 &= v_0^2 - \left(\frac{10}{7}\right) (0.131) \, (9.81) \, x_m \\
 &= v_0^2 -  1.835871 \, x_m\,,
-\end{align}
+\end{align*}
+
 donde $x_m$ es la distancia de la pelota al hoyo en metros. Ahora, podemos
 despejar para calcular las condiciones de éxito sobre la velocidad inicial $v_0$
+
 $$c\,  x_m < v_0^2 < (1.63)^2 + c \,  x_m\,,$$
+
 donde $c = 1.835871$. La condición de éxito se puede escribir en términos de la 
 distancia de la pelota al hoyo. Es decir podemos escribir 
 $$u \in \left [\, x, \, x + 145 \,  \right],$$
@@ -1618,20 +1655,29 @@ tiene un error multiplicativo. La intuición es que errores de la misma magnitud
 afectan en proporción a la distancia de tiro.
 
 La distancia que recorre la pelota esta definida como 
+
 $$ u = (x + 30.48) \cdot (1 + \varepsilon)\,,$$
+
 donde
+
 $$ \varepsilon \sim \mathsf{N}(0, \sigma^2_f)\,,$$
+
 y hemos utilizado la notación $\sigma^2_f$ para hace énfasis en el error
 asociado a la fuerza de tiro. Esto implica que 
+
 $$u \sim \mathsf{N}\left(x + 30.48, (x + 30.48)^2  \sigma^2_f\right)\,,$$
+
 y por la tanto el ~éxito debido a la fuerza de tiro~ ---la condición $u \in \left
 [\, x, \, x + 145 \,  \right]$ --- tiene probabilidad de éxito igual a
+
 $$\Phi\left(\frac{114.52}{(x + 30.48)  \sigma_f}\right) - \Phi\left(\frac{-30.48}{(x + 30.48)  \sigma_f}\right)\,,$$
+
 que es un evento que asumimos ~independiente del ángulo de tiro~.
 
 Para finalizar, utilizamos las condiciones de éxito que definen ambos eventos
 que asumimos independientes, el ángulo de tiro y la fuerza. Por lo tanto, el
 modelo lo escribimos como
+
 \begin{subequations}
 \begin{align}
 p_j^u & = \Phi\left(\frac{114.52}{(x + 30.48)  \sigma_f}\right) - \Phi\left(\frac{-30.48}{(x + 30.48)  \sigma_f}\right), \\
@@ -1640,6 +1686,7 @@ p_j & = p_j^u \cdot p_j^\theta \\
 y_j & \sim \mathsf{Binomial}\left(n_j, p_j\right), 
 \end{align}
 \end{subequations}
+
 para $j = 1, \ldots, J$.
 
 #+BEGIN_NOTES
@@ -1993,8 +2040,10 @@ Los parámetros estimados los interpretamos como sigue:
   disminuye. Ya no es necesario corregir con ángulos lo que se puede explicar de
   otra forma, esta correlación la podemos ver gráficamente por medio de un
   diagrama de dispersión como abajo.
+
 -  $\sigma_f$ tiene un valor esperado de $0.17$, lo cual implica un error del
   $17\%$ debido a la errores en distancia producto de la fuerza de tiro.
+
 - $\sigma_{\textsf{obs}}$ tiene un valor de $0.03$ lo cual incide en errores
   atribuibles a medición del 3 puntos porcentuales.
 
@@ -2065,7 +2114,9 @@ Exploraremos algunas rutas de mejora del modelo.
 - Reparametrización, previas informativas.
 - El muestreo podría no escalar.
 
-# * Bibliografía                                                        :latex:
+* Bibliografía                                                        :latex:
 
-bibliographystyle:abbrvnat
-bibliography:references.bib
+# bibliographystyle:abbrvnat
+# bibliography:references.bib
+
+

@@ -295,7 +295,7 @@ hacerlas si no cuentan con experiencia en: ~Git~, ~Github~, ~R~ y el ~tidyverse~
 bibliographystyle:abbrvnat
 bibliography:references.bib
 
-* COMMENT Plan de trabajo [5/17][29%]                              :noexport:
+* COMMENT Plan de trabajo [6/15][40%]                              :noexport:
 :PROPERTIES:
 :UNNUMBERED: notoc
 :END:
@@ -309,7 +309,8 @@ CLOSED: [2022-03-04 Fri 19:43]
 CLOSED: [2022-03-04 Fri 19:43]
 ** DONE HMC
 CLOSED: [2022-03-04 Fri 19:43]
-** NEXT Diagnosticos
+** DONE Diagnosticos
+CLOSED: [2022-03-15 Tue 20:19]
 ** TODO Posterior Predictive Sampling
 ** TODO Simulation Based calibration
 ** TODO Evaluation and cross validation
