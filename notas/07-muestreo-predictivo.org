@@ -121,6 +121,8 @@ Al final de este proceso podemos descartar las simulaciones de $\tilde \theta$  
 
 El objetivo de utilizar la distribución predictiva previa es evaluar la interacción de la previa con la verosimilitud. 
 
+\newpage
+
 ** En la práctica
 
 Usualmente consideramos algún resumen informativo de los datos. Es decir, un resumen a través de un ~estadístico~ de nuestra distribución, y en consecuencia lo que nos interesaría es evaluar la ~distribución de muestreo~ de dicho estadístico. La idea es poder definir regiones donde esperaríamos ver nuestra simulación de posibles estadísticos. 
@@ -133,53 +135,77 @@ Por ejemplo, consideremos el caso de los cantantes de ópera. El modelo asume un
 
 Donde los parámetros tienen la siguiente especificación:
 #+begin_src R :exports code :results none
-  data.list  <- within(list(),
+  previa.params  <- within(list(),
   {
-    mu <- 175
-    n  <- 5
-    a  <- 3
-    b  <- 140
+    mu0 <- 175
+    n0  <- 5
+    a0  <- 3
+    b0  <- 140
   })
 #+end_src
 
-#+begin_src stan :tangle ../modelos/predictivos/cantantes.stan
+#+begin_src stan :tangle ../modelos/predictivos/cantantes-previa.stan
   data {
-    // Datos
-    int N;
-    real y[N];
-    // Hiper-parametros previa
     real mu0;
     real<lower=0> n0;
     real<lower=0> a0;
     real<lower=0> b0;
   }
-
-  parameters {
-    real mu_tilde;
-    real<lower=0> tau;
-  }
-
-  transformed parameters {
-    real sigma = 1/tau;
-    real mu  = mu0 + (sigma/n0) * mu_tilde;
-  }
-
-  model {
-    y ~ normal(mu, sigma);
-    mu_tilde ~ normal(0, 1);
-    tau ~ gamma(a0, b0);
-  }
-
   generated quantities {
+    real tau = gamma_rng(a0, b0);
+    real sigma = 1/tau; 
+    real mu  = normal_rng(mu0, sigma/n0);
     real y_tilde = normal_rng(mu, sigma);
   }
+
 #+end_src
 
 #+begin_src R :exports none :results none
   modelos_files <- "modelos/compilados/predictivos"
-  ruta <- file.path("modelos/predictivos/cantantes.stan")
+  ruta <- file.path("modelos/predictivos/cantantes-previa.stan")
   modelo <- cmdstan_model(ruta, dir = modelos_files)
 #+end_src
+
+#+begin_src R :exports code :results none :eval never
+  replica <- function(id){
+    previa <- modelo$sample(previa.params,
+                            fixed_param = TRUE,
+                            refresh = 0, chains = 1,
+                            show_messages = FALSE)
+    mean(previa$draws(format = "df")$y_tilde)
+    }
+
+  resultados <- tibble(id = 1:200) |>
+    mutate(ymean = map_dbl(id, replica))
+#+end_src
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/cantantes-previa-pred-muestral.jpeg :exports results :results output graphics file :eval never
+  g1 <- resultados |>
+    ggplot(aes()) +
+    annotate(geom = "rect", ymin = 0, ymax = 100, xmin = 150, xmax = 165, alpha = .3) +
+    annotate(geom = "rect", ymin = 0, ymax = 100, xmin = 190, xmax = 205, alpha = .3) +
+    sin_lineas +
+    theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) +
+    xlab(expression(bar(y)[n])) +
+    ggtitle("Región de resultados extremos")
+
+  g2 <- resultados |>
+    ggplot(aes(ymean)) +
+    geom_histogram(bins = 30) +
+    annotate(geom = "rect", ymin = 0, ymax = 80, xmin = 150, xmax = 165, alpha = .3) +
+    annotate(geom = "rect", ymin = 0, ymax = 80, xmin = 190, xmax = 205, alpha = .3) +
+    sin_lineas + ylab("") +
+    theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) +
+    xlab(expression(bar(y)[n])) +
+    ggtitle("Réplicas de promedios")
+
+  g1 + g2
+#+end_src
+#+caption:  Definimos una región donde consideremos resultados extremos de una estadística resumen para poder evaluar la distribución muestral de nuestro estadístico producto de la distribución predictiva previa. 
+#+name: fig:pred-muestral
+#+RESULTS:
+[[file:../images/cantantes-previa-pred-muestral.jpeg]]
 
 
 * Muestreo predictivo -- posterior
