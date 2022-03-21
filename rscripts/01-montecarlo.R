@@ -63,7 +63,7 @@ norm.cuadrature |>
 crear_log_post <- function(n, k){
   function(theta){
     verosim <- k * log(theta) + (n - k) * log(1 - theta)
-    inicial <- log(theta)
+    inicial <- log(2) + log(theta)
     verosim + inicial
   }
 }
