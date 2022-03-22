@@ -144,6 +144,8 @@ Donde los parámetros tienen la siguiente especificación:
   })
 #+end_src
 
+Una manera práctica es hacer remuestreo de la distribución predictiva previa para poder evaluar ciertos estadísticos de resumen. La idea es que podamos definir una región donde la previa genere datos razonables. Por ejemplo, podemos definir una zona donde esperamos observar el promedio de la altura de $200$ cantantes. Ver [[fig:pred-muestral]]. 
+
 #+begin_src stan :tangle ../modelos/predictivos/cantantes-previa.stan
   data {
     real mu0;
@@ -207,6 +209,11 @@ Donde los parámetros tienen la siguiente especificación:
 #+RESULTS:
 [[file:../images/cantantes-previa-pred-muestral.jpeg]]
 
+Por supuesto escoger el resumen correcto es complicado pero con la respuesta
+clara que queremos responder nos indicará qué resumen escoger.
+
+Para una discusión mas profunda sobre el estado del arte en elicitación y
+prácticas para definir las distribuciones previas consultar citep:Mikkola2021. 
 
 * Muestreo predictivo -- posterior
 

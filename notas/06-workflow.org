@@ -130,6 +130,8 @@ seguros que podemos confiar en nuestro modelo en relación a los datos que
 estamos analizando.
 #+END_NOTES
 
+\newpage
+
 #+REVEAL: split
 Lo importante es considerar la ~pregunta objetivo~. Es decir, encontrar la
 pregunta que esperamos nuestro análisis pueda resolver. Por supuesto en el
@@ -922,10 +924,9 @@ distancias distintas. En [[fig:golf-datos]] se muestran los datos disponibles.
 
   g_datos
 #+end_src
-
-#+RESULTS:
 #+caption: Datos disponibles para análisis de éxitos de tiros.
 #+name: fig:golf-datos
+#+RESULTS:
 [[file:../images/golf-observaciones.jpeg]]
 
 ** Modelo logístico 
@@ -2048,7 +2049,7 @@ Los parámetros estimados los interpretamos como sigue:
   atribuibles a medición del 3 puntos porcentuales.
 
 #+HEADER: :width 800 :height 800 :R-dev-args bg="transparent"
-#+begin_src R :file images/golf-dispersion-modelo.jpeg :exports results :results output graphics file 
+#+begin_src R :file images/golf-dispersion-modelo.jpeg :exports results :results output graphics file :eval never
     color_scheme_set("darkgray")
     muestras_sigma <- ajuste$draws(c("sigma_force", "sigma_obs", "sigma_degrees"))
     mcmc_pairs(muestras_sigma, off_diag_fun = "hex", grid_args = list(size = 0))
