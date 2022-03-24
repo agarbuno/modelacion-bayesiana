@@ -132,6 +132,8 @@ seguros que podemos confiar en nuestro modelo en relación a los datos que
 estamos analizando.
 #+END_NOTES
 
+\newpage
+
 #+REVEAL: split
 Lo importante es considerar la ~pregunta objetivo~. Es decir, encontrar la
 pregunta que esperamos nuestro análisis pueda resolver. Por supuesto en el
