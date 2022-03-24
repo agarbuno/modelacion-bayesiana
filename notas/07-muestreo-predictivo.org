@@ -148,7 +148,7 @@ Por ejemplo, consideremos el caso de los cantantes de ópera. El modelo asume un
 
 Donde los parámetros tienen la siguiente especificación:
 #+begin_src R :exports none :results none
-  ## Predictiva previa cantantes ---------------------------- 
+  ## Cantantes: Predictiva previa  ---------------------------- 
 #+end_src
 
 #+begin_src R :exports code :results none
@@ -415,6 +415,10 @@ bajo la distribución predictiva posterior.
 Nota la forma ~vectorizada~ para generar las simulaciones de un conjunto de datos
 hipotético del mismo tamaño que el conjunto original.
 
+#+begin_src R :exports none :results none
+  ## Cantantes: modelo posterior ----------------------
+#+end_src
+
 #+begin_src R :exports none :results none 
   ## Leemos los datos
   set.seed(3413)
@@ -459,6 +463,7 @@ En las secciones anteriores hemos utilizado un poco de posprocesamiento de las
 muestras y las réplicas para evaluar estadísticos de interés en nuestro
 problema. Ahora utilizaremos ~Stan~ para poder generar dichos resúmenes /dentro/
 de la simulación. 
+
 
 #+begin_src stan :tangle ../modelos/predictivos/cantantes-posterior-completo.stan
   data {
@@ -642,6 +647,7 @@ Simon Newcomb set up an experiment in 1882 to measure the speed of light. Newcom
 #+end_quote
 
 #+begin_src R :exports none :results none
+  ## Experimentos de velocidad de la luz ------------------------
   light <- read.csv("https://raw.githubusercontent.com/avehtari/ROS-Examples/master/Newcomb/data/newcomb.txt")
 #+end_src
 
