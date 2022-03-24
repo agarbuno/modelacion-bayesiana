@@ -43,8 +43,12 @@
 
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Muestreo predictivo.\\
-*Objetivo*: Que veremos.\\
-*Lectura recomendada*: Referencia.
+*Objetivo*: Estudiaremos métodos de validación de supuestos, evaluación y crítica de
+ modelos de acuerdo a las distribuciones predictivas (previa y/o posterior).
+ Estableceremos ciertas conexiones con temas clásicos de inferencia frecuentista. \\
+*Lectura recomendada*: Puedes leer la documentación de ~Stan~ sobre el tema
+ [[https://mc-stan.org/docs/2_29/stan-users-guide/ppcs.html][aqui]]. También el capítulo 6 de citep:Gelman2014a es una excelente referencia
+ sobre el tema. Adicional, podrías checar la sección 2.3 de citep:Martin2021.
 #+END_NOTES
 
 
@@ -86,8 +90,17 @@
   - [[#muestreo-predictivo][Muestreo predictivo]]
     - [[#para-pensar][Para pensar:]]
   - [[#interpretación][Interpretación]]
-  - [[#en-la-práctica][En la práctica]]
+  - [[#ejemplo-cantantes][Ejemplo: cantantes]]
+  - [[#ejemplo-juegos-de-soccer][Ejemplo: juegos de soccer]]
+    - [[#tarea][Tarea:]]
 - [[#muestreo-predictivo----posterior][Muestreo predictivo -- posterior]]
+  - [[#ejemplo-cantantes][Ejemplo: cantantes]]
+  - [[#procesamiento-de-conjunto-de-datos-ficticios][Procesamiento de conjunto de datos ficticios]]
+    - [[#tarea][Tarea:]]
+  - [[#valores-p-bayesianos][``Valores $p$'' bayesianos]]
+  - [[#ejemplo-velocidad-de-la-luz][Ejemplo: Velocidad de la luz]]
+  - [[#observaciones-atípicas][Observaciones atípicas]]
+- [[#conclusiones][Conclusiones]]
 :END:
 
 * Introducción
@@ -101,15 +114,15 @@ Usualmente definimos la distribución predictiva previa de manera que refleje lo
 ** Muestreo predictivo 
 Recordemos que la distribución predictiva previa es
 \begin{align}
-\pi(y) = \int \pi(y | \theta )\, \pi(\theta)\, \text{d}\theta\,.
+\pi(\tilde y) = \int \pi(\tilde y | \theta )\, \pi(\theta)\, \text{d}\theta\,.
 \end{align}
 
 El mecanismo que utilizamos para generar muestras de dicha distribución es el siguiente:
 - Para $i = 1, \ldots, N$:
   1. Generar $\tilde \theta_i \sim \pi(\theta)$ . 
-  2. Generar $\tilde y_i \sim \pi(y | \tilde \theta_i)$. 
+  2. Generar $\tilde y_i \sim \pi(\tilde y | \tilde \theta_i)$. 
 
-Al final de este proceso podemos descartar las simulaciones de $\tilde \theta$  y obtener una colección de realizaciones aleatorias de $\tilde y \sim \pi(y)$.
+Al final de este proceso podemos descartar las simulaciones de $\tilde \theta$  y obtener una colección de realizaciones aleatorias de $\tilde y_i \sim \pi(\tilde y)$.
 
 *** Para pensar:
 :PROPERTIES:
@@ -123,24 +136,28 @@ El objetivo de utilizar la distribución predictiva previa es evaluar la interac
 
 \newpage
 
-** En la práctica
+** Ejemplo: cantantes 
 
 Usualmente consideramos algún resumen informativo de los datos. Es decir, un resumen a través de un ~estadístico~ de nuestra distribución, y en consecuencia lo que nos interesaría es evaluar la ~distribución de muestreo~ de dicho estadístico. La idea es poder definir regiones donde esperaríamos ver nuestra simulación de posibles estadísticos. 
 
 Por ejemplo, consideremos el caso de los cantantes de ópera. El modelo asume una distribución previa de la forma
 \begin{gather}
-\mu | \sigma \sim \mathsf{Normal}\left(\mu_0, \frac{\sigma}{n_0}\right)\,,\\
-\sigma^{-1} \sim \mathsf{Gamma}(a_0, b_0)\,.
+\mu | \sigma \sim \mathsf{Normal}\left(\mu_0, \frac{\sigma}{\sqrt{n_0}}\right)\,,\\
+\sigma^{-2} \sim \mathsf{Gamma}(a_0, b_0)\,.
 \end{gather}
 
 Donde los parámetros tienen la siguiente especificación:
+#+begin_src R :exports none :results none
+  ## Predictiva previa cantantes ---------------------------- 
+#+end_src
+
 #+begin_src R :exports code :results none
   previa.params  <- within(list(),
   {
     mu0 <- 175
     n0  <- 5
     a0  <- 3
-    b0  <- 140
+    b0  <- 147
   })
 #+end_src
 
@@ -155,11 +172,10 @@ Una manera práctica es hacer remuestreo de la distribución predictiva previa p
   }
   generated quantities {
     real tau = gamma_rng(a0, b0);
-    real sigma = 1/tau; 
-    real mu  = normal_rng(mu0, sigma/n0);
+    real sigma = 1/sqrt(tau); 
+    real mu  = normal_rng(mu0, sigma/sqrt(n0));
     real y_tilde = normal_rng(mu, sigma);
   }
-
 #+end_src
 
 #+begin_src R :exports none :results none
@@ -174,29 +190,34 @@ Una manera práctica es hacer remuestreo de la distribución predictiva previa p
                             fixed_param = TRUE,
                             refresh = 0, chains = 1,
                             show_messages = FALSE)
-    mean(previa$draws(format = "df")$y_tilde)
+    list(mean = mean(previa$draws(format = "df")$y_tilde),
+         sd   = sd(previa$draws(format = "df")$y_tilde),
+         min  = min(previa$draws(format = "df")$y_tilde),
+         max  = max(previa$draws(format = "df")$y_tilde))
     }
 
   resultados <- tibble(id = 1:200) |>
-    mutate(ymean = map_dbl(id, replica))
+    mutate(results = map_df(id, replica))
 #+end_src
 
 #+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/cantantes-previa-pred-muestral.jpeg :exports results :results output graphics file :eval never
   g1 <- resultados |>
+    unnest(results) |>
     ggplot(aes()) +
-    annotate(geom = "rect", ymin = 0, ymax = 100, xmin = 150, xmax = 165, alpha = .3) +
-    annotate(geom = "rect", ymin = 0, ymax = 100, xmin = 190, xmax = 205, alpha = .3) +
+    annotate(geom = "rect", ymin = 0, ymax = 100, xmin = 170, xmax = 173, alpha = .3) +
+    annotate(geom = "rect", ymin = 0, ymax = 100, xmin = 177, xmax = 180, alpha = .3) +
     sin_lineas +
     theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) +
     xlab(expression(bar(y)[n])) +
     ggtitle("Región de resultados extremos")
 
   g2 <- resultados |>
-    ggplot(aes(ymean)) +
+    unnest(results) |>
+    ggplot(aes(mean)) +
     geom_histogram(bins = 30) +
-    annotate(geom = "rect", ymin = 0, ymax = 80, xmin = 150, xmax = 165, alpha = .3) +
-    annotate(geom = "rect", ymin = 0, ymax = 80, xmin = 190, xmax = 205, alpha = .3) +
+    annotate(geom = "rect", ymin = 0, ymax = Inf, xmin = 170, xmax = 173, alpha = .3) +
+    annotate(geom = "rect", ymin = 0, ymax = Inf, xmin = 177, xmax = 180, alpha = .3) +
     sin_lineas + ylab("") +
     theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) +
     xlab(expression(bar(y)[n])) +
@@ -210,17 +231,579 @@ Una manera práctica es hacer remuestreo de la distribución predictiva previa p
 [[file:../images/cantantes-previa-pred-muestral.jpeg]]
 
 Por supuesto escoger el resumen correcto es complicado pero con la respuesta
-clara que queremos responder nos indicará qué resumen escoger.
+clara que queremos responder nos indicará cuál escoger. Podríamos haber escogido
+cualquier otro resumen estadístico y graficar histogramas para evaluar las
+simulaciones bajo la distribución predictiva previa. Ver [[fig:cantantes-estadisticos]]. 
+
+#+HEADER: :width 1200 :height 600 :R-dev-args bg="transparent"
+#+begin_src R :file images/cantantes-previa-pred-estads.jpeg :exports results :results output graphics file :eval never
+  resultados |>
+    unnest(results) |>
+    pivot_longer(cols = mean:max, names_to = 'estadistico') |>
+    ggplot(aes(value)) +
+    geom_histogram(bins = 20) +
+    facet_wrap(~estadistico, scales = "free") +
+    sin_lineas 
+#+end_src
+#+caption: Estadisticos bajo réplicas de la distirbución predictiva previa.
+#+name: fig:cantantes-estadisticos
+#+RESULTS:
+[[file:../images/cantantes-previa-pred-estads.jpeg]]
+
+** Ejemplo: juegos de /soccer/
+
+Este ejemplo lo hemos tomado de la [[https://mc-stan.org/docs/2_29/stan-users-guide/example-of-prior-predictive-checks.html][documentación de Stan]]. Consideremos que
+estamos modelando partidos de /soccer/ en una liga que tiene $J$ equipos. Cada
+equipo tiene una tasa de goles $\lambda_j$. Además, asumimos que cada equipo
+mete goles de acuerdo a una distribución Poisson con tasa $\lambda_j$.
+
+Utilizaremos, para ilustrar, una distribución a priori
+\begin{align}
+\lambda_j \sim \mathsf{Gamma}(\epsilon_1, \epsilon_2)\,,
+\end{align}
+donde los parámetros $\epsilon_i$ se escogen de acuerdo a recomendación en citep:Lunn2012.
+Lo cual corresponde a una previa ~no informativa~.
+
+~Definición (Distribución no informativa)~: Decimos que una distribución previa es
+*no informativa* si dicha distribución aporta poca información relativa al
+experimento citep:Box2011.
+
+Supongamos que la liga juega un torneo /round-robin/ (todos contra todos). El
+modelo siguiente genera una simulación del torneo. 
+
+#+begin_src stan :tangle ../modelos/predictivos/soccer-previa-predictivo.stan
+  data {
+    int<lower=0> J;
+    array[2] real<lower=0> epsilon; 
+  }
+
+  generated quantities {
+    array[J] real<lower=0> lambda;
+    array[J, J] int y;
+    // Generamos las lambdas 
+    for (j in 1:J) lambda[j] = gamma_rng(epsilon[1], epsilon[2]);
+    // Generamos de la predictiva 
+    for (i in 1:J) {
+      for (j in 1:J) {
+        y[i, j] = poisson_rng(lambda[i]) - poisson_rng(lambda[j]);
+      }
+    }  
+  }
+#+end_src
+
+Nota que estamos permitiendo algunas cosas sin sentido, pero obviaremos
+esto. Podríamos ser mas cuidadosos con la combinatoria y sólo permitir los ${J
+\choose 2}$ juegos posibles.
+
+#+begin_src R :exports none :results none
+  ## Predictiva previa soccer ---------------------------
+  modelos_files <- "modelos/compilados/predictivos"
+  ruta <- file.path("modelos/predictivos/soccer-previa-predictivo.stan")
+  modelo <- cmdstan_model(ruta, dir = modelos_files)
+#+end_src
+
+#+begin_src R :exports code :results none
+  params.previa <- within(list(),{
+    J <- 18
+    epsilon <- c(0.5, 0.00001)  
+  })
+  pprevia <- modelo$sample(params.previa, fixed_param = TRUE,
+                           refresh = 0, seed = 10872791)
+#+end_src
+
+Con la distribución previa definida tenemos las siguientes 20 simulaciones de
+los partidos entre los dos primeros equipos.
+
+#+begin_src R :exports results :results org 
+  pprevia$draws(variables = "y", format = "df") |>
+    pull(`y[1,2]`) |>
+    head(20) |>
+    matrix(nrow = 2)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+        [,1]    [,2]   [,3]    [,4]   [,5]   [,6]   [,7]  [,8]   [,9]   [,10]
+[1,]  -45106 -224328 -28857  -32947 106527  33672 -14938 -8644 -14235 -109005
+[2,] -202066   20687  -2540 -112032  -6899 105781     84  2742 -56941  -26355
+#+end_src
+
+Lo cual no tiene mucho sentido. Los partidos usualmente no pasan de tener mas de
+10 goles en una liga profesional. El modelo previo que tenemos asigna con alta
+probabilidad una diferencia de mas de 100 goles. Ver [[fig:soccer-goles]].
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/soccer-goles.jpeg :exports results :results output graphics file
+  pprevia$draws(variables = "y", format = "df") |>
+    mutate(goles = `y[1,2]`) |>
+    ggplot(aes(goles)) +
+    geom_histogram() +
+    xlab("Diferencia de goles")
+#+end_src
+#+caption: Histograma de la distribución predictiva previa.
+#+name: fig:soccer-goles
+#+RESULTS:
+[[file:../images/soccer-goles.jpeg]]
+
+Naturalmente la interpretación no es tan fácil en escenarios con mas
+parámetros. La distribución predictiva previa nos permite evaluar la incidencia
+de nuestros supuestos del modelo en cantidades observables.
+
+El *objetivo* /no es/ poder replicar los datos con la distribución predictiva
+previa.  Pues esto implicaría ajustar la posterior y convertirla en una
+distribución previa. El objetivo /es/ asegurarnos que nuestra distribución inicial
+no asigna regiones de alta probabilidad a valores que no tienen sentido en el
+contexto del problema que estamos modelando.  Esto es sumamente relevante cuando
+tenemos pocas observaciones o cuando los datos no son completamente informativos
+sobre ciertos parámetros. Por ejemplo, en modelos jerárquicos usualmente los
+parámetros de escala son mas difíciles de ajustar citep:Gelman2006. Un caso
+práctico adicional con respecto a un modelo de concentración de contaminantes se
+puede encontrar en citep:Gabry2019. En esta última referencia el modelo previo asigna
+una concentración de contaminantes mas densa que un hoyo negro (??). 
 
 Para una discusión mas profunda sobre el estado del arte en elicitación y
 prácticas para definir las distribuciones previas consultar citep:Mikkola2021. 
 
+*** Tarea:
+Define una región que creas que sea razonable para observar el promedio de la
+diferencia de número de goles. Para esto, replica algo parecido a lo que hicimos
+para los cantantes.
+
+
 * Muestreo predictivo -- posterior
 
+La distribución predictiva posterior es la distribución sobre nuevas
+realizaciones que podríamos observar dado que ya hemos actualizado nuestra
+distribución previa con datos.
+
+La distribución predictiva posterior para datos hipotéticos $\tilde y$ condicional en los observados $y$ está definida como
+\begin{align}
+\pi(\tilde y | y ) = \int \pi(\tilde y | \theta ) \cdot \pi (\theta | y) \, \text{d}\theta\,.
+\end{align}
+
+** Ejemplo: cantantes
+
+Ajustaremos la distribución posterior y generaremos observaciones hipotéticas
+bajo la distribución predictiva posterior.
+
+#+begin_src stan :tangle ../modelos/predictivos/cantantes-posterior.stan
+  data {
+    int N;
+    real y[N]; 
+    real mu0;
+    real<lower=0> n0;
+    real<lower=0> a0;
+    real<lower=0> b0;
+  }
+  parameters {
+    real<lower=0> tau;
+    real mu;
+  }
+  transformed parameters {
+    real sigma = 1/tau; 
+  }
+  model {
+    tau ~ gamma(a0, b0);
+    mu  ~ normal(mu0, sigma/sqrt(n0));
+    y   ~ normal(mu, sigma); 
+  }
+  generated quantities {
+    array[N] real y_tilde = normal_rng(rep_array(mu, N), rep_array(sigma, N));
+  }
+#+end_src
+
+Nota la forma ~vectorizada~ para generar las simulaciones de un conjunto de datos
+hipotético del mismo tamaño que el conjunto original.
+
+#+begin_src R :exports none :results none 
+  ## Leemos los datos
+  set.seed(3413)
+  cantantes <- lattice::singer |>
+    mutate(estatura_cm = round(2.54 * height)) |>
+    filter(str_detect(voice.part, "Tenor")) |>
+    sample_n(42)
+#+end_src
+
+#+begin_src R :exports none :results none
+  ## Preparamos el modelo
+  modelos_files <- "modelos/compilados/predictivos"
+  ruta <- file.path("modelos/predictivos/cantantes-posterior.stan")
+  modelo <- cmdstan_model(ruta, dir = modelos_files)
+#+end_src
+
+#+begin_src R :exports code :results org 
+  data.list <- within(list(), {
+    N <- 42
+    y <- cantantes$estatura_cm
+    })
+  posterior <- modelo$sample(append(previa.params, data.list), refresh = 0)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+Running MCMC with 4 sequential chains...
+
+Chain 1 finished in 0.0 seconds.
+Chain 2 finished in 0.0 seconds.
+Chain 3 finished in 0.0 seconds.
+Chain 4 finished in 0.1 seconds.
+
+All 4 chains finished successfully.
+Mean chain execution time: 0.1 seconds.
+Total execution time: 0.6 seconds.
+#+end_src
+
+** Procesamiento de conjunto de datos ficticios
+
+En las secciones anteriores hemos utilizado un poco de posprocesamiento de las
+muestras y las réplicas para evaluar estadísticos de interés en nuestro
+problema. Ahora utilizaremos ~Stan~ para poder generar dichos resúmenes /dentro/
+de la simulación. 
+
+#+begin_src stan :tangle ../modelos/predictivos/cantantes-posterior-completo.stan
+  data {
+    int N;
+    real y[N]; 
+    real mu0;
+    real<lower=0> n0;
+    real<lower=0> a0;
+    real<lower=0> b0;
+  }
+  parameters {
+    real<lower=0> tau;
+    real mu;
+  }
+  transformed parameters {
+    real sigma = 1/tau; 
+  }
+  model {
+    tau ~ gamma(a0, b0);
+    mu  ~ normal(mu0, sigma/sqrt(n0));
+    y   ~ normal(mu, sigma); 
+  }
+  generated quantities {
+    array[N] real y_tilde = normal_rng(rep_array(mu, N), rep_array(sigma, N));
+    real mean_y_tilde = mean(to_vector(y_tilde));
+    real sd_y_tilde = sd(to_vector(y_tilde)); 
+  }
+#+end_src
+
+#+begin_src R :exports none :results none
+  modelos_files <- "modelos/compilados/predictivos"
+  ruta <- file.path("modelos/predictivos/cantantes-posterior-completo.stan")
+  modelo <- cmdstan_model(ruta, dir = modelos_files)
+#+end_src
+
+Mejor aún, podemos utilizar gráficos de ~bayesplot~ para verificar nuestras simulaciones contra los datos. Ver  [[fig:cantantes-g1]], [[fig:cantantes-g2]] y [[fig:cantantes-g3]]. 
+
+#+HEADER: :width 1200 :height 600 :R-dev-args bg="transparent"
+#+begin_src R :file images/cantantes-posterior-graficos-lineup.jpeg :exports results :results output graphics file
+  posterior <- modelo$sample(append(previa.params, data.list), refresh = 0)
+  y_rep <- posterior$draws(variables = "y_tilde", format = "matrix")
+  ppc_hist(cantantes$estatura_cm, y_rep[1:8,], binwidth = 5) + sin_lineas
+#+end_src
+#+name: fig:cantantes-g1
+#+caption: Comparación de histogramas con respecto a los datos y las simulaciones bajo la distirbución predictiva posterior. Utiliza ~ppc_hist~. 
+#+RESULTS:
+[[file:../images/cantantes-posterior-graficos-lineup.jpeg]]
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/cantantes-posterior-graficos-densidad.jpeg :exports results :results output graphics file
+  ppc_dens_overlay(cantantes$estatura_cm, y_rep[1:100,], alpha = .8) + sin_lineas
+#+end_src
+#+name: fig:cantantes-g2
+#+caption: Gráfico espaguetti que compara la densidad de datos ficticios contra observados. Utiliza ~ppc_dens_overlay~. 
+#+RESULTS:
+[[file:../images/cantantes-posterior-graficos-densidad.jpeg]]
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/cantantes-posterior-graficos-boxplot.jpeg :exports results :results output graphics file
+  ppc_boxplot(cantantes$estatura_cm, y_rep[1:8,]) + sin_lineas
+#+end_src
+#+name: fig:cantantes-g3
+#+caption: Comparación de /boxplots/ entre datos ficticios contra observados. Utiliza ~ppc_boxplot~. 
+#+RESULTS:
+[[file:../images/cantantes-posterior-graficos-boxplot.jpeg]]
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/cantantes-posterior-graficos-intervalos.jpeg :exports results :results output graphics file
+  ppc_intervals(cantantes$estatura_cm, y_rep, size = 1.5) + sin_lineas
+#+end_src
+#+caption: Comparación de /intervalos/ entre datos ficticios contra observados. Utiliza ~ppc_intervals~. 
+#+RESULTS:
+[[file:../images/cantantes-posterior-graficos-intervalos.jpeg]]
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/cantantes-posterior-graficos-ribbons.jpeg :exports results :results output graphics file
+  ppc_ribbon(cantantes$estatura_cm, y_rep, y_draw = "points") + sin_lineas
+#+end_src
+#+caption: Comparación de bandas entre datos ficticios contra observados. Utiliza ~ppc_ribbons~. 
+#+RESULTS:
+[[file:../images/cantantes-posterior-graficos-boxplot.jpeg]]
 
 
+Adicional a esto, podemos hacer nuestras comparaciones gráficas con ciertos estadísticos. Ver  [[fig:cantantes-g4]], [[fig:cantantes-g5]] y [[fig:cantantes-g6]]. 
 
-# * Referencias                                                         :latex:
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/cantantes-posterior-graficos-medias.jpeg :exports results :results output graphics file
+  ppc_stat(cantantes$estatura_cm, y_rep, alpha = .8) + sin_lineas
+#+end_src
+#+name: fig:cantantes-g4
+#+caption: Comparación entre datos ficticios contra observados por medio de medias. Utiliza ~ppc_stat~.
+#+RESULTS:
+[[file:../images/cantantes-posterior-graficos-medias.jpeg]]
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/cantantes-posterior-graficos-sd.jpeg :exports results :results output graphics file
+  ppc_stat(cantantes$estatura_cm, y_rep, alpha = .8, stat = "sd") + sin_lineas
+#+end_src
+#+name: fig:cantantes-g5
+#+caption: Comparación entre datos ficticios contra observados por medio de desviación estándar. Utiliza ~ppc_stat~.
+#+RESULTS:
+[[file:../images/cantantes-posterior-graficos-sd.jpeg]]
+
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/cantantes-posterior-graficos-q95.jpeg :exports results :results output graphics file
+  ppc_stat(cantantes$estatura_cm, y_rep, alpha = .8, stat = function(x) quantile(x, .95)) + sin_lineas
+#+end_src
+#+name: fig:cantantes-g6
+#+caption: Comparación entre datos ficticios contra observados por medio del percentil $95\%$. Utiliza ~ppc_stat~.
+#+RESULTS:
+[[file:../images/cantantes-posterior-graficos-q95.jpeg]]
+
+Incluso podemos graficar comparaciones bivariadas (dos estadísticas el mismo
+tiempo) como se muestra en [[fig:cantantes-bivariado]].
+
+#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/cantantes-posterior-graficos-bivariados.jpeg :exports results :results output graphics file
+  ppc_stat_2d(cantantes$estatura_cm, y_rep, alpha = .8, stat = c("mean", "sd")) + sin_lineas
+#+end_src
+#+name: fig:cantantes-bivariado
+#+caption: Comparación entre datos ficticios contra observados por medio del percentil $95\%$. Utiliza ~ppc_stat~.
+#+RESULTS:
+[[file:../images/cantantes-posterior-graficos-bivariados.jpeg]]
+
+*** Tarea:
+Replica algunos de estos gráficos para los modelos Poisson-Gamma y Binomial-Negativo para los conteos de reclamos atendidos en /twitter/ por las aerolíneas. 
+
+** ``Valores $p$'' bayesianos
+
+Si el modelo captura bien los datos, entonces estadísticos basados en tendencias
+centrales --como media y desviación estándar-- deberían de tener valores
+similares tanto en conjuntos hipotéticos (muestras de la distribución predictiva
+posterior) como en los datos mismos.
+
+Esto puede ser evaluado por medio de un estadístico que asemeja el concepto
+frecuentista de valor-$p$. Es decir, para un estadístico $s(\cdot)$ comparamos
+los valores de acuerdo a
+\begin{align}
+\mathbb{P}\left[ s(\tilde y) \geq s(y) | y \right] = \int I[s(\tilde y) \geq s(y)] \cdot \pi(\tilde y | y) \, \text{d}\tilde y\,.
+\end{align}
+
+#+BEGIN_NOTES
+Este concepto *no* es tal cual un valor-$p$ (en el sentido frecuentista) pues
+estos estadísticos no están bien calibrados. Es decir, la cobertura nominal *no*
+corresponde al calculado. En general, no tendrán una distribución uniforme
+incluso si el modelo está bien especificado citep:Bayarri2000.
+#+END_NOTES
+
+Valores cercanos a 0 ó 1 son motivo de alerta sobre el ajuste del modelo. Por
+ejemplo, para nuestro modelo de los cantantes de ópera vemos una situación /ideal/
+utilizando la media. Esto corresponde a que nuestro modelo está capturando
+bien el comportamiento promedio de las alturas. Sin embargo, para la dispersión
+nos indica que posiblemente haya problemas con el comportamiento con la
+dispersión aprendida por el modelo.
+
+#+begin_src R :exports both :results org
+  posterior$draws(variables = c("mean_y_tilde", "sd_y_tilde"), format = "df") |>
+    mutate(indicadora.mean = mean_y_tilde >= mean(cantantes$estatura_cm),
+           indicadora.sd   = sd_y_tilde >= sd(cantantes$estatura_cm)) |>
+    summarise(p.value.mean = mean(indicadora.mean),
+              p.value.sd   = mean(indicadora.sd)) |>
+     as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+  p.value.mean p.value.sd
+1         0.46       0.89
+#+end_src
+
+Esto ya lo habíamos graficado antes en [[fig:cantantes-g4]], [[fig:cantantes-g5]] y [[fig:cantantes-g6]]. 
+
+
+** Ejemplo: Velocidad de la luz
+
+Los datos provienen de un experimento por Simon Newcomb para medir la velocidad con la que viaja la luz. 
+
+#+begin_quote
+Simon Newcomb set up an experiment in 1882 to measure the speed of light. Newcomb measured the amount of time required for light to travel a distance of 7442 meters. ---citet:Gelman2014a. 
+#+end_quote
+
+#+begin_src R :exports none :results none
+  light <- read.csv("https://raw.githubusercontent.com/avehtari/ROS-Examples/master/Newcomb/data/newcomb.txt")
+#+end_src
+
+#+begin_src stan :tangle ../modelos/predictivos/lightspeed.stan
+  data {
+    int N;
+    real y[N]; 
+  }
+  parameters {
+    real<lower=0> sigma;
+    real mu;
+  }
+  model {
+    y   ~ normal(mu, sigma); 
+  }
+  generated quantities {
+    array[N] real y_tilde = normal_rng(rep_array(mu, N), rep_array(sigma, N));
+    real mean_y_tilde = mean(to_vector(y_tilde));
+    real sd_y_tilde = sd(to_vector(y_tilde)); 
+  }
+#+end_src
+
+#+begin_src R :exports none :results none
+  modelos_files <- "modelos/compilados/predictivos"
+  ruta <- file.path("modelos/predictivos/lightspeed.stan")
+  modelo <- cmdstan_model(ruta, dir = modelos_files)
+#+end_src
+
+#+begin_src R :exports results :results org 
+  posterior <- modelo$sample(list(N = nrow(light), y = light$y), refresh = 0)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+Running MCMC with 4 sequential chains...
+
+Chain 1 finished in 0.0 seconds.
+Chain 2 finished in 0.1 seconds.
+Chain 3 finished in 0.0 seconds.
+Chain 4 finished in 0.1 seconds.
+
+All 4 chains finished successfully.
+Mean chain execution time: 0.0 seconds.
+Total execution time: 0.5 seconds.
+#+end_src
+
+#+begin_src R :exports results :results org 
+  posterior$draws(variables = c("mean_y_tilde", "sd_y_tilde"), format = "df") |>
+      mutate(indicadora.mean = mean_y_tilde >= mean(light$y),
+             indicadora.sd   = sd_y_tilde >= sd(light$y)) |>
+      summarise(p.value.mean = mean(indicadora.mean),
+                p.value.sd   = mean(indicadora.sd)) |>
+    as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+  p.value.mean p.value.sd
+1         0.51       0.52
+#+end_src
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/lightspeed-posterior-graficos-medias.jpeg :exports results :results output graphics file
+  y_rep <- posterior$draws(variables = "y_tilde", format = "matrix")
+  ppc_stat(light$y, y_rep, alpha = .8) + sin_lineas
+#+end_src
+#+name: fig:lightspeed-g1
+#+caption: Comparación entre datos ficticios contra observados por medio de medias. Utiliza ~ppc_stat~.
+#+RESULTS:
+[[file:../images/lightspeed-posterior-graficos-medias.jpeg]]
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/lightspeed-posterior-graficos-sd.jpeg :exports results :results output graphics file
+  ppc_stat(light$y, y_rep, alpha = .8, stat = "sd") + sin_lineas
+#+end_src
+#+name: fig:lightspeed-g2
+#+caption: Comparación entre datos ficticios contra observados por medio de desviación estándar. Utiliza ~ppc_stat~.
+#+RESULTS:
+[[file:../images/lightspeed-posterior-graficos-sd.jpeg]]
+
+Los estadístico centrales se ven bien. Sin embargo, si comparamos con respecto
+al mínimo vemos una historia muy distinta.  Lo cual nos indica junto con los
+gráficos de /lineup/ que hay variabilidad en los datos que no es explicada por el
+modelo.
+
+#+HEADER: :width 1200 :height 600 :R-dev-args bg="transparent"
+#+begin_src R :file images/lightspeed-posterior-graficos-lineup.jpeg :exports results :results output graphics file
+  ppc_hist(light$y, y_rep[1:15,], binwidth = 5) + sin_lineas
+#+end_src
+#+name: fig:lightspeed-g3
+#+caption: Comparación entre datos ficticios contra observados por medio de /lineup/. Utiliza ~ppc_hist~.
+#+RESULTS:
+[[file:../images/lightspeed-posterior-graficos-lineup.jpeg]]
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/lightspeed-posterior-graficos-minimo.jpeg :exports results :results output graphics file
+  ppc_stat(light$y, y_rep, alpha = .8, stat = function(x) {min(x)}) + sin_lineas
+#+end_src
+#+name: fig:lightspeed-g4
+#+caption: Comparación entre datos ficticios contra observados por medio del mínimo. Utiliza ~ppc_stat~.
+#+RESULTS:
+[[file:../images/lightspeed-posterior-graficos-minimo.jpeg]]
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/lightspeed-posterior-graficos-densidad.jpeg :exports results :results output graphics file
+  ppc_dens_overlay(light$y, y_rep[1:100,], alpha = .8) + sin_lineas
+#+end_src
+#+name: fig:lightspeed-g4
+#+caption: Comparación entre datos ficticios contra observados por densidades. Utiliza ~ppc_dens_overlay~.
+#+RESULTS:
+[[file:../images/lightspeed-posterior-graficos-densidad.jpeg]]
+
+Una manera de arreglar esta deficiencia del modelo es incorporar un componente
+adicional que incorpore un proceso de contaminación de observaciones. Tal como
+es sugerido en citep:Gelman2014a.
+
+** Observaciones atípicas
+
+En el contexto de los datos del experimentos de la estimación de la velocidad de
+la luz, se podría sugerir evaluar algún tipo de criterio que permita criticar si
+una observación es /típica/ del modelo ajustado. Esto es, nos interesaría
+cuantificar si alguna observación tiene una baja probabilidad predictiva. Esto
+se /puede/ lograr utilizando un concepto cercano a ~validación cruzada~ (que veremos
+mas adelante) el cual se llama /conditional predictive ordinate/ (~CPO~)
+\begin{align}
+\mathsf{CPO}_i = \pi(y_i | y_{-i})\,,
+\end{align}
+donde $y_{-i}$ denota el conjunto de observaciones exceptuando la $i$
+-ésima. Este diagnóstico se puede utilizar /barriendo/ sobre todas las
+observaciones buscando tener un resumen bajo todo el conjunto de datos.
+
+Sin embargo, este es un estimador de la evidencia marginal de una observación
+(un estimador armónico) el cual tiende a tener severos problemas para ser
+estimado. Incluso en modelos sencillos, puede incurrir en una estimación con
+alta variabilidad y dar estimaciones sesgadas citep:Martin2021,Newton1994. 
+
+#+BEGIN_NOTES
+El ~CPO~ es computacionalmente atractivo pues *no* necesita ajustar tantos modelos como observaciones tengamos. Puedes probar que
+\begin{align}
+ \pi(y_i | y_{-i}) = \frac{\pi(\underline{y}_n)}{\pi(y_{-i})}\,,
+\end{align}
+donde $\underline{y}_n$ denota la muestra completa. Y este cociente a su vez se puede calcular por medio de
+\begin{align}
+\frac{\pi(\underline{y}_n)}{\pi(y_{-i})} = \left[ \int \frac{1}{\pi(y_i|\theta)} \cdot \pi(\theta | \underline{y}_n) \, \text{d}\theta \right]^{-1}\,.
+\end{align}
+Para el cual podemos proponer un estimador Monte Carlo basado en muestras de la posterior $\pi(\theta|\underline{y}_n)$.
+
+Aunque atractivo, computacionalmente hablando, el ~CPO~ no es recomendable
+citep:Martin2021. Pero veremos alternativas que tienen un comportamiento mejor
+estudiado y para el cual tenemos mejores estimadores.
+#+END_NOTES
+
+
+* Conclusiones
+
+Las posibilidades para escoger un estadístico resumen son muy extensas. La
+elección debe ser guiada por la pregunta que se quiere responder por el modelo.
+Aunque, idealmente, esperaríamos que sean estadísticos pivotales. Es decir, que
+pongan a prueba el ajuste del modelo. 
+
+
+# * Referencias :latex:
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
