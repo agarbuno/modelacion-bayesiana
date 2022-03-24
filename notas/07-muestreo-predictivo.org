@@ -505,7 +505,7 @@ Mejor aún, podemos utilizar gráficos de ~bayesplot~ para verificar nuestras si
 #+begin_src R :file images/cantantes-posterior-graficos-lineup.jpeg :exports results :results output graphics file
   posterior <- modelo$sample(append(previa.params, data.list), refresh = 0)
   y_rep <- posterior$draws(variables = "y_tilde", format = "matrix")
-  ppc_hist(cantantes$estatura_cm, y_rep[1:8,], binwidth = 5) + sin_lineas
+  ppc_hist(cantantes$estatura_cm, y_rep[1:15,], binwidth = 5) + sin_lineas
 #+end_src
 #+name: fig:cantantes-g1
 #+caption: Comparación de histogramas con respecto a los datos y las simulaciones bajo la distirbución predictiva posterior. Utiliza ~ppc_hist~. 
