@@ -311,7 +311,7 @@ CLOSED: [2022-03-04 Fri 19:43]
 CLOSED: [2022-03-04 Fri 19:43]
 ** DONE Diagnosticos
 CLOSED: [2022-03-15 Tue 20:19]
-** TODO Posterior Predictive Sampling
+** NEXT Posterior Predictive Sampling
 ** TODO Simulation Based calibration
 ** TODO Evaluation and cross validation
 ** TODO Posterior and prior predictive checks
