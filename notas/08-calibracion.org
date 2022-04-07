@@ -1,0 +1,656 @@
+#+TITLE: EST-46115: Modelación Bayesiana
+#+AUTHOR: Prof. Alfredo Garbuno Iñigo
+#+EMAIL:  agarbuno@itam.mx
+#+DATE: ~Calibración basada en simulación~
+#+STARTUP: showall
+:REVEAL_PROPERTIES:
+#+LANGUAGE: es
+#+OPTIONS: num:nil toc:nil timestamp:nil
+#+REVEAL_REVEAL_JS_VERSION: 4
+#+REVEAL_THEME: night
+#+REVEAL_SLIDE_NUMBER: t
+#+REVEAL_HEAD_PREAMBLE: <meta name="description" content="Modelación Bayesiana">
+#+REVEAL_INIT_OPTIONS: width:1600, height:900, margin:.2
+#+REVEAL_EXTRA_CSS: ./mods.css
+#+REVEAL_PLUGINS: (notes)
+:END:
+:LATEX_PROPERTIES:
+#+OPTIONS: toc:nil date:nil author:nil tasks:nil
+#+LANGUAGE: sp
+#+LATEX_CLASS: handout
+#+LATEX_HEADER: \usepackage[spanish]{babel}
+#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
+#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
+#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
+#+LATEX_HEADER: \decimalpoint
+#+LATEX_HEADER:\usepackage{framed}
+#+LaTeX_HEADER: \usepackage{listings}
+#+LATEX_HEADER: \usepackage{fancyvrb}
+#+LATEX_HEADER: \usepackage{xcolor}
+#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
+#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
+#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
+#+LaTeX_HEADER: {}
+#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
+#+LaTeX_HEADER: {}
+#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
+#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
+#+EXPORT_FILE_NAME: ../docs/08-calibracion.pdf
+:END:
+#+PROPERTY: header-args:R :session calibracion :exports both :results output org :tangle ../rscripts/08-calibracion.R :mkdirp yes :dir ../
+#+EXCLUDE_TAGS: toc
+
+#+begin_src R :exports none :results none
+  ## Setup --------------------------------------------
+  library(tidyverse)
+  library(patchwork)
+  library(scales)
+  ## Cambia el default del tamaño de fuente 
+  theme_set(theme_linedraw(base_size = 25))
+
+  ## Cambia el número de decimales para mostrar
+  options(digits = 2)
+
+  sin_lineas <- theme(panel.grid.major = element_blank(),
+                      panel.grid.minor = element_blank())
+  color.itam  <- c("#00362b","#004a3b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f", NA)
+
+  sin_lineas <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+  sin_leyenda <- theme(legend.position = "none")
+  sin_ejes <- theme(axis.ticks = element_blank(), axis.text = element_blank())
+#+end_src
+
+#+begin_src R :exports none :results none
+  ## Librerias para modelacion bayesiana
+  library(cmdstanr)
+  library(posterior)
+  library(bayesplot)
+#+end_src
+
+#+BEGIN_NOTES
+*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Calibración basada en simulación .\\
+*Objetivo*: Que veremos.\\
+*Lectura recomendada*: Puedes consultar citep:Talts2020 el cual es una extensión de citep:Cook2006. 
+#+END_NOTES
+
+
+* Contenido                                                             :toc:
+:PROPERTIES:
+:TOC:      :include all  :ignore this :depth 3
+:END:
+:CONTENTS:
+- [[#introducción][Introducción]]
+- [[#calibración-de-la-posterior][Calibración de la posterior]]
+- [[#calibración-basada-en-calibración-cbs][Calibración basada en calibración (CBS)]]
+  - [[#ejemplo-modelo-conjugado][Ejemplo: Modelo conjugado]]
+  - [[#cuando-el-modelo-está-mal-especificado][Cuando el modelo está mal especificado]]
+  - [[#pruebas-de-uniformidad][Pruebas de uniformidad]]
+- [[#cbs-en-stan][CBS en Stan]]
+  - [[#implementación-en-stan][Implementación en Stan]]
+  - [[#consideración-para-métodos-de-mcmc][Consideración para métodos de MCMC]]
+  - [[#cambiar-cbs-por-mathsfcbs][Cambiar CBS por $\mathsf{CBS}$.]]
+:END:
+
+
+* Introducción
+
+Decimos que un intervalo de probabilidad está bien calibrado si tiene la misma
+cobertura nominal con la que está construido. Digamos, si el intervalo es un
+intervalo de probabilidad del $80\%$ , entonces 4 de 5 veces éste contendrá al
+verdadero valor del parámetro.
+
+Por definición, la distribución posterior está calibrada --si los datos son
+generados por el modelo--. Utilizando calibración basada en simulación
+explotaremos esta propiedad.
+
+La idea es: generar parámetros de la previa para generar datos condicionados en
+los parámetros simulados con el objetivo de estudiar la calibración de la
+posterior bajo escenarios independientes.
+
+* Calibración de la posterior
+
+Supongamos que tenemos un modelo bayesiano donde tenemos una distribución previa
+$\pi(\theta)$ para los parámetros del mecanismo generador de datos
+(verosimilitud) $\pi(y|\theta)$.
+
+Ahora, consideremos que generamos una simulación
+ \begin{align}
+\theta_{\mathsf{sim}} \sim \pi(\theta)\,,
+ \end{align}
+con la cual generamos
+ \begin{align}
+ y_{\mathsf{sim}} \sim \pi(y | \theta_{\mathsf{sim}})\,.
+ \end{align}
+Por construcción lo que hemos hecho es
+\begin{align}
+(y_{\mathsf{sim}}, \theta_{\mathsf{sim}}) \sim \pi(y, \theta)\,.
+\end{align}
+
+Ahora, la regla de Bayes nos dice que la distribución posterior es proporcional a la conjunta
+\begin{align}
+\pi(\theta | y ) \propto \pi(y, \theta)\,.
+\end{align}
+Por lo que también podríamos pensar que
+\begin{align}
+\theta_{\mathsf{sim}} \sim \pi(\theta| y_{\mathsf{sim}})\,.
+\end{align}
+
+Si utilizamos nuestro muestreador favorito para generar
+\begin{align}
+\theta_1, \ldots, \theta_M \sim \pi(\theta | y_{\mathsf{sim}})\,.
+\end{align}
+Entonces podríamos comparar las muestras simuladas con el parámetro que generó
+los datos. Esto es, por que $\theta_{\mathsf{sim}}$ es una realización aleatoria
+de la posterior, y por lo tanto los estadísticos de orden de
+$\theta_{\mathsf{sim}}$ deberían de ser uniformes con respecto a los de
+$\theta_1, \ldots, \theta_M$.
+
+\newpage
+
+O dicho de otra manera,
+\begin{align}
+\pi(\theta) = \int  \pi(\theta| y_{\mathsf{sim}})  \pi(y_{\mathsf{sim}} |\theta_{\mathsf{sim}}) \pi(\theta_{\mathsf{sim}}) \, \text{d}y_{\mathsf{sim}}\, \text{d}\theta_{\mathsf{sim}}\,.
+\end{align}
+Lo cual nos da un mecanismo para evaluar qué tan bien estamos utilizando nuestro
+algoritmo para generar muestras de la posterior citep:Talts2020.
+
+* Calibración basada en calibración (CBS)
+
+Utilizaremos la propiedad discutida arriba para generar 
+\begin{align}
+y_{\mathsf{sim}}^{(n)}, \theta_{\mathsf{sim}}^{(n)} \sim \pi(y, \theta), \qquad n = 1, \ldots, N\,.
+\end{align}
+
+Para cada uno de los datos simulados $y_{\mathsf{sim}}^{(n)}$ utilizamos nuestro
+algoritmo para generar
+\begin{align}
+\theta_1^{(n)}, \ldots, \theta_M^{(n)} \sim \pi(\theta | y_{\mathsf{sim}}^{(n)})\,.
+\end{align}
+
+Si consideramos los estadísticos de orden--el número de simulaciones de la
+posterior menores al parámetro simulado--en cada componente de nuestro vector de
+parámetros, tendremos que
+\begin{align}
+r_n &= \mathsf{orden}\left(\theta_{\mathsf{sim}}^{(n)}, \left\lbrace\theta_1^{(n)}, \ldots, \theta_M^{(n)}\right\rbrace\right) \\
+&= \sum_{m = 1}^{M} 1[\theta_m^{(n)} < \theta_{\mathsf{sim}}^{(n)}]\,,
+\end{align}
+será un entero distribuido $\mathsf{Uniforme}\{0,\ldots, M\}$. Esto es, el
+estadístico de orden $r_n$ tiene probabilidad $1/(M+1)$ de tomar valores entre
+$0, \ldots, M$.
+
+#+BEGIN_NOTES
+citet:Talts2020 histogramas. citet:Cook2006 prueba de hipótesis que pone a prueba la uniformidad.
+#+END_NOTES
+
+
+
+** Ejemplo: Modelo conjugado
+
+Consideremos un modelo de una observación Gaussiana $y \sim \mathsf{N}(\mu, \sigma^2)$, en donde utilizamos el siguiente
+conocimiento previo para los parámetros
+\begin{gather}
+\mu \sim \mathsf{N}(0, 1)\,,
+\end{gather}
+y asumimos una $\sigma$ conocida.
+
+Este modelo es un modelo conjugado ~Normal-Normal~ el cual tiene un distribución posterior
+\begin{align}
+\mu | y \sim \mathsf{N}\left( \frac{y}{\sigma^2+ 1}, 1 + \frac{1}{\sigma^2} \right)\,.
+\end{align}
+
+
+Consideremos $\sigma^2 = 2$. Si realizamos una simulación de la previa tenemos el siguiente parámetro:
+#+begin_src R :exports both :results org 
+  set.seed(108791)
+  sim <- list(mu = rnorm(1))
+  sim |> as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+    mu
+1 0.61
+#+end_src
+
+Con los cuales podemos simular un conjunto de datos:
+#+begin_src R :exports both :results org 
+  data <- list(y = rnorm(1, sim$mu, sd = sqrt(2)))
+  data
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+$y
+[1] 1.4
+#+end_src
+
+Y con estos datos simulamos de la posterior $M = 4$ iteraciones: 
+#+begin_src R :exports both :results org 
+  params <- tibble(mu = rnorm(4, data$y/3, sd = sqrt(2/3)))
+  params |> as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+      mu
+1 -0.053
+2 -0.326
+3  0.944
+4  2.823
+#+end_src
+
+Hacemos las comparaciones contra $\mu_{\mathsf{sim}} = 0.61$:  
+#+begin_src R :exports both :results org 
+  params |>
+    mutate(indicadora = ifelse(mu < sim$mu, 1, 0)) |>
+    as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+      mu indicadora
+1 -0.053          1
+2 -0.326          1
+3  0.944          0
+4  2.823          0
+#+end_src
+
+Si calculamos el estadístico de rango, obtenemos una $r_{1, \mu} = 1$. El cual
+debería de estar uniformemente distribuido entre los enteros del 0 al 4.
+¿lo ponemos a prueba?
+
+#+begin_src R :exports code :results org 
+  experimento <- function(id){
+    sim <- list(mu = rnorm(1))
+    data <- list(y = rnorm(1, sim$mu, sd = sqrt(2)))
+    mu <- rnorm(4, data$y/3, sd = sqrt(2/3))
+    sum(mu < sim$mu)
+  }
+
+  resultados <- tibble(id = 1:100) |>
+     mutate(rank = map_dbl(id, experimento))
+#+end_src
+
+La idea es replicar el procedimiento de generación de parámetros y muestras sintéticas con la intención de observar un comportamiento uniforme en los histogramas ([[fig:sbc-rank]]). 
+
+#+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/sbc-normal-normal.jpeg :exports results :results output graphics file
+  resultados |>
+    ggplot(aes(rank)) +
+    geom_hline(yintercept = 20, lty = 2) +
+    annotate("rect",
+             ymin = qbinom(.95, 100, .2),
+             ymax = qbinom(.05, 100, .2),
+             xmin = -Inf, xmax = Inf,
+             alpha = .4, fill = "gray") + 
+    geom_histogram(binwidth = 1, color = "white") + sin_lineas +
+    scale_y_continuous(breaks=NULL) + ylab("") + xlab("Estadístico de orden")
+#+end_src
+#+name: fig:sbc-rank
+#+caption: Histogramas de estadisticas de orden con 4 simulaciones de la posterior . Construimos una línea de referencia (y bandas de confianza) bajo los supuestos de la distribución uniforme de los estadísticos de orden.  
+#+RESULTS:
+[[file:../images/sbc-normal-normal.jpeg]]
+
+#+REVEAL: split
+Para cada réplica $n = 1, \ldots, N$, podemos generar un número fijo de simulaciones de la posterior ($M$). citet:Talts2020 recomiendan simular tantas iteraciones de la posterior como se requiera y /resumir/ (agrupar) los resultados en 20 cubetas. De tal forma que podamos criticar un histograma de 20 barras. En la [[fig:sbc-binned]] observamos un histograma con 20 cubetas y la línea de referencia de un modelo uniforme con $M=20$. Adicional, se muestran los intervalos de un experimento binomial con $N$ réplicas  con probabilidad $1/M$ de caer en cada cubeta.
+
+#+begin_src R :exports none :results none
+  n_ranks <- 20
+  n_reps  <- 5000
+
+  experimento <- function(id){
+    sim <- list(mu = rnorm(1))
+    data <- list(y = rnorm(1, sim$mu, sd = sqrt(2)))
+    mu <- rnorm(n_ranks - 1, data$y/3, sd = sqrt(2/3))
+    sum(mu < sim$mu)
+  }
+
+  resultados <- tibble(id = 1:n_reps) |>
+    mutate(rank = map_dbl(id, experimento))
+
+  res.unif <- resultados
+#+end_src
+
+#+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/sbc-normal-normal-20.jpeg :exports results :results output graphics file
+  resultados |>
+    ggplot(aes(rank)) +
+    geom_hline(yintercept = n_reps/n_ranks, lty = 2) +
+    annotate("rect",
+             ymin = qbinom(.975, n_reps, 1/n_ranks),
+             ymax = qbinom(.025, n_reps, 1/n_ranks),
+             xmin = -Inf, xmax = Inf,
+             alpha = .4, fill = "gray") + 
+    geom_histogram(binwidth = 1, color = "white") + sin_lineas +
+    scale_y_continuous(breaks=NULL) + ylab("") + xlab("Estadístico de orden")
+#+end_src
+#+name: fig:sbc-binned
+#+caption: Histogramas de estadisticas de orden con 19 simulaciones de la posterior. Construimos una línea de referencia (y bandas de confianza) bajo los supuestos de la distribución uniforme de los estadísticos de orden.  
+#+RESULTS:
+[[file:../images/sbc-normal-normal-20.jpeg]]
+
+
+#+REVEAL: split
+El procedimiento descrito arriba nos permite evaluar de manera /visual/ los
+histogramas. Alternativas a esta estrategia es poder evaluar la función de
+acumulación empírica (~ECDF~) contra el modelo uniforme. Esto también puede
+compararse de manera visual como se muestra en la [[fig:sbc-ks]], en donde estamos
+comparando contra la función de acumulación (~CDF~) de experimentos uniformes
+(panel izquierdo). Por otro lado, la comparación gráfica entre la ~ECDF~ y ~CDF~ se
+vuelve compleja en realizarse si el número de cubetas ($M$) es muy elevado. Por
+eso tendemos a comparar la diferencia, asumiendo una aproximación Gaussiana
+(panel derecho).
+
+#+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/sbc-histogramas-referencia.jpeg :exports results :results output graphics file
+  library(pammtools)
+  g1 <- resultados |>
+    group_by(rank) |>
+    tally() |>
+    mutate(ecdf = cumsum(n)/sum(n),
+           cdf  = 1:n_ranks/n_ranks,
+           cdf.lo = cdf - 1/n_ranks + rep(qbinom(.025, n_reps, 1/n_ranks), n_ranks)/n_reps,
+           cdf.hi = cdf - 1/n_ranks + rep(qbinom(.975, n_reps, 1/n_ranks), n_ranks)/n_reps) |>
+    ggplot(aes(x = rank)) +
+    geom_step(aes(y = cdf), lty = 2, color = "gray30") +
+    geom_stepribbon(aes(ymin = cdf.lo, ymax = cdf.hi), fill = "grey70", alpha = .3) +
+    geom_step(aes(y = ecdf)) +
+    sin_lineas +
+    ylab("Función de acumulación") + xlab("Estadístico de orden")
+
+  g2 <- resultados |>
+    group_by(rank) |>
+    tally() |>
+    mutate(ecdf = cumsum(n)/sum(n),
+           cdf  = 1:n_ranks/n_ranks,
+           diff.cdf = ecdf - cdf,
+           diff.lo  = - 2 * sqrt(rank/n_ranks * (1 - rank/n_ranks)/n_reps),
+           diff.hi  = + 2 * sqrt(rank/n_ranks * (1 - rank/n_ranks)/n_reps), 
+           ) |>
+    ggplot(aes(x = rank)) +
+    geom_hline(yintercept = 0, lty = 2, color = "gray30") + 
+    geom_stepribbon(aes(ymin = diff.lo, ymax = diff.hi), fill = "grey70", alpha = .3) +
+    geom_step(aes(y = diff.cdf)) +
+    sin_lineas +
+    ylab("Diferencia de acumulación") + xlab("Estadístico de orden")
+
+  g1 + g2
+#+end_src
+#+name: fig:sbc-ks
+#+caption: Gráficos alternativos para evaluar la prueba uniforme. 
+#+RESULTS:
+[[file:../images/sbc-histogramas-referencia.jpeg]]
+
+** Cuando el modelo está mal especificado
+
+Consideremos los errores típicos de una implementación de un modelo. Por ejemplo,
+tenemos un modelo que tiene una dispersión mas pequeña que la que debería. En estas situaciones
+tenemos un comportamiento de los histogramas en forma de $\cup$ como se muestra en la [[fig:sbc-under]].
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/sbc-histogramas-referencia-subdisperso.jpeg :exports results :results output graphics file
+  n_ranks <- 20
+  n_reps  <- 5000
+
+  experimento <- function(id){
+    sim <- list(mu = rnorm(1))
+    data <- list(y = rnorm(1, sim$mu, sd = sqrt(2)))
+    mu <- rnorm(n_ranks - 1, data$y/3, sd = 2/3)
+    sum(mu < sim$mu)
+  }
+
+  resultados <- tibble(id = 1:n_reps) |>
+    mutate(rank = map_dbl(id, experimento))
+
+  g0 <- resultados |>
+    ggplot(aes(rank)) +
+    geom_hline(yintercept = n_reps/n_ranks, lty = 2) +
+    annotate("rect",
+             ymin = qbinom(.975, n_reps, 1/n_ranks),
+             ymax = qbinom(.025, n_reps, 1/n_ranks),
+             xmin = -Inf, xmax = Inf,
+             alpha = .4, fill = "gray") + 
+    geom_histogram(binwidth = 1, color = "white") + sin_lineas +
+    scale_y_continuous(breaks=NULL) + ylab("") + xlab("Estadístico de orden")
+
+  g1 <- resultados |>
+    group_by(rank) |>
+    tally() |>
+    mutate(ecdf = cumsum(n)/sum(n),
+           cdf  = 1:n_ranks/n_ranks,
+           cdf.lo = cdf - 1/n_ranks + rep(qbinom(.025, n_reps, 1/n_ranks), n_ranks)/n_reps,
+           cdf.hi = cdf - 1/n_ranks + rep(qbinom(.975, n_reps, 1/n_ranks), n_ranks)/n_reps) |>
+    ggplot(aes(x = rank)) +
+    geom_step(aes(y = cdf), lty = 2, color = "gray30") +
+    geom_stepribbon(aes(ymin = cdf.lo, ymax = cdf.hi), fill = "grey70", alpha = .3) +
+    geom_step(aes(y = ecdf)) +
+    sin_lineas +
+    ylab("Función de acumulación") + xlab("Estadístico de orden")
+
+  g2 <- resultados |>
+    group_by(rank) |>
+    tally() |>
+    mutate(ecdf = cumsum(n)/sum(n),
+           cdf  = 1:n_ranks/n_ranks,
+           diff.cdf = ecdf - cdf,
+           diff.lo  = - 2 * sqrt(rank/n_ranks * (1 - rank/n_ranks)/n_reps),
+           diff.hi  = + 2 * sqrt(rank/n_ranks * (1 - rank/n_ranks)/n_reps), 
+           ) |>
+    ggplot(aes(x = rank)) +
+    geom_hline(yintercept = 0, lty = 2, color = "gray30") + 
+    geom_stepribbon(aes(ymin = diff.lo, ymax = diff.hi), fill = "grey70", alpha = .3) +
+    geom_step(aes(y = diff.cdf)) +
+    sin_lineas +
+    ylab("Diferencia de acumulación") + xlab("Estadístico de orden")
+
+  res.sub <- resultados
+  g0 + g1 + g2
+#+end_src
+#+name: fig:sbc-under
+#+caption:  Gráficos de comparación uniforme cuando la implementación está sub-dispersa.
+#+RESULTS:
+[[file:../images/sbc-histogramas-referencia-subdisperso.jpeg]]
+
+
+#+REVEAL: split
+Cuando la implementación es de un modelo sobre-disperso tenemos un comportamiento en forma de $\cap$ como se muestra en la [[fig:sbc-over]]. 
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/sbc-histogramas-referencia-sobredisperso.jpeg :exports results :results output graphics file
+  n_ranks <- 20
+  n_reps  <- 5000
+
+  experimento <- function(id){
+    sim <- list(mu = rnorm(1))
+    data <- list(y = rnorm(1, sim$mu, sd = sqrt(2)))
+    mu <- rnorm(n_ranks - 1, data$y/3, sd = sqrt(4/3))
+    sum(mu < sim$mu)
+  }
+
+  resultados <- tibble(id = 1:n_reps) |>
+    mutate(rank = map_dbl(id, experimento))
+  res.over <- resultados
+
+  g0 <- resultados |>
+    ggplot(aes(rank)) +
+    geom_hline(yintercept = n_reps/n_ranks, lty = 2) +
+    annotate("rect",
+             ymin = qbinom(.975, n_reps, 1/n_ranks),
+             ymax = qbinom(.025, n_reps, 1/n_ranks),
+             xmin = -Inf, xmax = Inf,
+             alpha = .4, fill = "gray") + 
+    geom_histogram(binwidth = 1, color = "white") + sin_lineas +
+    scale_y_continuous(breaks=NULL) + ylab("") + xlab("Estadístico de orden")
+
+  g1 <- resultados |>
+    group_by(rank) |>
+    tally() |>
+    mutate(ecdf = cumsum(n)/sum(n),
+           cdf  = 1:n_ranks/n_ranks,
+           cdf.lo = cdf - 1/n_ranks + rep(qbinom(.025, n_reps, 1/n_ranks), n_ranks)/n_reps,
+           cdf.hi = cdf - 1/n_ranks + rep(qbinom(.975, n_reps, 1/n_ranks), n_ranks)/n_reps) |>
+    ggplot(aes(x = rank)) +
+    geom_step(aes(y = cdf), lty = 2, color = "gray30") +
+    geom_stepribbon(aes(ymin = cdf.lo, ymax = cdf.hi), fill = "grey70", alpha = .3) +
+    geom_step(aes(y = ecdf)) +
+    sin_lineas +
+    ylab("Función de acumulación") + xlab("Estadístico de orden")
+
+  g2 <- resultados |>
+    group_by(rank) |>
+    tally() |>
+    mutate(ecdf = cumsum(n)/sum(n),
+           cdf  = 1:n_ranks/n_ranks,
+           diff.cdf = ecdf - cdf,
+           diff.lo  = - 2 * sqrt(rank/n_ranks * (1 - rank/n_ranks)/n_reps),
+           diff.hi  = + 2 * sqrt(rank/n_ranks * (1 - rank/n_ranks)/n_reps), 
+           ) |>
+    ggplot(aes(x = rank)) +
+    geom_hline(yintercept = 0, lty = 2, color = "gray30") + 
+    geom_stepribbon(aes(ymin = diff.lo, ymax = diff.hi), fill = "grey70", alpha = .3) +
+    geom_step(aes(y = diff.cdf)) +
+    sin_lineas +
+    ylab("Diferencia de acumulación") + xlab("Estadístico de orden")
+
+  g0 + g1 + g2
+#+end_src
+#+name: fig:sbc-over
+#+caption:  Gráficos de comparación uniforme cuando la implementación está sobre-dispersa.
+#+RESULTS:
+[[file:../images/sbc-histogramas-referencia-sobredisperso.jpeg]]
+
+
+#+REVEAL: split
+Cuando la implementación es de un modelo con sesgo a la derecha tenemos un
+comportamiento como se muestra en la [[fig:sbc-bias]].
+
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/sbc-histogramas-referencia-sesgado.jpeg :exports results :results output graphics file
+  n_ranks <- 20
+  n_reps  <- 5000
+
+  experimento <- function(id){
+    sim <- list(mu = rnorm(1))
+    data <- list(y = rnorm(1, sim$mu, sd = sqrt(2)))
+    mu <- rnorm(n_ranks - 1, (1 + data$y)/3, sd = sqrt(2/3))
+    sum(mu < sim$mu)
+  }
+
+  resultados <- tibble(id = 1:n_reps) |>
+    mutate(rank = map_dbl(id, experimento))
+  res.bias   <- resultados
+
+  g0 <- resultados |>
+    ggplot(aes(rank)) +
+    geom_hline(yintercept = n_reps/n_ranks, lty = 2) +
+    annotate("rect",
+             ymin = qbinom(.975, n_reps, 1/n_ranks),
+             ymax = qbinom(.025, n_reps, 1/n_ranks),
+             xmin = -Inf, xmax = Inf,
+             alpha = .4, fill = "gray") + 
+    geom_histogram(binwidth = 1, color = "white") + sin_lineas +
+    scale_y_continuous(breaks=NULL) + ylab("") + xlab("Estadístico de orden")
+
+  g1 <- resultados |>
+    group_by(rank) |>
+    tally() |>
+    mutate(ecdf = cumsum(n)/sum(n),
+           cdf  = 1:n_ranks/n_ranks,
+           cdf.lo = cdf - 1/n_ranks + rep(qbinom(.025, n_reps, 1/n_ranks), n_ranks)/n_reps,
+           cdf.hi = cdf - 1/n_ranks + rep(qbinom(.975, n_reps, 1/n_ranks), n_ranks)/n_reps) |>
+    ggplot(aes(x = rank)) +
+    geom_step(aes(y = cdf), lty = 2, color = "gray30") +
+    geom_stepribbon(aes(ymin = cdf.lo, ymax = cdf.hi), fill = "grey70", alpha = .3) +
+    geom_step(aes(y = ecdf)) +
+    sin_lineas +
+    ylab("Función de acumulación") + xlab("Estadístico de orden")
+
+  g2 <- resultados |>
+    group_by(rank) |>
+    tally() |>
+    mutate(ecdf = cumsum(n)/sum(n),
+           cdf  = 1:n_ranks/n_ranks,
+           diff.cdf = ecdf - cdf,
+           diff.lo  = - 2 * sqrt(rank/n_ranks * (1 - rank/n_ranks)/n_reps),
+           diff.hi  = + 2 * sqrt(rank/n_ranks * (1 - rank/n_ranks)/n_reps), 
+           ) |>
+    ggplot(aes(x = rank)) +
+    geom_hline(yintercept = 0, lty = 2, color = "gray30") + 
+    geom_stepribbon(aes(ymin = diff.lo, ymax = diff.hi), fill = "grey70", alpha = .3) +
+    geom_step(aes(y = diff.cdf)) +
+    sin_lineas +
+    ylab("Diferencia de acumulación") + xlab("Estadístico de orden")
+
+  g0 + g1 + g2
+#+end_src
+#+name: fig:sbc-bias
+#+caption:  Gráficos de comparación uniforme cuando la implementación tiene un sesgo a la derecha.
+#+RESULTS:
+[[file:../images/sbc-histogramas-referencia-sesgado.jpeg]]
+
+** Pruebas de uniformidad
+
+Una manera de poder efectuar una prueba es considerar una $\chi^2$ y verificar
+que los conteos en las cubetas corresponden, en promedio, a lo que esperaríamos
+con ordenes uniformes.
+
+El estadístico de prueba sería
+\begin{align}
+\hat \chi^2 = \sum_{m = 1}^{M} \frac{(b_m - e_m)^2}{e_m}\,,
+\end{align}
+donde $b_m$ denota el número de réplicas en la cubeta $m$ ésima y $e_m$ denota
+el número de réplicas que esperaríamos caigan en la cubeta $m$ ésima.
+
+La prueba radica en que los términos de la suma son potencias cuadradas de una normal estándar y por lo tanto
+\begin{align}
+\hat \chi^2 \sim \chi^2_{M-1}\,,
+\end{align}
+de la cual podemos evaluar una prueba de hipótesis.
+
+*Nota* la prueba de hipótesis definida anteriormente no tiene una potencia alta.
+ 
+* CBS en ~Stan~
+
+La idea, como hemos mencionado antes, es poner a prueba si nuestra
+implementación de un modelo es la adecuada. Estas pruebas no están diseñadas
+para verificar que nuestro modelo es el adecuado.
+
+Usaremos ~Stan~ para:
+1. Simular datos.
+2. Ajustar la distribución posterior.
+3. Calcular los estadísticos de orden.
+
+Esto implicará que tenemos que correr nuestro simulador varias veces para poder
+producir un histograma de estadísticos de orden que esperamos tenga una
+distribución de muestreo uniforme dentro de los rangos.
+
+** Implementación en ~Stan~
+
+Podemos utilizar un bloque ~transformed data~ para simular parámetros y datos para el modelo. Regresando a nuestro modelo Normal-Normal, tenemos un bloque que genera parámetros simulados. 
+
+#+begin_src stan :tangle no
+  transformed data {
+    real mu_sim = normal_rng(0, 1);
+    real y_sim  = normal_rng(mu_sim, sqrt(2));
+  }
+#+end_src
+
+Adicional, podemos utilizar un bloque ~generated quantities~ para calcular las indicadoras y los estadísticos de orden
+#+begin_src stan :tangle no
+  generated quantities {
+    int<lower=0, upper=1> lt_sim = { mu < mu_sim };
+  }
+#+end_src
+
+** Consideración para métodos de MCMC
+
+
+
+bibliographystyle:abbrvnat
+bibliography:references.bib
+
+
+* COMMENT Pendientes [0%]
+** TODO Cambiar CBS por $\mathsf{CBS}$. 
+ 
