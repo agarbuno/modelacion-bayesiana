@@ -88,6 +88,8 @@
 - [[#cbs-en-stan][CBS en Stan]]
   - [[#implementación-en-stan][Implementación en Stan]]
   - [[#consideración-para-métodos-de-mcmc][Consideración para métodos de MCMC]]
+  - [[#ejemplo][Ejemplo]]
+  - [[#ejemplo-escuelas-reparametrizado][Ejemplo: Escuelas reparametrizado]]
   - [[#cambiar-cbs-por-mathsfcbs][Cambiar CBS por $\mathsf{CBS}$.]]
 :END:
 
@@ -600,7 +602,7 @@ El estadístico de prueba sería
 \hat \chi^2 = \sum_{m = 1}^{M} \frac{(b_m - e_m)^2}{e_m}\,,
 \end{align}
 donde $b_m$ denota el número de réplicas en la cubeta $m$ ésima y $e_m$ denota
-el número de réplicas que esperaríamos caigan en la cubeta $m$ ésima.
+el número de réplicas que esperaríamos caigan en dicha cubeta.
 
 La prueba radica en que los términos de la suma son potencias cuadradas de una normal estándar y por lo tanto
 \begin{align}
@@ -645,7 +647,215 @@ Adicional, podemos utilizar un bloque ~generated quantities~ para calcular las i
 
 ** Consideración para métodos de MCMC
 
+Utilizar técnicas de MCMC nos permite simular de la distribución
+objetivo. Esperaríamos que las muestras sean lo más cercanas a ser
+independientes. El diagnóstico $N_{\mathsf{eff}}$ nos puede dar una indicación
+de con cuántas muestras nos podemos quedar para realizar los histogramas.
 
+** Ejemplo
+
+Regresaremos a nuestro ejemplo de las escuelas.
+
+#+begin_src stan :tangle ../modelos/calibracion/escuelas.stan
+  transformed data {
+    real mu_sim = normal_rng(0, 5);
+    real tau_sim = fabs(normal_rng(0, 5));
+    int<lower=0> J = 8;
+    array[J] real theta_sim = normal_rng(rep_vector(mu_sim, J), tau_sim);
+    array[J] real<lower=0> sigma = fabs(normal_rng(rep_vector(0, J), 5));
+    array[J] real y = normal_rng(theta_sim, sigma);
+  }
+  parameters {
+    real mu;
+    real<lower=0> tau;
+    array[J] real theta;
+  }
+  model {
+    mu ~ normal(0, 5);
+    tau ~ normal(0, 5);
+    theta ~ normal(mu, tau);
+    y ~ normal(theta, sigma);
+  }
+  generated quantities {
+    int<lower=0, upper=1> mu_lt_sim = mu < mu_sim;
+    int<lower=0, upper=1> tau_lt_sim = tau < tau_sim;
+    int<lower=0, upper=1> theta1_lt_sim = theta[1] < theta_sim[1];
+  }
+#+end_src
+
+Nota que el bloque de ~transformed data~ escribe el proceso generador de los datos. Primero, simulamos los parámetros poblacionales $(\mu, \tau)$; después, los datos $(y_j, \sigma_j)$.
+
+#+begin_src R :exports none :results none
+  modelos_files <- "modelos/compilados/calibracion"
+  ruta <- file.path("modelos/calibracion/escuelas.stan")
+  modelo.bp <- cmdstan_model(ruta, dir = modelos_files)
+#+end_src
+
+#+begin_src R :exports none :results none :eval never
+  n_reps <- 500
+  n_ranks <- 20
+
+  crea_muestras <- function(id, modelo){
+    muestras <- modelo$sample(chains = 1,
+                              iter_warmup   = 5000,
+                              iter_sampling = 999,
+                              refresh = 0,
+                              seed = id)
+    muestras$draws(format = 'df') |>
+      as_tibble() |>
+      select(mu_lt_sim, tau_lt_sim, theta1_lt_sim) |>
+      summarise(rank_mu = sum(mu_lt_sim),
+                rank_tau = sum(tau_lt_sim),
+                rank_theta1 = sum(theta1_lt_sim))
+  }
+  ## Cuidado en correr (paciencia)
+  resultados.escuelas <- tibble(id = 1:n_reps) |>
+    mutate(results = map(id, crea_muestras, modelo.bp))
+#+end_src
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/escuelas-sbc-histograms.jpeg :exports results :results output graphics file :eval never
+  resultados.escuelas |>
+    unnest(results) |>
+    pivot_longer(cols = 2:4) |>
+    ggplot(aes(x = value)) +
+    geom_hline(yintercept = n_reps/n_ranks, lty = 2, color = 'black') +
+    annotate("rect",
+              ymin = qbinom(.975, n_reps, 1/n_ranks),
+              ymax = qbinom(.025, n_reps, 1/n_ranks),
+              xmin = -Inf, xmax = Inf,
+              alpha = .4, fill = "gray") + 
+    geom_histogram(bins = n_ranks, color = "white") +
+    facet_wrap(~name) +
+    sin_lineas
+#+end_src
+
+#+RESULTS:
+[[file:../images/escuelas-sbc-histograms.jpeg]]
+
+#+HEADER: :width 1200 :height 400  :R-dev-args bg="transparent"
+#+begin_src R :file images/escuelas-sbc-histogramas-diff.jpeg  :exports results :results output graphics file :eval never 
+  resultados.escuelas |>
+    unnest(results) |>
+    pivot_longer(cols = 2:4) |>
+    mutate(bins = cut(value, breaks = seq(0,1000, length.out= 21))) |>
+    group_by(name, bins) |>
+    tally() |>
+    filter(!is.na(bins)) |>
+    mutate(ecdf = cumsum(n)/sum(n),
+           cdf  = 1:n_ranks/n_ranks,
+           rank = seq(25, 1000, 50),
+           diff.cdf = ecdf - cdf,
+           diff.lo  = - 2 * sqrt(rank/1000 * (1 - rank/1000)/n_reps),
+           diff.hi  = + 2 * sqrt(rank/1000 * (1 - rank/1000)/n_reps), 
+           ) |>
+    ggplot(aes(x = rank)) +
+    geom_hline(yintercept = 0, lty = 2, color = "gray30") + 
+    geom_stepribbon(aes(ymin = diff.lo, ymax = diff.hi), fill = "grey70", alpha = .3) +
+    geom_step(aes(y = diff.cdf)) +
+    sin_lineas + facet_wrap(~name) +
+    ylab("Diferencia de acumulación") + xlab("Estadístico de orden")
+#+end_src
+
+#+RESULTS:
+[[file:../images/escuelas-sbc-histogramas-diff.jpeg]]
+
+** Ejemplo: Escuelas reparametrizado
+
+#+begin_src stan :tangle ../modelos/calibracion/escuelas-reparam.stan
+  transformed data {
+    real mu_sim = normal_rng(0, 5);
+    real tau_sim = fabs(normal_rng(0, 5));
+    int<lower=0> J = 8;
+    array[J] real theta_sim = normal_rng(rep_vector(mu_sim, J), tau_sim);
+    array[J] real<lower=0> sigma = fabs(normal_rng(rep_vector(0, J), 5));
+    array[J] real y = normal_rng(theta_sim, sigma);
+  }
+  parameters {
+    real mu;
+    real<lower=0> tau;
+    array[J] real theta_tilde;
+  }
+  transformed parameters {
+    array[J] real theta;
+    for (j in 1:J)
+      theta[j] = mu + tau * theta_tilde[j];
+  }
+  model {
+    mu ~ normal(0, 5);
+    tau ~ normal(0, 5);
+    theta_tilde ~ normal(0, 1);
+    y ~ normal(theta, sigma);
+  }
+  generated quantities {
+    int<lower=0, upper=1> mu_lt_sim = mu < mu_sim;
+    int<lower=0, upper=1> tau_lt_sim = tau < tau_sim;
+    int<lower=0, upper=1> theta1_lt_sim = theta[1] < theta_sim[1];
+  }
+#+end_src
+
+#+begin_src R :exports none :results none
+  modelos_files <- "modelos/compilados/calibracion"
+  ruta <- file.path("modelos/calibracion/escuelas-reparam.stan")
+  modelo.gp <- cmdstan_model(ruta, dir = modelos_files)
+#+end_src
+
+#+begin_src R :exports none :results none :eval never 
+  n_reps <- 500
+  n_ranks <- 20
+
+  ## Cuidado en correr (paciencia)
+  resultados.escuelas.rp <- tibble(id = 1:n_reps) |>
+    mutate(results = map(id, crea_muestras, modelo.gp))
+#+end_src
+
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/escuelas-sbc-histograms-reparam.jpeg :exports results :results output graphics file :eval never
+  resultados.escuelas.rp |>
+    unnest(results) |>
+    pivot_longer(cols = 2:4) |>
+    ggplot(aes(x = value)) +
+    geom_hline(yintercept = n_reps/n_ranks, lty = 2, color = 'black') +
+    annotate("rect",
+              ymin = qbinom(.975, n_reps, 1/n_ranks),
+              ymax = qbinom(.025, n_reps, 1/n_ranks),
+              xmin = -Inf, xmax = Inf,
+              alpha = .4, fill = "gray") + 
+    geom_histogram(bins = n_ranks, color = "white") +
+    facet_wrap(~name) +
+    sin_lineas
+#+end_src
+
+#+RESULTS:
+[[file:../images/escuelas-sbc-histograms-reparam.jpeg]]
+
+#+HEADER: :width 1200 :height 400  :R-dev-args bg="transparent"
+#+begin_src R :file images/escuelas-sbc-histogramas-diff-reparam.jpeg  :exports results :results output graphics file :eval never
+  resultados.escuelas.rp |>
+    unnest(results) |>
+    pivot_longer(cols = 2:4) |>
+    mutate(bins = cut(value, breaks = seq(0,1000, length.out= 21))) |>
+    group_by(name, bins) |>
+    tally() |>
+    filter(!is.na(bins)) |>
+    mutate(ecdf = cumsum(n)/sum(n),
+           cdf  = 1:n_ranks/n_ranks,
+           rank = seq(25, 1000, 50),
+           diff.cdf = ecdf - cdf,
+           diff.lo  = - 2 * sqrt(rank/1000 * (1 - rank/1000)/n_reps),
+           diff.hi  = + 2 * sqrt(rank/1000 * (1 - rank/1000)/n_reps), 
+           ) |>
+    ggplot(aes(x = rank)) +
+    geom_hline(yintercept = 0, lty = 2, color = "gray30") + 
+    geom_stepribbon(aes(ymin = diff.lo, ymax = diff.hi), fill = "grey70", alpha = .3) +
+    geom_step(aes(y = diff.cdf)) +
+    sin_lineas + facet_wrap(~name) +
+    ylab("Diferencia de acumulación") + xlab("Estadístico de orden")
+#+end_src
+
+#+RESULTS:
+[[file:../images/escuelas-sbc-histogramas-diff-reparam.jpeg]]
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
