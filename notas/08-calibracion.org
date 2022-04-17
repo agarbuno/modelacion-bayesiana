@@ -69,7 +69,7 @@
 
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Calibración basada en simulación .\\
-*Objetivo*: Que veremos.\\
+*Objetivo*: En esta sección estudiaremos un mecanismo que puede ser utilizado para evaluar si un modelo está bien implementado. Esto aprovecha que la posterior es un procedimiento /calibrado/ y recae en el hecho de que querríamos evaluar si nuestra implementación de un modelo es la correcta. Adicional, también querríamos identificar en qué parte del modelo se encuentra la deficiencia.\\
 *Lectura recomendada*: Puedes consultar citep:Talts2020 el cual es una extensión de citep:Cook2006. 
 #+END_NOTES
 
@@ -89,19 +89,19 @@
   - [[#implementación-en-stan][Implementación en Stan]]
   - [[#consideración-para-métodos-de-mcmc][Consideración para métodos de MCMC]]
   - [[#ejemplo][Ejemplo]]
-  - [[#cambiar-cbs-por-mathsfcbs][Cambiar CBS por $\mathsf{CBS}$.]]
+- [[#conclusiones][Conclusiones]]
 :END:
 
 
 * Introducción
 
-Decimos que un intervalo de probabilidad está bien calibrado si tiene la misma
+Decimos que un intervalo de probabilidad está ~bien calibrado~ si tiene la misma
 cobertura nominal con la que está construido. Digamos, si el intervalo es un
 intervalo de probabilidad del $80\%$ , entonces 4 de 5 veces éste contendrá al
 verdadero valor del parámetro.
 
 Por definición, la distribución posterior está calibrada --si los datos son
-generados por el modelo--. Utilizando calibración basada en simulación
+generados por el modelo--. Utilizando ~calibración basada en simulación~~
 explotaremos esta propiedad.
 
 La idea es: generar parámetros de la previa para generar datos condicionados en
@@ -384,9 +384,11 @@ eso tendemos a comparar la diferencia, asumiendo una aproximación Gaussiana
 
 ** Cuando el modelo está mal especificado
 
-Consideremos los errores típicos de una implementación de un modelo. Por ejemplo,
-tenemos un modelo que tiene una dispersión mas pequeña que la que debería. En estas situaciones
-tenemos un comportamiento de los histogramas en forma de $\cup$ como se muestra en la [[fig:sbc-under]].
+Consideremos los errores típicos de una implementación de un modelo. Por
+ejemplo, tenemos un modelo que tiene una dispersión mas pequeña que la que
+debería. En estas situaciones tenemos un comportamiento de los histogramas en
+forma de $\cup$ como se muestra en la [[fig:sbc-under]]. Esto corresponde a un
+modelo con una ~incertidumbre baja~ contra la que debería tener.
 
 #+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/sbc-histogramas-referencia-subdisperso.jpeg :exports results :results output graphics file
@@ -454,7 +456,7 @@ tenemos un comportamiento de los histogramas en forma de $\cup$ como se muestra 
 
 
 #+REVEAL: split
-Cuando la implementación es de un modelo sobre-disperso tenemos un comportamiento en forma de $\cap$ como se muestra en la [[fig:sbc-over]]. 
+Cuando la implementación es de un modelo sobre-disperso tenemos un comportamiento en forma de $\cap$ como se muestra en la [[fig:sbc-over]]. Esto corresponde a un modelo con una ~incertidumbre mayor~ a la que debería corresponder.
 
 #+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/sbc-histogramas-referencia-sobredisperso.jpeg :exports results :results output graphics file
@@ -523,8 +525,8 @@ Cuando la implementación es de un modelo sobre-disperso tenemos un comportamien
 
 #+REVEAL: split
 Cuando la implementación es de un modelo con sesgo a la derecha tenemos un
-comportamiento como se muestra en la [[fig:sbc-bias]].
-
+comportamiento como se muestra en la [[fig:sbc-bias]]. Esto corresponde a un modelo
+que está ~sobre-estimando~ los resultados que debería tener. 
 
 #+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/sbc-histogramas-referencia-sesgado.jpeg :exports results :results output graphics file
@@ -590,6 +592,10 @@ comportamiento como se muestra en la [[fig:sbc-bias]].
 #+RESULTS:
 [[file:../images/sbc-histogramas-referencia-sesgado.jpeg]]
 
+#+REVEAL: split
+El caso contrario, sesgo a la izquierda representa un modelo que está
+~sub-estimando~ las probabilidades.
+
 ** Pruebas de uniformidad
 
 Una manera de poder efectuar una prueba es considerar una $\chi^2$ y verificar
@@ -653,7 +659,22 @@ de con cuántas muestras nos podemos quedar para realizar los histogramas.
 
 ** Ejemplo
 
-Regresaremos a nuestro ejemplo de las escuelas.
+Regresaremos a nuestro ejemplo de las escuelas. Sabemos que el modelo puede
+tener problemas si no está bien parametrizado. Realizaremos un estudio numérico
+con $N = 500$ réplicas del proceso. En cada una simulamos de tal forma que
+~adelgazamos~ la cadena de Markov cada 10 iteraciones. El número total de
+simulaciones se fija para recuperar $M=100$ ordenes posibles. Los gráficos
+muestran histogramas con 20 cubetas.
+
+#+BEGIN_NOTES
+Nota que citep:Talts2020 proponen un algoritmo para poder aplicar ~SBC~ a muestras
+de un cadena de Markov. Dicha propuesta esta basada en estar revisando, por
+réplica, el número efectivo de simulaciones para poder generar una muestra que
+pueda ser adelgazada después. Sin embargo, el problema de las escuelas está tan
+bien identificado y sabemos que nuestra implementación del modelo será
+deficiente, que no será necesario pedir cadenas tan estables.
+#+END_NOTES
+
 
 #+begin_src stan :tangle ../modelos/calibracion/escuelas.stan
   transformed data {
@@ -729,7 +750,7 @@ Nota que el bloque de ~transformed data~ escribe el proceso generador de los dat
     facet_wrap(~name) +
     sin_lineas
 #+end_src
-
+#+caption: Contraste de histogramas contra la distribución uniforme. 
 #+RESULTS:
 [[file:../images/escuelas-sbc-histograms.jpeg]]
 
@@ -756,15 +777,33 @@ Nota que el bloque de ~transformed data~ escribe el proceso generador de los dat
     sin_lineas + facet_wrap(~name) +
     ylab("Diferencia de acumulación") + xlab("Estadístico de orden")
 #+end_src
-
+#+caption: Diferencia entre la ~ECDF~ y la ~CDF~ bajo un modelo uniforme de los estadísticos de orden.
 #+RESULTS:
 [[file:../images/escuelas-sbc-histogramas-diff.jpeg]]
+
+
+* Conclusiones
+
+En esta sección mostramos un mecanismo para identificar distribuciones bien
+calibradas. El mecanismo aprovecha que por definición hacer inferencia Bayesiana
+es un procedimiento bien calibrado. Es decir, siempre y cuando los datos sean
+generados por el modelo probabilístico nuestra cobertura de intervalos será
+igual a la nominal.
+
+#+REVEAL: split
+Existen alternativas para evaluar métodos de muestreo. Sin embargo, estos
+mecanismos son utilizados cuando hacemos alguna inferencia aproximada. Es decir,
+cuando estamos dispuestos a hacer una aproximación de la verosimilitud
+(usualmente el componente mas costoso) o de la posterior misma (que veremos
+rumbo al final del curso).
+
+#+REVEAL: split
+En el mismo espíritu de diagnósticos de MCMC, ~SBC~ es un mecanismo para evaluar y
+criticar la implementación de un modelo. No nos dice qué modelo tiene sentido
+bajo un conjunto de datos. Esto es, justo lo que estudiaremos en la sección siguiente. 
 
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
 
-
-* COMMENT Pendientes [0%]
-** TODO Cambiar CBS por $\mathsf{CBS}$. 
  
