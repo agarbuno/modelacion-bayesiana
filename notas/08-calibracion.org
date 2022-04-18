@@ -1,0 +1,1285 @@
+#+TITLE: EST-46115: Modelación Bayesiana
+#+AUTHOR: Prof. Alfredo Garbuno Iñigo
+#+EMAIL:  agarbuno@itam.mx
+#+DATE: ~Calibración basada en simulación~
+#+STARTUP: showall
+:REVEAL_PROPERTIES:
+#+LANGUAGE: es
+#+OPTIONS: num:nil toc:nil timestamp:nil
+#+REVEAL_REVEAL_JS_VERSION: 4
+#+REVEAL_THEME: night
+#+REVEAL_SLIDE_NUMBER: t
+#+REVEAL_HEAD_PREAMBLE: <meta name="description" content="Modelación Bayesiana">
+#+REVEAL_INIT_OPTIONS: width:1600, height:900, margin:.2
+#+REVEAL_EXTRA_CSS: ./mods.css
+#+REVEAL_PLUGINS: (notes)
+:END:
+:LATEX_PROPERTIES:
+#+OPTIONS: toc:nil date:nil author:nil tasks:nil
+#+LANGUAGE: sp
+#+LATEX_CLASS: handout
+#+LATEX_HEADER: \usepackage[spanish]{babel}
+#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
+#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
+#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
+#+LATEX_HEADER: \decimalpoint
+#+LATEX_HEADER:\usepackage{framed}
+#+LaTeX_HEADER: \usepackage{listings}
+#+LATEX_HEADER: \usepackage{fancyvrb}
+#+LATEX_HEADER: \usepackage{xcolor}
+#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
+#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
+#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
+#+LaTeX_HEADER: {}
+#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
+#+LaTeX_HEADER: {}
+#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
+#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
+#+EXPORT_FILE_NAME: ../docs/08-calibracion.pdf
+:END:
+#+PROPERTY: header-args:R :session calibracion :exports both :results output org :tangle ../rscripts/08-calibracion.R :mkdirp yes :dir ../
+#+EXCLUDE_TAGS: toc
+
+#+begin_src R :exports none :results none
+  ## Setup --------------------------------------------
+  library(tidyverse)
+  library(patchwork)
+  library(scales)
+  ## Cambia el default del tamaño de fuente 
+  theme_set(theme_linedraw(base_size = 25))
+
+  ## Cambia el número de decimales para mostrar
+  options(digits = 2)
+
+  sin_lineas <- theme(panel.grid.major = element_blank(),
+                      panel.grid.minor = element_blank())
+  color.itam  <- c("#00362b","#004a3b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f", NA)
+
+  sin_lineas <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+  sin_leyenda <- theme(legend.position = "none")
+  sin_ejes <- theme(axis.ticks = element_blank(), axis.text = element_blank())
+#+end_src
+
+#+begin_src R :exports none :results none
+  ## Librerias para modelacion bayesiana
+  library(cmdstanr)
+  library(posterior)
+  library(bayesplot)
+#+end_src
+
+#+BEGIN_NOTES
+*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Calibración basada en simulación .\\
+*Objetivo*: En esta sección estudiaremos un mecanismo que puede ser utilizado para evaluar si un modelo está bien implementado. Esto aprovecha que la posterior es un procedimiento /calibrado/ y recae en el hecho de que querríamos evaluar si nuestra implementación de un modelo es la correcta. Adicional, también querríamos identificar en qué parte del modelo se encuentra la deficiencia.\\
+*Lectura recomendada*: Puedes consultar citep:Talts2020 el cual es una extensión de citep:Cook2006. 
+#+END_NOTES
+
+
+* Contenido                                                             :toc:
+:PROPERTIES:
+:TOC:      :include all  :ignore this :depth 3
+:END:
+:CONTENTS:
+- [[#introducción][Introducción]]
+- [[#calibración-de-la-posterior][Calibración de la posterior]]
+- [[#calibración-basada-en-calibración-cbs][Calibración basada en calibración (CBS)]]
+  - [[#ejemplo-modelo-conjugado][Ejemplo: Modelo conjugado]]
+  - [[#cuando-el-modelo-está-mal-especificado][Cuando el modelo está mal especificado]]
+  - [[#pruebas-de-uniformidad][Pruebas de uniformidad]]
+- [[#cbs-en-stan][CBS en Stan]]
+  - [[#implementación-en-stan][Implementación en Stan]]
+  - [[#consideración-para-métodos-de-mcmc][Consideración para métodos de MCMC]]
+  - [[#ejemplo][Ejemplo]]
+- [[#caso-práctico][Caso práctico]]
+  - [[#re-implementando][Re-implementando]]
+  - [[#arreglando-problemas-de-identificabilidad][Arreglando problemas de identificabilidad]]
+- [[#conclusiones][Conclusiones]]
+:END:
+
+
+* Introducción
+
+Decimos que un intervalo de probabilidad está ~bien calibrado~ si tiene la misma
+cobertura nominal con la que está construido. Digamos, si el intervalo es un
+intervalo de probabilidad del $80\%$ , entonces 4 de 5 veces éste contendrá al
+verdadero valor del parámetro.
+
+Por definición, la distribución posterior está calibrada --si los datos son
+generados por el modelo--. Utilizando ~calibración basada en simulación~~
+explotaremos esta propiedad.
+
+La idea es: generar parámetros de la previa para generar datos condicionados en
+los parámetros simulados con el objetivo de estudiar la calibración de la
+posterior bajo escenarios independientes.
+
+* Calibración de la posterior
+
+Supongamos que tenemos un modelo bayesiano donde tenemos una distribución previa
+$\pi(\theta)$ para los parámetros del mecanismo generador de datos
+(verosimilitud) $\pi(y|\theta)$.
+
+Ahora, consideremos que generamos una simulación
+ \begin{align}
+\theta_{\mathsf{sim}} \sim \pi(\theta)\,,
+ \end{align}
+con la cual generamos
+ \begin{align}
+ y_{\mathsf{sim}} \sim \pi(y | \theta_{\mathsf{sim}})\,.
+ \end{align}
+Por construcción lo que hemos hecho es
+\begin{align}
+(y_{\mathsf{sim}}, \theta_{\mathsf{sim}}) \sim \pi(y, \theta)\,.
+\end{align}
+
+Ahora, la regla de Bayes nos dice que la distribución posterior es proporcional a la conjunta
+\begin{align}
+\pi(\theta | y ) \propto \pi(y, \theta)\,.
+\end{align}
+Por lo que también podríamos pensar que
+\begin{align}
+\theta_{\mathsf{sim}} \sim \pi(\theta| y_{\mathsf{sim}})\,.
+\end{align}
+
+Si utilizamos nuestro muestreador favorito para generar
+\begin{align}
+\theta_1, \ldots, \theta_M \sim \pi(\theta | y_{\mathsf{sim}})\,.
+\end{align}
+Entonces podríamos comparar las muestras simuladas con el parámetro que generó
+los datos. Esto es, por que $\theta_{\mathsf{sim}}$ es una realización aleatoria
+de la posterior, y por lo tanto los estadísticos de orden de
+$\theta_{\mathsf{sim}}$ deberían de ser uniformes con respecto a los de
+$\theta_1, \ldots, \theta_M$.
+
+\newpage
+
+O dicho de otra manera,
+\begin{align}
+\pi(\theta) = \int  \pi(\theta| y_{\mathsf{sim}})  \pi(y_{\mathsf{sim}} |\theta_{\mathsf{sim}}) \pi(\theta_{\mathsf{sim}}) \, \text{d}y_{\mathsf{sim}}\, \text{d}\theta_{\mathsf{sim}}\,.
+\end{align}
+Lo cual nos da un mecanismo para evaluar qué tan bien estamos utilizando nuestro
+algoritmo para generar muestras de la posterior citep:Talts2020.
+
+* Calibración basada en calibración (CBS)
+
+Utilizaremos la propiedad discutida arriba para generar 
+\begin{align}
+y_{\mathsf{sim}}^{(n)}, \theta_{\mathsf{sim}}^{(n)} \sim \pi(y, \theta), \qquad n = 1, \ldots, N\,.
+\end{align}
+
+Para cada uno de los datos simulados $y_{\mathsf{sim}}^{(n)}$ utilizamos nuestro
+algoritmo para generar
+\begin{align}
+\theta_1^{(n)}, \ldots, \theta_M^{(n)} \sim \pi(\theta | y_{\mathsf{sim}}^{(n)})\,.
+\end{align}
+
+Si consideramos los estadísticos de orden--el número de simulaciones de la
+posterior menores al parámetro simulado--en cada componente de nuestro vector de
+parámetros, tendremos que
+\begin{align}
+r_n &= \mathsf{orden}\left(\theta_{\mathsf{sim}}^{(n)}, \left\lbrace\theta_1^{(n)}, \ldots, \theta_M^{(n)}\right\rbrace\right) \\
+&= \sum_{m = 1}^{M} 1[\theta_m^{(n)} < \theta_{\mathsf{sim}}^{(n)}]\,,
+\end{align}
+será un entero distribuido $\mathsf{Uniforme}\{0,\ldots, M\}$. Esto es, el
+estadístico de orden $r_n$ tiene probabilidad $1/(M+1)$ de tomar valores entre
+$0, \ldots, M$.
+
+#+BEGIN_NOTES
+El artículo de citet:Talts2020 utiliza visualizaciones con histogramas. El artículo de citet:Cook2006 formuló la prueba de hipótesis que pone a prueba la uniformidad para poder identificar desviaciones de implementaciones de modelos. 
+#+END_NOTES
+
+** Ejemplo: Modelo conjugado
+
+Consideremos un modelo de una observación Gaussiana $y \sim \mathsf{N}(\mu, \sigma^2)$, en donde utilizamos el siguiente
+conocimiento previo para los parámetros
+\begin{gather}
+\mu \sim \mathsf{N}(0, 1)\,,
+\end{gather}
+y asumimos una $\sigma$ conocida.
+
+Este modelo es un modelo conjugado ~Normal-Normal~ el cual tiene un distribución posterior
+\begin{align}
+\mu | y \sim \mathsf{N}\left( \frac{y}{\sigma^2+ 1}, 1 + \frac{1}{\sigma^2} \right)\,.
+\end{align}
+
+#+begin_src R :exports none :results none
+  ## Modelo conjugado ------------------
+#+end_src
+
+Consideremos $\sigma^2 = 2$. Si realizamos una simulación de la previa tenemos el siguiente parámetro:
+#+begin_src R :exports both :results org 
+  set.seed(108791)
+  sim <- list(mu = rnorm(1))
+  sim |> as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+    mu
+1 0.61
+#+end_src
+
+Con los cuales podemos simular un conjunto de datos:
+#+begin_src R :exports both :results org 
+  data <- list(y = rnorm(1, sim$mu, sd = sqrt(2)))
+  data
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+$y
+[1] 1.4
+#+end_src
+
+Y con estos datos simulamos de la posterior $M = 4$ iteraciones: 
+#+begin_src R :exports both :results org 
+  params <- tibble(mu = rnorm(4, data$y/3, sd = sqrt(2/3)))
+  params |> as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+      mu
+1 -0.053
+2 -0.326
+3  0.944
+4  2.823
+#+end_src
+
+Hacemos las comparaciones contra $\mu_{\mathsf{sim}} = 0.61$:  
+#+begin_src R :exports both :results org 
+  params |>
+    mutate(indicadora = ifelse(mu < sim$mu, 1, 0)) |>
+    as.data.frame()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+      mu indicadora
+1 -0.053          1
+2 -0.326          1
+3  0.944          0
+4  2.823          0
+#+end_src
+
+Si calculamos el estadístico de rango, obtenemos una $r_{1, \mu} = 1$. El cual
+debería de estar uniformemente distribuido entre los enteros del 0 al 4.
+¿lo ponemos a prueba?
+
+#+begin_src R :exports code :results org 
+  experimento <- function(id){
+    sim <- list(mu = rnorm(1))
+    data <- list(y = rnorm(1, sim$mu, sd = sqrt(2)))
+    mu <- rnorm(4, data$y/3, sd = sqrt(2/3))
+    sum(mu < sim$mu)
+  }
+
+  resultados <- tibble(id = 1:100) |>
+     mutate(rank = map_dbl(id, experimento))
+#+end_src
+
+La idea es replicar el procedimiento de generación de parámetros y muestras sintéticas con la intención de observar un comportamiento uniforme en los histogramas ([[fig:sbc-rank]]). 
+
+#+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/sbc-normal-normal.jpeg :exports results :results output graphics file
+  resultados |>
+    ggplot(aes(rank)) +
+    geom_hline(yintercept = 20, lty = 2) +
+    annotate("rect",
+             ymin = qbinom(.95, 100, .2),
+             ymax = qbinom(.05, 100, .2),
+             xmin = -Inf, xmax = Inf,
+             alpha = .4, fill = "gray") + 
+    geom_histogram(binwidth = 1, color = "white") + sin_lineas +
+    scale_y_continuous(breaks=NULL) + ylab("") + xlab("Estadístico de orden")
+#+end_src
+#+name: fig:sbc-rank
+#+caption: Histogramas de estadisticas de orden con 4 simulaciones de la posterior . Construimos una línea de referencia (y bandas de confianza) bajo los supuestos de la distribución uniforme de los estadísticos de orden.  
+#+RESULTS:
+[[file:../images/sbc-normal-normal.jpeg]]
+
+#+REVEAL: split
+Para cada réplica $n = 1, \ldots, N$, podemos generar un número fijo de simulaciones de la posterior ($M$). citet:Talts2020 recomiendan simular tantas iteraciones de la posterior como se requiera y /resumir/ (agrupar) los resultados en 20 cubetas. De tal forma que podamos criticar un histograma de 20 barras. En la [[fig:sbc-binned]] observamos un histograma con 20 cubetas y la línea de referencia de un modelo uniforme con $M=20$. Adicional, se muestran los intervalos de un experimento binomial con $N$ réplicas  con probabilidad $1/M$ de caer en cada cubeta.
+
+#+begin_src R :exports none :results none
+  n_ranks <- 20
+  n_reps  <- 5000
+
+  experimento <- function(id){
+    sim <- list(mu = rnorm(1))
+    data <- list(y = rnorm(1, sim$mu, sd = sqrt(2)))
+    mu <- rnorm(n_ranks - 1, data$y/3, sd = sqrt(2/3))
+    sum(mu < sim$mu)
+  }
+
+  resultados <- tibble(id = 1:n_reps) |>
+    mutate(rank = map_dbl(id, experimento))
+
+  res.unif <- resultados
+#+end_src
+
+#+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/sbc-normal-normal-20.jpeg :exports results :results output graphics file
+  resultados |>
+    ggplot(aes(rank)) +
+    geom_hline(yintercept = n_reps/n_ranks, lty = 2) +
+    annotate("rect",
+             ymin = qbinom(.975, n_reps, 1/n_ranks),
+             ymax = qbinom(.025, n_reps, 1/n_ranks),
+             xmin = -Inf, xmax = Inf,
+             alpha = .4, fill = "gray") + 
+    geom_histogram(binwidth = 1, color = "white") + sin_lineas +
+    scale_y_continuous(breaks=NULL) + ylab("") + xlab("Estadístico de orden")
+#+end_src
+#+name: fig:sbc-binned
+#+caption: Histogramas de estadisticas de orden con 19 simulaciones de la posterior. Construimos una línea de referencia (y bandas de confianza) bajo los supuestos de la distribución uniforme de los estadísticos de orden.  
+#+RESULTS:
+[[file:../images/sbc-normal-normal-20.jpeg]]
+
+
+#+REVEAL: split
+El procedimiento descrito arriba nos permite evaluar de manera /visual/ los
+histogramas. Alternativas a esta estrategia es poder evaluar la función de
+acumulación empírica (~ECDF~) contra el modelo uniforme. Esto también puede
+compararse de manera visual como se muestra en la [[fig:sbc-ks]], en donde estamos
+comparando contra la función de acumulación (~CDF~) de experimentos uniformes
+(panel izquierdo). Por otro lado, la comparación gráfica entre la ~ECDF~ y ~CDF~ se
+vuelve compleja en realizarse si el número de cubetas ($M$) es muy elevado. Por
+eso tendemos a comparar la diferencia, asumiendo una aproximación Gaussiana
+(panel derecho).
+
+#+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/sbc-histogramas-referencia.jpeg :exports results :results output graphics file
+  library(pammtools)
+  g1 <- resultados |>
+    group_by(rank) |>
+    tally() |>
+    mutate(ecdf = cumsum(n)/sum(n),
+           cdf  = 1:n_ranks/n_ranks,
+           cdf.lo = cdf - 1/n_ranks + rep(qbinom(.025, n_reps, 1/n_ranks), n_ranks)/n_reps,
+           cdf.hi = cdf - 1/n_ranks + rep(qbinom(.975, n_reps, 1/n_ranks), n_ranks)/n_reps) |>
+    ggplot(aes(x = rank)) +
+    geom_step(aes(y = cdf), lty = 2, color = "gray30") +
+    geom_stepribbon(aes(ymin = cdf.lo, ymax = cdf.hi), fill = "grey70", alpha = .3) +
+    geom_step(aes(y = ecdf)) +
+    sin_lineas +
+    ylab("Función de acumulación") + xlab("Estadístico de orden")
+
+  g2 <- resultados |>
+    group_by(rank) |>
+    tally() |>
+    mutate(ecdf = cumsum(n)/sum(n),
+           cdf  = 1:n_ranks/n_ranks,
+           diff.cdf = ecdf - cdf,
+           diff.lo  = - 2 * sqrt(rank/n_ranks * (1 - rank/n_ranks)/n_reps),
+           diff.hi  = + 2 * sqrt(rank/n_ranks * (1 - rank/n_ranks)/n_reps), 
+           ) |>
+    ggplot(aes(x = rank)) +
+    geom_hline(yintercept = 0, lty = 2, color = "gray30") + 
+    geom_stepribbon(aes(ymin = diff.lo, ymax = diff.hi), fill = "grey70", alpha = .3) +
+    geom_step(aes(y = diff.cdf)) +
+    sin_lineas +
+    ylab("Diferencia de acumulación") + xlab("Estadístico de orden")
+
+  g1 + g2
+#+end_src
+#+name: fig:sbc-ks
+#+caption: Gráficos alternativos para evaluar la prueba uniforme. 
+#+RESULTS:
+[[file:../images/sbc-histogramas-referencia.jpeg]]
+
+** Cuando el modelo está mal especificado
+
+Consideremos los errores típicos de una implementación de un modelo. Por
+ejemplo, tenemos un modelo que tiene una dispersión mas pequeña que la que
+debería. En estas situaciones tenemos un comportamiento de los histogramas en
+forma de $\cup$ como se muestra en la [[fig:sbc-under]]. Esto corresponde a un
+modelo con una ~incertidumbre baja~ contra la que debería tener.
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/sbc-histogramas-referencia-subdisperso.jpeg :exports results :results output graphics file
+  n_ranks <- 20
+  n_reps  <- 5000
+
+  experimento <- function(id){
+    sim <- list(mu = rnorm(1))
+    data <- list(y = rnorm(1, sim$mu, sd = sqrt(2)))
+    mu <- rnorm(n_ranks - 1, data$y/3, sd = 2/3)
+    sum(mu < sim$mu)
+  }
+
+  resultados <- tibble(id = 1:n_reps) |>
+    mutate(rank = map_dbl(id, experimento))
+
+  g0 <- resultados |>
+    ggplot(aes(rank)) +
+    geom_hline(yintercept = n_reps/n_ranks, lty = 2) +
+    annotate("rect",
+             ymin = qbinom(.975, n_reps, 1/n_ranks),
+             ymax = qbinom(.025, n_reps, 1/n_ranks),
+             xmin = -Inf, xmax = Inf,
+             alpha = .4, fill = "gray") + 
+    geom_histogram(binwidth = 1, color = "white") + sin_lineas +
+    scale_y_continuous(breaks=NULL) + ylab("") + xlab("Estadístico de orden")
+
+  g1 <- resultados |>
+    group_by(rank) |>
+    tally() |>
+    mutate(ecdf = cumsum(n)/sum(n),
+           cdf  = 1:n_ranks/n_ranks,
+           cdf.lo = cdf - 1/n_ranks + rep(qbinom(.025, n_reps, 1/n_ranks), n_ranks)/n_reps,
+           cdf.hi = cdf - 1/n_ranks + rep(qbinom(.975, n_reps, 1/n_ranks), n_ranks)/n_reps) |>
+    ggplot(aes(x = rank)) +
+    geom_step(aes(y = cdf), lty = 2, color = "gray30") +
+    geom_stepribbon(aes(ymin = cdf.lo, ymax = cdf.hi), fill = "grey70", alpha = .3) +
+    geom_step(aes(y = ecdf)) +
+    sin_lineas +
+    ylab("Función de acumulación") + xlab("Estadístico de orden")
+
+  g2 <- resultados |>
+    group_by(rank) |>
+    tally() |>
+    mutate(ecdf = cumsum(n)/sum(n),
+           cdf  = 1:n_ranks/n_ranks,
+           diff.cdf = ecdf - cdf,
+           diff.lo  = - 2 * sqrt(rank/n_ranks * (1 - rank/n_ranks)/n_reps),
+           diff.hi  = + 2 * sqrt(rank/n_ranks * (1 - rank/n_ranks)/n_reps), 
+           ) |>
+    ggplot(aes(x = rank)) +
+    geom_hline(yintercept = 0, lty = 2, color = "gray30") + 
+    geom_stepribbon(aes(ymin = diff.lo, ymax = diff.hi), fill = "grey70", alpha = .3) +
+    geom_step(aes(y = diff.cdf)) +
+    sin_lineas +
+    ylab("Diferencia de acumulación") + xlab("Estadístico de orden")
+
+  res.sub <- resultados
+  g0 + g1 + g2
+#+end_src
+#+name: fig:sbc-under
+#+caption:  Gráficos de comparación uniforme cuando la implementación está sub-dispersa.
+#+RESULTS:
+[[file:../images/sbc-histogramas-referencia-subdisperso.jpeg]]
+
+
+#+REVEAL: split
+Cuando la implementación es de un modelo sobre-disperso tenemos un comportamiento en forma de $\cap$ como se muestra en la [[fig:sbc-over]]. Esto corresponde a un modelo con una ~incertidumbre mayor~ a la que debería corresponder.
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/sbc-histogramas-referencia-sobredisperso.jpeg :exports results :results output graphics file
+  n_ranks <- 20
+  n_reps  <- 5000
+
+  experimento <- function(id){
+    sim <- list(mu = rnorm(1))
+    data <- list(y = rnorm(1, sim$mu, sd = sqrt(2)))
+    mu <- rnorm(n_ranks - 1, data$y/3, sd = sqrt(4/3))
+    sum(mu < sim$mu)
+  }
+
+  resultados <- tibble(id = 1:n_reps) |>
+    mutate(rank = map_dbl(id, experimento))
+  res.over <- resultados
+
+  g0 <- resultados |>
+    ggplot(aes(rank)) +
+    geom_hline(yintercept = n_reps/n_ranks, lty = 2) +
+    annotate("rect",
+             ymin = qbinom(.975, n_reps, 1/n_ranks),
+             ymax = qbinom(.025, n_reps, 1/n_ranks),
+             xmin = -Inf, xmax = Inf,
+             alpha = .4, fill = "gray") + 
+    geom_histogram(binwidth = 1, color = "white") + sin_lineas +
+    scale_y_continuous(breaks=NULL) + ylab("") + xlab("Estadístico de orden")
+
+  g1 <- resultados |>
+    group_by(rank) |>
+    tally() |>
+    mutate(ecdf = cumsum(n)/sum(n),
+           cdf  = 1:n_ranks/n_ranks,
+           cdf.lo = cdf - 1/n_ranks + rep(qbinom(.025, n_reps, 1/n_ranks), n_ranks)/n_reps,
+           cdf.hi = cdf - 1/n_ranks + rep(qbinom(.975, n_reps, 1/n_ranks), n_ranks)/n_reps) |>
+    ggplot(aes(x = rank)) +
+    geom_step(aes(y = cdf), lty = 2, color = "gray30") +
+    geom_stepribbon(aes(ymin = cdf.lo, ymax = cdf.hi), fill = "grey70", alpha = .3) +
+    geom_step(aes(y = ecdf)) +
+    sin_lineas +
+    ylab("Función de acumulación") + xlab("Estadístico de orden")
+
+  g2 <- resultados |>
+    group_by(rank) |>
+    tally() |>
+    mutate(ecdf = cumsum(n)/sum(n),
+           cdf  = 1:n_ranks/n_ranks,
+           diff.cdf = ecdf - cdf,
+           diff.lo  = - 2 * sqrt(rank/n_ranks * (1 - rank/n_ranks)/n_reps),
+           diff.hi  = + 2 * sqrt(rank/n_ranks * (1 - rank/n_ranks)/n_reps), 
+           ) |>
+    ggplot(aes(x = rank)) +
+    geom_hline(yintercept = 0, lty = 2, color = "gray30") + 
+    geom_stepribbon(aes(ymin = diff.lo, ymax = diff.hi), fill = "grey70", alpha = .3) +
+    geom_step(aes(y = diff.cdf)) +
+    sin_lineas +
+    ylab("Diferencia de acumulación") + xlab("Estadístico de orden")
+
+  g0 + g1 + g2
+#+end_src
+#+name: fig:sbc-over
+#+caption:  Gráficos de comparación uniforme cuando la implementación está sobre-dispersa.
+#+RESULTS:
+[[file:../images/sbc-histogramas-referencia-sobredisperso.jpeg]]
+
+
+#+REVEAL: split
+Cuando la implementación es de un modelo con sesgo a la derecha tenemos un
+comportamiento como se muestra en la [[fig:sbc-bias]]. Esto corresponde a un modelo
+que está ~sobre-estimando~ los resultados que debería tener. 
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/sbc-histogramas-referencia-sesgado.jpeg :exports results :results output graphics file
+  n_ranks <- 20
+  n_reps  <- 5000
+
+  experimento <- function(id){
+    sim <- list(mu = rnorm(1))
+    data <- list(y = rnorm(1, sim$mu, sd = sqrt(2)))
+    mu <- rnorm(n_ranks - 1, (1 + data$y)/3, sd = sqrt(2/3))
+    sum(mu < sim$mu)
+  }
+
+  resultados <- tibble(id = 1:n_reps) |>
+    mutate(rank = map_dbl(id, experimento))
+  res.bias   <- resultados
+
+  g0 <- resultados |>
+    ggplot(aes(rank)) +
+    geom_hline(yintercept = n_reps/n_ranks, lty = 2) +
+    annotate("rect",
+             ymin = qbinom(.975, n_reps, 1/n_ranks),
+             ymax = qbinom(.025, n_reps, 1/n_ranks),
+             xmin = -Inf, xmax = Inf,
+             alpha = .4, fill = "gray") + 
+    geom_histogram(binwidth = 1, color = "white") + sin_lineas +
+    scale_y_continuous(breaks=NULL) + ylab("") + xlab("Estadístico de orden")
+
+  g1 <- resultados |>
+    group_by(rank) |>
+    tally() |>
+    mutate(ecdf = cumsum(n)/sum(n),
+           cdf  = 1:n_ranks/n_ranks,
+           cdf.lo = cdf - 1/n_ranks + rep(qbinom(.025, n_reps, 1/n_ranks), n_ranks)/n_reps,
+           cdf.hi = cdf - 1/n_ranks + rep(qbinom(.975, n_reps, 1/n_ranks), n_ranks)/n_reps) |>
+    ggplot(aes(x = rank)) +
+    geom_step(aes(y = cdf), lty = 2, color = "gray30") +
+    geom_stepribbon(aes(ymin = cdf.lo, ymax = cdf.hi), fill = "grey70", alpha = .3) +
+    geom_step(aes(y = ecdf)) +
+    sin_lineas +
+    ylab("Función de acumulación") + xlab("Estadístico de orden")
+
+  g2 <- resultados |>
+    group_by(rank) |>
+    tally() |>
+    mutate(ecdf = cumsum(n)/sum(n),
+           cdf  = 1:n_ranks/n_ranks,
+           diff.cdf = ecdf - cdf,
+           diff.lo  = - 2 * sqrt(rank/n_ranks * (1 - rank/n_ranks)/n_reps),
+           diff.hi  = + 2 * sqrt(rank/n_ranks * (1 - rank/n_ranks)/n_reps), 
+           ) |>
+    ggplot(aes(x = rank)) +
+    geom_hline(yintercept = 0, lty = 2, color = "gray30") + 
+    geom_stepribbon(aes(ymin = diff.lo, ymax = diff.hi), fill = "grey70", alpha = .3) +
+    geom_step(aes(y = diff.cdf)) +
+    sin_lineas +
+    ylab("Diferencia de acumulación") + xlab("Estadístico de orden")
+
+  g0 + g1 + g2
+#+end_src
+#+name: fig:sbc-bias
+#+caption:  Gráficos de comparación uniforme cuando la implementación tiene un sesgo a la derecha.
+#+RESULTS:
+[[file:../images/sbc-histogramas-referencia-sesgado.jpeg]]
+
+#+REVEAL: split
+El caso contrario (sesgo a la izquierda) representa un modelo que está
+~sub-estimando~ las probabilidades.
+
+** Pruebas de uniformidad
+
+Una manera de poder efectuar una prueba es considerar una $\chi^2$ y verificar
+que los conteos en las cubetas corresponden, en promedio, a lo que esperaríamos
+con ordenes uniformes.
+
+El estadístico de prueba sería
+\begin{align}
+\hat \chi^2 = \sum_{m = 1}^{M} \frac{(b_m - e_m)^2}{e_m}\,,
+\end{align}
+donde $b_m$ denota el número de réplicas en la cubeta $m$ ésima y $e_m$ denota
+el número de réplicas que esperaríamos caigan en dicha cubeta.
+
+La prueba radica en que los términos de la suma son potencias cuadradas de una normal estándar y por lo tanto
+\begin{align}
+\hat \chi^2 \sim \chi^2_{M-1}\,,
+\end{align}
+de la cual podemos evaluar una prueba de hipótesis.
+
+*Nota* la prueba de hipótesis definida anteriormente no tiene una potencia alta.
+ 
+* CBS en ~Stan~
+
+La idea, como hemos mencionado antes, es poner a prueba si nuestra
+implementación de un modelo es la adecuada. Estas pruebas no están diseñadas
+para verificar que nuestro modelo es el adecuado.
+
+Usaremos ~Stan~ para:
+1. Simular datos.
+2. Ajustar la distribución posterior.
+3. Calcular los estadísticos de orden.
+
+Esto implicará que tenemos que correr nuestro simulador varias veces para poder
+producir un histograma de estadísticos de orden que esperamos tenga una
+distribución de muestreo uniforme dentro de los rangos.
+
+** Implementación en ~Stan~
+
+Podemos utilizar un bloque ~transformed data~ para simular parámetros y datos para el modelo. Regresando a nuestro modelo Normal-Normal, tenemos un bloque que genera parámetros simulados. 
+
+#+begin_src stan :tangle no
+  transformed data {
+    real mu_sim = normal_rng(0, 1);
+    real y_sim  = normal_rng(mu_sim, sqrt(2));
+  }
+#+end_src
+
+Adicional, podemos utilizar un bloque ~generated quantities~ para calcular las indicadoras y los estadísticos de orden
+#+begin_src stan :tangle no
+  generated quantities {
+    int<lower=0, upper=1> lt_sim = { mu < mu_sim };
+  }
+#+end_src
+
+** Consideración para métodos de MCMC
+
+Utilizar técnicas de MCMC nos permite simular de la distribución
+objetivo. Esperaríamos que las muestras sean lo más cercanas a ser
+independientes. El diagnóstico $N_{\mathsf{eff}}$ nos puede dar una indicación
+de con cuántas muestras nos podemos quedar para realizar los histogramas.
+
+** Ejemplo
+
+Regresaremos a nuestro ejemplo de las escuelas. Sabemos que el modelo puede
+tener problemas si no está bien parametrizado. Realizaremos un estudio numérico
+con $N = 500$ réplicas del proceso. En cada una simulamos de tal forma que
+~adelgazamos~ la cadena de Markov cada 10 iteraciones. El número total de
+simulaciones se fija para recuperar $M=100$ ordenes posibles. Los gráficos
+muestran histogramas con 20 cubetas.
+
+#+BEGIN_NOTES
+Nota que citep:Talts2020 proponen un algoritmo para poder aplicar ~SBC~ a muestras
+de un cadena de Markov. Dicha propuesta esta basada en estar revisando, por
+réplica, el número efectivo de simulaciones para poder generar una muestra que
+pueda ser adelgazada después. Sin embargo, el problema de las escuelas está tan
+bien identificado y sabemos que nuestra implementación del modelo será
+deficiente, que no será necesario pedir cadenas tan estables.
+#+END_NOTES
+
+
+#+begin_src stan :tangle ../modelos/calibracion/escuelas.stan
+  transformed data {
+    real mu_sim = normal_rng(0, 5);
+    real tau_sim = fabs(normal_rng(0, 5));
+    int<lower=0> J = 8;
+    array[J] real theta_sim = normal_rng(rep_vector(mu_sim, J), tau_sim);
+    array[J] real<lower=0> sigma = fabs(normal_rng(rep_vector(0, J), 5));
+    array[J] real y = normal_rng(theta_sim, sigma);
+  }
+  parameters {
+    real mu;
+    real<lower=0> tau;
+    array[J] real theta;
+  }
+  model {
+    mu ~ normal(0, 5);
+    tau ~ normal(0, 5);
+    theta ~ normal(mu, tau);
+    y ~ normal(theta, sigma);
+  }
+  generated quantities {
+    int<lower=0, upper=1> mu_lt_sim = mu < mu_sim;
+    int<lower=0, upper=1> tau_lt_sim = tau < tau_sim;
+    int<lower=0, upper=1> theta1_lt_sim = theta[1] < theta_sim[1];
+  }
+#+end_src
+
+Nota que el bloque de ~transformed data~ escribe el proceso generador de los datos. Primero, simulamos los parámetros poblacionales $(\mu, \tau)$; después, los datos $(y_j, \sigma_j)$.
+
+#+begin_src R :exports none :results none
+  ## Caso: escuelas ------------------------------
+  modelos_files <- "modelos/compilados/calibracion"
+  ruta <- file.path("modelos/calibracion/escuelas.stan")
+  modelo.bp <- cmdstan_model(ruta, dir = modelos_files)
+#+end_src
+
+#+begin_src R :exports none :results none :eval never
+  n_reps <- 500
+  n_ranks <- 20
+
+  crea_muestras <- function(id, modelo){
+    muestras <- modelo$sample(chains = 1,
+                              iter_warmup   = 5000,
+                              iter_sampling = 990,
+                              thin = 10,
+                              refresh = 0,
+                              seed = id)
+    muestras$draws(format = 'df') |>
+      as_tibble() |>
+      select(mu_lt_sim, tau_lt_sim, theta1_lt_sim) |>
+      summarise(rank_mu = sum(mu_lt_sim),
+                rank_tau = sum(tau_lt_sim),
+                rank_theta1 = sum(theta1_lt_sim))
+  }
+  ## Cuidado en correr (paciencia)
+  resultados.escuelas <- tibble(id = 1:n_reps) |>
+    mutate(results = map(id, crea_muestras, modelo.bp))
+#+end_src
+
+Los resultados de esta implementación nos están advirtiendo que el modelo
+posterior tiene una distribución con sobre-dispersión para el parámetro
+$\theta_1$.  Además para $\log\tau$ parece también haber evidencia de cierto
+sesgo del modelo. Ver [[fig:schools-hist]] y [[fig:schools-diff]].
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/escuelas-sbc-histograms.jpeg :exports results :results output graphics file :eval never
+  resultados.escuelas |>
+    unnest(results) |>
+    pivot_longer(cols = 2:4) |>
+    ggplot(aes(x = value)) +
+    geom_hline(yintercept = n_reps/n_ranks, lty = 2, color = 'black') +
+    annotate("rect",
+              ymin = qbinom(.975, n_reps, 1/n_ranks),
+              ymax = qbinom(.025, n_reps, 1/n_ranks),
+              xmin = -Inf, xmax = Inf,
+              alpha = .4, fill = "gray") + 
+    geom_histogram(bins = n_ranks, color = "white") +
+    facet_wrap(~name) +
+    sin_lineas
+#+end_src
+#+name: fig:schools-hist
+#+caption: Contraste de histogramas contra la distribución uniforme. 
+#+RESULTS:
+[[file:../images/escuelas-sbc-histograms.jpeg]]
+
+#+HEADER: :width 1200 :height 400  :R-dev-args bg="transparent"
+#+begin_src R :file images/escuelas-sbc-histogramas-diff.jpeg  :exports results :results output graphics file :eval never
+  resultados.escuelas |>
+    unnest(results) |>
+    pivot_longer(cols = 2:4) |>
+    mutate(bins = cut(value, breaks = seq(0,100, length.out= 21))) |>
+    group_by(name, bins) |>
+    tally() |>
+    filter(!is.na(bins)) |>
+    mutate(ecdf = cumsum(n)/sum(n),
+           cdf  = 1:n_ranks/n_ranks,
+           rank = seq(2.5, 100, 5),
+           diff.cdf = ecdf - cdf,
+           diff.lo  = - 2 * sqrt(rank/100 * (1 - rank/100)/n_reps),
+           diff.hi  = + 2 * sqrt(rank/100 * (1 - rank/100)/n_reps), 
+           ) |>
+    ggplot(aes(x = rank)) +
+    geom_hline(yintercept = 0, lty = 2, color = "gray30") + 
+    geom_stepribbon(aes(ymin = diff.lo, ymax = diff.hi), fill = "grey70", alpha = .3) +
+    geom_step(aes(y = diff.cdf)) +
+    sin_lineas + facet_wrap(~name) +
+    ylab("Diferencia de acumulación") + xlab("Estadístico de orden")
+#+end_src
+#+name: fig:schools-diff
+#+caption: Diferencia entre la ~ECDF~ y la ~CDF~ bajo un modelo uniforme de los estadísticos de orden.
+#+RESULTS:
+[[file:../images/escuelas-sbc-histogramas-diff.jpeg]]
+
+* Caso práctico
+
+Consideraremos un modelo de mezclas
+\begin{align}
+\pi(y | \theta, w) = \sum_{k = 1}^{K} w_k \, \pi_k(y | \theta_k)\,,
+\end{align}
+donde $\sum_k w_k = 1$, $\theta$ es un vector de parámetros por bloques, y las
+densidades $\pi_k$ pueden pertenecer a la misma familia.
+
+#+REVEAL: split
+En este caso consideraremos dos componentes $K=2$, $\theta = (\mu_1,
+\mu_2)^\top$ y $\pi_k$ la función de masa de probabilidad de una Poisson con
+media $\mu_k$.
+
+#+REVEAL: split
+El modelo  escrito en ~Stan~ queda como sigue. Nota que dejaremos en un ciclo externo
+la simulación de datos sintéticos, por lo tanto, no utilizaremos el bloque de
+~generated quantities~. Todo el procesamiento lo haremos fuera de ~Stan~.
+
+#+begin_src stan :tangle ../modelos/calibracion/poisson-mix.stan
+  data {
+    int<lower=0> N;
+    int y[N];
+  }
+
+  parameters {
+    real mu1;
+    real mu2;
+    real<lower=0, upper=1> omega;
+  }
+
+  model {
+    target += log_mix(omega, poisson_log_lpmf(y | mu1), poisson_log_lpmf(y | mu2));
+    target += normal_lpdf(mu1 | 3, 1);
+    target += normal_lpdf(mu2 | 3, 1);
+  }
+#+end_src
+
+#+begin_src R :exports none :results none
+  ## Caso: mezclas poisson -------------------------------
+  modelos_files <- "modelos/compilados/calibracion"
+  ruta <- file.path("modelos/calibracion/poisson-mix.stan")
+  modelo <- cmdstan_model(ruta, dir = modelos_files)
+#+end_src
+
+La función para generar las simulaciones es el siguiente: 
+
+#+begin_src R :exports code :results none 
+  generate_poisson_mix <- function(N){
+    ## Generamos parametros simulados
+    mu1 <- rnorm(1, 3, 1)
+    mu2 <- rnorm(1, 3, 1)
+    omega <- runif(1)
+    ## Generamos datos sinteticos
+    y <- numeric(N)
+    for(n in 1:N){
+      if(runif(1) < omega){
+        y[n] <- rpois(1, exp(mu1))
+      } else {
+        y[n] <- rpois(1, exp(mu2))
+      }
+    }
+    ## Regresamos en lista
+    sim <- within(list(), {
+                  mu <- c(mu1, mu2)
+                  omega <- omega
+    })
+    obs <- list(N = N, y = y)
+    list(sim = sim, obs = obs)
+  }
+#+end_src
+
+El modelo tiene un poco de problemas en correr. Por ejemplo, algunas
+simulaciones tienen un número efectivo de simulaciones mucho menores de las que
+corremos (alrededor del $10\%$). Así que hace sentido adelgazar la cadena para
+mitigar los efectos de correlación en los gráficos de diagnóstico.
+
+#+begin_src R :exports none :results none :eval never
+  replicate_experiment <- function(id, modelo){
+    data <- generate_poisson_mix(50)
+    posterior <- modelo$sample(data$obs, chains = 1, refresh = 1000,
+                               iter_sampling = 990, thin = 10)
+
+    posterior$draws(format = "df") |>
+      as_tibble() |>
+      mutate(
+        mu1_bool = mu1 < data$sim$mu[1],
+        mu2_bool = mu2 < data$sim$mu[2],
+        omega_bool = omega < data$sim$omega) |>
+      summarise(
+        mu1_rank = sum(mu1_bool),
+        mu2_rank = sum(mu2_bool),
+        omega_rank = sum(omega_bool), 
+        )
+  }
+  simulaciones <- tibble(id = 1:500) |>
+    mutate(results = map(id, replicate_experiment, modelo))
+#+end_src
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/poisson-mix-histograms.jpeg :exports results :results output graphics file :eval never
+  n_reps <- 500
+
+  simulaciones |>
+    unnest(results) |>
+    pivot_longer(cols = 2:4) |>
+    ggplot(aes(x = value)) +
+    geom_hline(yintercept = n_reps/n_ranks, lty = 2, color = 'black') +
+    annotate("rect",
+             ymin = qbinom(.975, n_reps, 1/n_ranks),
+             ymax = qbinom(.025, n_reps, 1/n_ranks),
+             xmin = -Inf, xmax = Inf,
+             alpha = .4, fill = "gray") + 
+    geom_histogram(bins = n_ranks, color = "white") +
+    facet_wrap(~name) +
+    sin_lineas
+#+end_src
+#+name: fig:poisson-mix-hist
+#+caption: Histogramas de los estadísticos de orden para el modelo de mezclas Poisson. 
+#+RESULTS:
+[[file:../images/poisson-mix-histograms.jpeg]]
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/poisson-mix-hist-diff.jpeg  :exports results :results output graphics file :eval never
+simulaciones |>
+  unnest(results) |>
+  pivot_longer(cols = 2:4) |>
+  mutate(bins = cut(value, breaks = seq(0,100, length.out= 21))) |>
+  group_by(name, bins) |>
+  tally() |>
+  filter(!is.na(bins)) |>
+  mutate(ecdf = cumsum(n)/sum(n),
+         cdf  = 1:n_ranks/n_ranks,
+         rank = seq(2.5, 100, 5),
+         diff.cdf = ecdf - cdf,
+         diff.lo  = - 2 * sqrt(rank/100 * (1 - rank/100)/n_reps),
+         diff.hi  = + 2 * sqrt(rank/100 * (1 - rank/100)/n_reps), 
+         ) |>
+  ggplot(aes(x = rank)) +
+  geom_hline(yintercept = 0, lty = 2, color = "gray30") + 
+  geom_stepribbon(aes(ymin = diff.lo, ymax = diff.hi), fill = "grey70", alpha = .3) +
+  geom_step(aes(y = diff.cdf)) +
+  sin_lineas + facet_wrap(~name) +
+  ylab("Diferencia de acumulación") + xlab("Estadístico de orden")
+#+end_src
+#+name: fig:poisson-mix-diff
+#+caption: Diferencia de los estadísticos de acumulación entre el empírico y el teórico. 
+#+RESULTS:
+[[file:../images/poisson-mix-hist-diff.jpeg]]
+
+Los resultados nos muestran histogramas que corresponden a un modelo
+sobre-disperso. Lo cual es consecuencia de un modelo posterior con mucho mayor
+incertidumbre de la que esperaríamos. Ver [[fig:poisson-mix-hist]] y [[fig:poisson-mix-diff]].
+
+#+REVEAL: split
+Por supuesto, esto lo pudimos haber diagnosticado observando una réplica de
+haber simulado de la posterior bajo un conjunto de datos hipotético.  Sin
+embargo, bajo este enfoque (estudiar una sola réplica) siempre puede quedar
+la duda si lo que observamos es un artificio de una simulación (por ejemplo de
+fijar una semilla) o es un comportamiento generalizable.
+
+#+HEADER: :width 900 :height 600 :R-dev-args bg="transparent"
+#+begin_src R :file images/poisson-mix-single.jpeg :exports results :results output graphics file
+  data <- generate_poisson_mix(50)
+  posterior <- modelo$sample(data$obs, chains = 4,
+                             refresh = 1000,
+                             iter_sampling = 4000,
+                             seed = 108729)
+  mcmc_pairs(posterior$draws(),
+             regex_pars = "mu",
+             pars = c("omega"), 
+             off_diag_fun = "hex")
+#+end_src
+#+caption: Realización de un ajuste posterior con un modelo mal especificado para las muestras del modelo de mezcla Poisson. 
+#+RESULTS:
+[[file:../images/poisson-mix-single.jpeg]]
+
+** Re-implementando
+
+El problema anterior se debe a que el modelo sobre-ajusta a un componente. Nota
+que el parámetro de peso no puede ser ajustado por el modelo. Revisando la
+documentación de ~Stan~ sobre modelos de mezclas, notamos que teníamos mal
+implementado el modelo para mas de una observación.
+
+#+REVEAL: split
+Lo que hicimos anteriormente asigna el mismo componente de la mezcla para todos
+los elementos de la muestra. Esto no tiene sentido, pues pensaríamos que nuestro
+modelo tiene datos que provienen de los dos componentes. El problema de
+inferencia es sobre con qué proporción vienen de cada uno y los parámetros que
+identifican a cada uno de los componentes.
+
+#+begin_src stan :tangle ../modelos/calibracion/poisson-mix-full.stan
+  data {
+    int<lower=0> N;
+    int y[N];
+  }
+
+  parameters {
+    real mu1;
+    real mu2;
+    real<lower=0, upper=1> omega;
+  }
+
+  model {
+    for(n in 1:N) {
+      target += log_mix(omega,
+                        poisson_log_lpmf(y[n] | mu1),
+                        poisson_log_lpmf(y[n] | mu2));
+    }
+    target += normal_lpdf(mu1 | 3, 1);
+    target += normal_lpdf(mu2 | 3, 1);
+  }
+#+end_src
+
+#+begin_src R :exports none :results none
+  ## Caso: mezclas poisson implementacion ----------------------
+  modelos_files <- "modelos/compilados/calibracion"
+  ruta <- file.path("modelos/calibracion/poisson-mix-full.stan")
+  modelo <- cmdstan_model(ruta, dir = modelos_files)
+#+end_src
+
+#+begin_src R :exports code :results none :eval never
+  simulaciones <- tibble(id = 1:500) |>
+      mutate(results = map(id, replicate_experiment, modelo)) 
+#+end_src
+
+Los resultados con nuestra simulación (500 réplicas y utilizar muestras para identificar órdenes de hasta 100) nos brindan los siguientes gráficos. 
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/poisson-mix-histograms-full.jpeg :exports results :results output graphics file :eval never 
+  n_reps <- 500
+
+  simulaciones |>
+    unnest(results) |>
+    pivot_longer(cols = 2:4) |>
+    ggplot(aes(x = value)) +
+    geom_hline(yintercept = n_reps/n_ranks, lty = 2, color = 'black') +
+    annotate("rect",
+             ymin = qbinom(.975, n_reps, 1/n_ranks),
+             ymax = qbinom(.025, n_reps, 1/n_ranks),
+             xmin = -Inf, xmax = Inf,
+             alpha = .4, fill = "gray") + 
+    geom_histogram(bins = n_ranks, color = "white") +
+    facet_wrap(~name) +
+    sin_lineas
+#+end_src
+#+name: fig:poisson-mix-correct-hist
+#+caption: Histogramas para los diagnósticos de orden. 
+#+RESULTS:
+[[file:../images/poisson-mix-histograms-full.jpeg]]
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/poisson-mix-hist-diff-full.jpeg  :exports results :results output graphics file :eval never
+simulaciones |>
+  unnest(results) |>
+  pivot_longer(cols = 2:4) |>
+  mutate(bins = cut(value, breaks = seq(0,100, length.out= 21))) |>
+  group_by(name, bins) |>
+  tally() |>
+  filter(!is.na(bins)) |>
+  mutate(ecdf = cumsum(n)/sum(n),
+         cdf  = 1:n_ranks/n_ranks,
+         rank = seq(2.5, 100, 5),
+         diff.cdf = ecdf - cdf,
+         diff.lo  = - 2 * sqrt(rank/100 * (1 - rank/100)/n_reps),
+         diff.hi  = + 2 * sqrt(rank/100 * (1 - rank/100)/n_reps), 
+         ) |>
+  ggplot(aes(x = rank)) +
+  geom_hline(yintercept = 0, lty = 2, color = "gray30") + 
+  geom_stepribbon(aes(ymin = diff.lo, ymax = diff.hi), fill = "grey70", alpha = .3) +
+  geom_step(aes(y = diff.cdf)) +
+  sin_lineas + facet_wrap(~name) +
+  ylab("Diferencia de acumulación") + xlab("Estadístico de orden")
+#+end_src
+#+name: fig:poisson-mix-correct-diff
+#+caption: Diferencia entre el estimador empírico de acumulación y el teórico. 
+#+RESULTS:
+[[file:../images/poisson-mix-hist-diff-full.jpeg]]
+
+Después de observar [[fig:poisson-mix-correct-hist]] y [[fig:poisson-mix-correct-diff]],
+notamos que aún tenemos un modelo con muy poca incertidumbre. Al parecer hay
+todavía algo que no está bien en la implementación.
+
+#+REVEAL: split
+De nuevo exploramos una nueva simulación. En este caso utilizamos 4 cadenas para tratar de visualizar algún problema.  La [[fig:poisson-mix-multi]] nos muestra un comportamiento multi-modal. 
+
+#+HEADER: :width 900 :height 600 :R-dev-args bg="transparent"
+#+begin_src R :file images/poisson-mix-full.jpeg :exports results :results output graphics file
+  set.seed(108795)
+  data <- generate_poisson_mix(50)
+  posterior <- modelo$sample(data$obs, chains = 4,
+                             refresh = 1000,
+                             iter_warmup   = 2000,
+                             iter_sampling = 2000,
+                             seed = 108729)
+  mcmc_pairs(posterior$draws(),
+             regex_pars = "mu",
+             pars = c("omega"), 
+             off_diag_fun = "hex")
+#+end_src
+#+name: fig:poisson-mix-multi
+#+caption: Realización del modelo vemos un modelo con dos modas que no es fácilmente identificable. 
+#+RESULTS:
+[[file:../images/poisson-mix-full.jpeg]]
+
+** Arreglando problemas de identificabilidad
+
+Para modelos de mezclas es usual no poder identificar cada componente de manera única. De hecho, no hay nada en el modelo anterior que limite de alguna manera el rol de cada uno de los componentes de la mezcla. Lo resolvemos con lo siguiente. 
+
+#+begin_src stan :tangle ../modelos/calibracion/poisson-mix-ordered.stan
+  data {
+    int<lower=0> N;
+    int y[N];
+  }
+
+  parameters {
+    ordered[2] mu;
+    real<lower=0, upper=1> omega;
+  }
+
+  model {
+    for(n in 1:N) {
+      target += log_mix(omega,
+                        poisson_log_lpmf(y[n] | mu[1]),
+                        poisson_log_lpmf(y[n] | mu[2]));
+    }
+    target += normal_lpdf(mu | 3, 1);
+  }
+#+end_src
+
+#+begin_src R :exports none :results none
+  ## Caso: mezclas poisson ordenadas ----------------------
+  modelos_files <- "modelos/compilados/calibracion"
+  ruta <- file.path("modelos/calibracion/poisson-mix-ordered.stan")
+  modelo <- cmdstan_model(ruta, dir = modelos_files)
+#+end_src
+
+Por supuesto, tenemos que cambiar nuestra implementación del mecanismo que
+genera datos del modelo generativo (la distribución conjunta de datos y
+parámetros).
+
+#+begin_src R :exports code :results none
+  generate_poisson_mix_ordered <- function(N){
+    ## Generamos parametros simulados
+    mu <- sort(rnorm(2, 3, 1))
+    omega <- runif(1)
+    ## Generamos datos sinteticos
+    y <- numeric(N)
+    for(n in 1:N){
+      if(runif(1) < omega){
+        y[n] <- rpois(1, exp(mu[1]))
+      } else {
+        y[n] <- rpois(1, exp(mu[2]))
+      }
+    }
+    ## Regresamos en lista
+    sim <- within(list(), {
+                  mu <- mu
+                  omega <- omega
+    })
+    obs <- list(N = N, y = y)
+    list(sim = sim, obs = obs)
+  }
+#+end_src
+
+#+begin_src R :exports code :results none 
+  replicate_experiment_ordered <- function(id, modelo){
+    data <- generate_poisson_mix_ordered(50)
+    posterior <- modelo$sample(data$obs, chains = 1, refresh = 1000,
+                               iter_sampling = 990, thin = 10)
+
+    posterior$draws(format = "df") |>
+      as_tibble() |>
+      mutate(
+        mu1_bool = `mu[1]` < data$sim$mu[1],
+        mu2_bool = `mu[2]` < data$sim$mu[2],
+        omega_bool = omega < data$sim$omega) |>
+      summarise(
+        mu1_rank = sum(mu1_bool),
+        mu2_rank = sum(mu2_bool),
+        omega_rank = sum(omega_bool), 
+        )
+  }
+#+end_src
+
+#+begin_src R :exports code :results none :eval never
+  simulaciones <- tibble(id = 1:500) |>
+      mutate(results = map(id, replicate_experiment_ordered, modelo)) 
+#+end_src
+
+Nuestros resultados se ilustran en las últimas figuras de esta sección. 
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/poisson-mix-histograms-full-ordered.jpeg :exports results :results output graphics file :eval never
+  n_reps <- 500
+
+  simulaciones |>
+    unnest(results) |>
+    pivot_longer(cols = 2:4) |>
+    ggplot(aes(x = value)) +
+    geom_hline(yintercept = n_reps/n_ranks, lty = 2, color = 'black') +
+    annotate("rect",
+             ymin = qbinom(.975, n_reps, 1/n_ranks),
+             ymax = qbinom(.025, n_reps, 1/n_ranks),
+             xmin = -Inf, xmax = Inf,
+             alpha = .4, fill = "gray") + 
+    geom_histogram(bins = n_ranks, color = "white") +
+    facet_wrap(~name) +
+    sin_lineas
+#+end_src
+#+caption: Histogramas de los estadísticos de orden. 
+#+RESULTS:
+[[file:../images/poisson-mix-histograms-full-ordered.jpeg]]
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/poisson-mix-hist-diff-full-ordered.jpeg  :exports results :results output graphics file :eval never
+simulaciones |>
+  unnest(results) |>
+  pivot_longer(cols = 2:4) |>
+  mutate(bins = cut(value, breaks = seq(0,100, length.out= 21))) |>
+  group_by(name, bins) |>
+  tally() |>
+  filter(!is.na(bins)) |>
+  mutate(ecdf = cumsum(n)/sum(n),
+         cdf  = 1:n_ranks/n_ranks,
+         rank = seq(2.5, 100, 5),
+         diff.cdf = ecdf - cdf,
+         diff.lo  = - 2 * sqrt(rank/100 * (1 - rank/100)/n_reps),
+         diff.hi  = + 2 * sqrt(rank/100 * (1 - rank/100)/n_reps), 
+         ) |>
+  ggplot(aes(x = rank)) +
+  geom_hline(yintercept = 0, lty = 2, color = "gray30") + 
+  geom_stepribbon(aes(ymin = diff.lo, ymax = diff.hi), fill = "grey70", alpha = .3) +
+  geom_step(aes(y = diff.cdf)) +
+  sin_lineas + facet_wrap(~name) +
+  ylab("Diferencia de acumulación") + xlab("Estadístico de orden")
+#+end_src
+#+caption: Diferencia entre el estimador de acumulación empírico y el teórico.
+#+RESULTS:
+[[file:../images/poisson-mix-hist-diff-full-ordered.jpeg]]
+
+#+HEADER: :width 900 :height 600 :R-dev-args bg="transparent"
+#+begin_src R :file images/poisson-mix-full-ordered.jpeg :exports results :results output graphics file
+  set.seed(108795)
+  data <- generate_poisson_mix(50)
+  posterior <- modelo$sample(data$obs, chains = 4,
+                             refresh = 1000,
+                             iter_warmup   = 2000,
+                             iter_sampling = 2000,
+                             seed = 108729)
+  mcmc_pairs(posterior$draws(),
+             regex_pars = "mu",
+             pars = c("omega"), 
+             off_diag_fun = "hex")
+#+end_src
+#+caption: Visualización de un ajuste posterior para el modelo de mezclas Poisson. 
+#+RESULTS:
+[[file:../images/poisson-mix-full-ordered.jpeg]]
+
+
+Lo que vemos es que nuestro modelo está bien implementado. Ya no sufre de los
+problemas que veíamos anteriormente y esto nos pone en una situación donde
+podremos utilizar nuestro modelo para ajustar datos. Por supuesto, esto no garantiza que
+el modelo será infalible cuando se enfrente a nuestras observaciones. Pero al menos podemos
+estar tranquilos que la implementación es la correcta.
+  
+* Conclusiones
+
+En esta sección mostramos un mecanismo para identificar distribuciones bien
+calibradas. El mecanismo aprovecha que por definición hacer inferencia Bayesiana
+es un procedimiento bien calibrado. Es decir, siempre y cuando los datos sean
+generados por el modelo probabilístico nuestra cobertura de intervalos será
+igual a la nominal.
+
+#+REVEAL: split
+Existen alternativas para evaluar métodos de muestreo. Sin embargo, estos
+mecanismos son utilizados cuando hacemos alguna inferencia aproximada. Es decir,
+cuando estamos dispuestos a hacer una aproximación de la verosimilitud
+(usualmente el componente mas costoso) o de la posterior misma (que veremos
+rumbo al final del curso).
+
+#+REVEAL: split
+En el mismo espíritu de diagnósticos de MCMC, ~SBC~ es un mecanismo para evaluar y
+criticar la implementación de un modelo. No nos dice qué modelo tiene sentido
+bajo un conjunto de datos. Esto es, justo lo que estudiaremos en la sección siguiente. 
+
+bibliographystyle:abbrvnat
+bibliography:references.bib
+
+ 

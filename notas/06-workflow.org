@@ -2098,7 +2098,6 @@ observaciones a distintas distancias.
 #+RESULTS:
 [[file:../images/golf-residuales-completo.jpeg]]
 
-
 *** Tarea:
 :PROPERTIES:
 :reveal_background: #00468b
