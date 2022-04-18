@@ -739,6 +739,11 @@ Nota que el bloque de ~transformed data~ escribe el proceso generador de los dat
     mutate(results = map(id, crea_muestras, modelo.bp))
 #+end_src
 
+Los resultados de esta implementación nos están advirtiendo que el modelo
+posterior tiene una distribución con sobre-dispersión para el parámetro
+$\theta_1$.  Además para $\log\tau$ parece también haber evidencia de cierto
+sesgo del modelo. Ver [[fig:schools-hist]] y [[fig:schools-diff]].
+
 #+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/escuelas-sbc-histograms.jpeg :exports results :results output graphics file :eval never
   resultados.escuelas |>
@@ -755,6 +760,7 @@ Nota que el bloque de ~transformed data~ escribe el proceso generador de los dat
     facet_wrap(~name) +
     sin_lineas
 #+end_src
+#+name: fig:schools-hist
 #+caption: Contraste de histogramas contra la distribución uniforme. 
 #+RESULTS:
 [[file:../images/escuelas-sbc-histograms.jpeg]]
@@ -782,6 +788,7 @@ Nota que el bloque de ~transformed data~ escribe el proceso generador de los dat
     sin_lineas + facet_wrap(~name) +
     ylab("Diferencia de acumulación") + xlab("Estadístico de orden")
 #+end_src
+#+name: fig:schools-diff
 #+caption: Diferencia entre la ~ECDF~ y la ~CDF~ bajo un modelo uniforme de los estadísticos de orden.
 #+RESULTS:
 [[file:../images/escuelas-sbc-histogramas-diff.jpeg]]
@@ -801,7 +808,7 @@ En este caso consideraremos dos componentes $K=2$, $\theta = (\mu_1,
 media $\mu_k$.
 
 #+REVEAL: split
-El modelo que escrito en ~Stan~ como sigue. Nota que dejaremos en un ciclo externo
+El modelo  escrito en ~Stan~ queda como sigue. Nota que dejaremos en un ciclo externo
 la simulación de datos sintéticos, por lo tanto, no utilizaremos el bloque de
 ~generated quantities~. Todo el procesamiento lo haremos fuera de ~Stan~.
 
@@ -830,6 +837,8 @@ la simulación de datos sintéticos, por lo tanto, no utilizaremos el bloque de
   ruta <- file.path("modelos/calibracion/poisson-mix.stan")
   modelo <- cmdstan_model(ruta, dir = modelos_files)
 #+end_src
+
+La función para generar las simulaciones es el siguiente: 
 
 #+begin_src R :exports code :results none 
   generate_poisson_mix <- function(N){
@@ -901,7 +910,8 @@ mitigar los efectos de correlación en los gráficos de diagnóstico.
     facet_wrap(~name) +
     sin_lineas
 #+end_src
-
+#+name: fig:poisson-mix-hist
+#+caption: Histogramas de los estadísticos de orden para el modelo de mezclas Poisson. 
 #+RESULTS:
 [[file:../images/poisson-mix-histograms.jpeg]]
 
@@ -928,19 +938,21 @@ simulaciones |>
   sin_lineas + facet_wrap(~name) +
   ylab("Diferencia de acumulación") + xlab("Estadístico de orden")
 #+end_src
-
+#+name: fig:poisson-mix-diff
+#+caption: Diferencia de los estadísticos de acumulación entre el empírico y el teórico. 
 #+RESULTS:
 [[file:../images/poisson-mix-hist-diff.jpeg]]
 
 Los resultados nos muestran histogramas que corresponden a un modelo
 sobre-disperso. Lo cual es consecuencia de un modelo posterior con mucho mayor
-incertidumbre de la que esperaríamos.
+incertidumbre de la que esperaríamos. Ver [[fig:poisson-mix-hist]] y [[fig:poisson-mix-diff]].
 
 #+REVEAL: split
-Por supuesto, esto lo pudimos haber diagnosticado observando una simulación de
-la posterior.  Sin embargo, bajo este enfoque (estudiar una sola simulación)
-siempre puede quedar la duda si lo que observamos es artificio de una simulación
-(por ejemplo de fijar una semilla) o es un comportamiento generalizado. 
+Por supuesto, esto lo pudimos haber diagnosticado observando una réplica de
+haber simulado de la posterior bajo un conjunto de datos hipotético.  Sin
+embargo, bajo este enfoque (estudiar una sola réplica) siempre puede quedar
+la duda si lo que observamos es un artificio de una simulación (por ejemplo de
+fijar una semilla) o es un comportamiento generalizable.
 
 #+HEADER: :width 900 :height 600 :R-dev-args bg="transparent"
 #+begin_src R :file images/poisson-mix-single.jpeg :exports results :results output graphics file
@@ -954,11 +966,23 @@ siempre puede quedar la duda si lo que observamos es artificio de una simulació
              pars = c("omega"), 
              off_diag_fun = "hex")
 #+end_src
-
+#+caption: Realización de un ajuste posterior con un modelo mal especificado para las muestras del modelo de mezcla Poisson. 
 #+RESULTS:
 [[file:../images/poisson-mix-single.jpeg]]
 
 ** Re-implementando
+
+El problema anterior se debe a que el modelo sobre-ajusta a un componente. Nota
+que el parámetro de peso no puede ser ajustado por el modelo. Revisando la
+documentación de ~Stan~ sobre modelos de mezclas, notamos que teníamos mal
+implementado el modelo para mas de una observación.
+
+#+REVEAL: split
+Lo que hicimos anteriormente asigna el mismo componente de la mezcla para todos
+los elementos de la muestra. Esto no tiene sentido, pues pensaríamos que nuestro
+modelo tiene datos que provienen de los dos componentes. El problema de
+inferencia es sobre con qué proporción vienen de cada uno y los parámetros que
+identifican a cada uno de los componentes.
 
 #+begin_src stan :tangle ../modelos/calibracion/poisson-mix-full.stan
   data {
@@ -995,6 +1019,8 @@ siempre puede quedar la duda si lo que observamos es artificio de una simulació
       mutate(results = map(id, replicate_experiment, modelo)) 
 #+end_src
 
+Los resultados con nuestra simulación (500 réplicas y utilizar muestras para identificar órdenes de hasta 100) nos brindan los siguientes gráficos. 
+
 #+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/poisson-mix-histograms-full.jpeg :exports results :results output graphics file :eval never 
   n_reps <- 500
@@ -1013,7 +1039,8 @@ siempre puede quedar la duda si lo que observamos es artificio de una simulació
     facet_wrap(~name) +
     sin_lineas
 #+end_src
-
+#+name: fig:poisson-mix-correct-hist
+#+caption: Histogramas para los diagnósticos de orden. 
 #+RESULTS:
 [[file:../images/poisson-mix-histograms-full.jpeg]]
 
@@ -1040,11 +1067,17 @@ simulaciones |>
   sin_lineas + facet_wrap(~name) +
   ylab("Diferencia de acumulación") + xlab("Estadístico de orden")
 #+end_src
-
+#+name: fig:poisson-mix-correct-diff
+#+caption: Diferencia entre el estimador empírico de acumulación y el teórico. 
 #+RESULTS:
 [[file:../images/poisson-mix-hist-diff-full.jpeg]]
 
-Aun tenemos un modelo con muy poca incertidumbre. Al parecer hay todavía algo que no está bien en la implementación.
+Después de observar [[fig:poisson-mix-correct-hist]] y [[fig:poisson-mix-correct-diff]],
+notamos que aún tenemos un modelo con muy poca incertidumbre. Al parecer hay
+todavía algo que no está bien en la implementación.
+
+#+REVEAL: split
+De nuevo exploramos una nueva simulación. En este caso utilizamos 4 cadenas para tratar de visualizar algún problema.  La [[fig:poisson-mix-multi]] nos muestra un comportamiento multi-modal. 
 
 #+HEADER: :width 900 :height 600 :R-dev-args bg="transparent"
 #+begin_src R :file images/poisson-mix-full.jpeg :exports results :results output graphics file
@@ -1060,11 +1093,14 @@ Aun tenemos un modelo con muy poca incertidumbre. Al parecer hay todavía algo q
              pars = c("omega"), 
              off_diag_fun = "hex")
 #+end_src
-
+#+name: fig:poisson-mix-multi
+#+caption: Realización del modelo vemos un modelo con dos modas que no es fácilmente identificable. 
 #+RESULTS:
 [[file:../images/poisson-mix-full.jpeg]]
 
 ** Arreglando problemas de identificabilidad
+
+Para modelos de mezclas es usual no poder identificar cada componente de manera única. De hecho, no hay nada en el modelo anterior que limite de alguna manera el rol de cada uno de los componentes de la mezcla. Lo resolvemos con lo siguiente. 
 
 #+begin_src stan :tangle ../modelos/calibracion/poisson-mix-ordered.stan
   data {
@@ -1093,6 +1129,10 @@ Aun tenemos un modelo con muy poca incertidumbre. Al parecer hay todavía algo q
   ruta <- file.path("modelos/calibracion/poisson-mix-ordered.stan")
   modelo <- cmdstan_model(ruta, dir = modelos_files)
 #+end_src
+
+Por supuesto, tenemos que cambiar nuestra implementación del mecanismo que
+genera datos del modelo generativo (la distribución conjunta de datos y
+parámetros).
 
 #+begin_src R :exports code :results none
   generate_poisson_mix_ordered <- function(N){
@@ -1143,6 +1183,8 @@ Aun tenemos un modelo con muy poca incertidumbre. Al parecer hay todavía algo q
       mutate(results = map(id, replicate_experiment_ordered, modelo)) 
 #+end_src
 
+Nuestros resultados se ilustran en las últimas figuras de esta sección. 
+
 #+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/poisson-mix-histograms-full-ordered.jpeg :exports results :results output graphics file :eval never
   n_reps <- 500
@@ -1161,7 +1203,7 @@ Aun tenemos un modelo con muy poca incertidumbre. Al parecer hay todavía algo q
     facet_wrap(~name) +
     sin_lineas
 #+end_src
-
+#+caption: Histogramas de los estadísticos de orden. 
 #+RESULTS:
 [[file:../images/poisson-mix-histograms-full-ordered.jpeg]]
 
@@ -1188,7 +1230,7 @@ simulaciones |>
   sin_lineas + facet_wrap(~name) +
   ylab("Diferencia de acumulación") + xlab("Estadístico de orden")
 #+end_src
-
+#+caption: Diferencia entre el estimador de acumulación empírico y el teórico.
 #+RESULTS:
 [[file:../images/poisson-mix-hist-diff-full-ordered.jpeg]]
 
@@ -1206,10 +1248,16 @@ simulaciones |>
              pars = c("omega"), 
              off_diag_fun = "hex")
 #+end_src
-
+#+caption: Visualización de un ajuste posterior para el modelo de mezclas Poisson. 
 #+RESULTS:
 [[file:../images/poisson-mix-full-ordered.jpeg]]
 
+
+Lo que vemos es que nuestro modelo está bien implementado. Ya no sufre de los
+problemas que veíamos anteriormente y esto nos pone en una situación donde
+podremos utilizar nuestro modelo para ajustar datos. Por supuesto, esto no garantiza que
+el modelo será infalible cuando se enfrente a nuestras observaciones. Pero al menos podemos
+estar tranquilos que la implementación es la correcta.
   
 * Conclusiones
 
