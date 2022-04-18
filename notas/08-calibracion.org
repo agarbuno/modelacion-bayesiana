@@ -89,6 +89,9 @@
   - [[#implementación-en-stan][Implementación en Stan]]
   - [[#consideración-para-métodos-de-mcmc][Consideración para métodos de MCMC]]
   - [[#ejemplo][Ejemplo]]
+- [[#caso-práctico][Caso práctico]]
+  - [[#re-implementando][Re-implementando]]
+  - [[#arreglando-problemas-de-identificabilidad][Arreglando problemas de identificabilidad]]
 - [[#conclusiones][Conclusiones]]
 :END:
 
@@ -180,10 +183,8 @@ estadístico de orden $r_n$ tiene probabilidad $1/(M+1)$ de tomar valores entre
 $0, \ldots, M$.
 
 #+BEGIN_NOTES
-citet:Talts2020 histogramas. citet:Cook2006 prueba de hipótesis que pone a prueba la uniformidad.
+El artículo de citet:Talts2020 utiliza visualizaciones con histogramas. El artículo de citet:Cook2006 formuló la prueba de hipótesis que pone a prueba la uniformidad para poder identificar desviaciones de implementaciones de modelos. 
 #+END_NOTES
-
-
 
 ** Ejemplo: Modelo conjugado
 
@@ -199,6 +200,9 @@ Este modelo es un modelo conjugado ~Normal-Normal~ el cual tiene un distribució
 \mu | y \sim \mathsf{N}\left( \frac{y}{\sigma^2+ 1}, 1 + \frac{1}{\sigma^2} \right)\,.
 \end{align}
 
+#+begin_src R :exports none :results none
+  ## Modelo conjugado ------------------
+#+end_src
 
 Consideremos $\sigma^2 = 2$. Si realizamos una simulación de la previa tenemos el siguiente parámetro:
 #+begin_src R :exports both :results org 
@@ -593,7 +597,7 @@ que está ~sobre-estimando~ los resultados que debería tener.
 [[file:../images/sbc-histogramas-referencia-sesgado.jpeg]]
 
 #+REVEAL: split
-El caso contrario, sesgo a la izquierda representa un modelo que está
+El caso contrario (sesgo a la izquierda) representa un modelo que está
 ~sub-estimando~ las probabilidades.
 
 ** Pruebas de uniformidad
@@ -706,6 +710,7 @@ deficiente, que no será necesario pedir cadenas tan estables.
 Nota que el bloque de ~transformed data~ escribe el proceso generador de los datos. Primero, simulamos los parámetros poblacionales $(\mu, \tau)$; después, los datos $(y_j, \sigma_j)$.
 
 #+begin_src R :exports none :results none
+  ## Caso: escuelas ------------------------------
   modelos_files <- "modelos/compilados/calibracion"
   ruta <- file.path("modelos/calibracion/escuelas.stan")
   modelo.bp <- cmdstan_model(ruta, dir = modelos_files)
@@ -718,7 +723,7 @@ Nota que el bloque de ~transformed data~ escribe el proceso generador de los dat
   crea_muestras <- function(id, modelo){
     muestras <- modelo$sample(chains = 1,
                               iter_warmup   = 5000,
-                              iter_sampling = 999,
+                              iter_sampling = 990,
                               thin = 10,
                               refresh = 0,
                               seed = id)
@@ -781,7 +786,431 @@ Nota que el bloque de ~transformed data~ escribe el proceso generador de los dat
 #+RESULTS:
 [[file:../images/escuelas-sbc-histogramas-diff.jpeg]]
 
+* Caso práctico
 
+Consideraremos un modelo de mezclas
+\begin{align}
+\pi(y | \theta, w) = \sum_{k = 1}^{K} w_k \, \pi_k(y | \theta_k)\,,
+\end{align}
+donde $\sum_k w_k = 1$, $\theta$ es un vector de parámetros por bloques, y las
+densidades $\pi_k$ pueden pertenecer a la misma familia.
+
+#+REVEAL: split
+En este caso consideraremos dos componentes $K=2$, $\theta = (\mu_1,
+\mu_2)^\top$ y $\pi_k$ la función de masa de probabilidad de una Poisson con
+media $\mu_k$.
+
+#+REVEAL: split
+El modelo que escrito en ~Stan~ como sigue. Nota que dejaremos en un ciclo externo
+la simulación de datos sintéticos, por lo tanto, no utilizaremos el bloque de
+~generated quantities~. Todo el procesamiento lo haremos fuera de ~Stan~.
+
+#+begin_src stan :tangle ../modelos/calibracion/poisson-mix.stan
+  data {
+    int<lower=0> N;
+    int y[N];
+  }
+
+  parameters {
+    real mu1;
+    real mu2;
+    real<lower=0, upper=1> omega;
+  }
+
+  model {
+    target += log_mix(omega, poisson_log_lpmf(y | mu1), poisson_log_lpmf(y | mu2));
+    target += normal_lpdf(mu1 | 3, 1);
+    target += normal_lpdf(mu2 | 3, 1);
+  }
+#+end_src
+
+#+begin_src R :exports none :results none
+  ## Caso: mezclas poisson -------------------------------
+  modelos_files <- "modelos/compilados/calibracion"
+  ruta <- file.path("modelos/calibracion/poisson-mix.stan")
+  modelo <- cmdstan_model(ruta, dir = modelos_files)
+#+end_src
+
+#+begin_src R :exports code :results none 
+  generate_poisson_mix <- function(N){
+    ## Generamos parametros simulados
+    mu1 <- rnorm(1, 3, 1)
+    mu2 <- rnorm(1, 3, 1)
+    omega <- runif(1)
+    ## Generamos datos sinteticos
+    y <- numeric(N)
+    for(n in 1:N){
+      if(runif(1) < omega){
+        y[n] <- rpois(1, exp(mu1))
+      } else {
+        y[n] <- rpois(1, exp(mu2))
+      }
+    }
+    ## Regresamos en lista
+    sim <- within(list(), {
+                  mu <- c(mu1, mu2)
+                  omega <- omega
+    })
+    obs <- list(N = N, y = y)
+    list(sim = sim, obs = obs)
+  }
+#+end_src
+
+El modelo tiene un poco de problemas en correr. Por ejemplo, algunas
+simulaciones tienen un número efectivo de simulaciones mucho menores de las que
+corremos (alrededor del $10\%$). Así que hace sentido adelgazar la cadena para
+mitigar los efectos de correlación en los gráficos de diagnóstico.
+
+#+begin_src R :exports none :results none :eval never
+  replicate_experiment <- function(id, modelo){
+    data <- generate_poisson_mix(50)
+    posterior <- modelo$sample(data$obs, chains = 1, refresh = 1000,
+                               iter_sampling = 990, thin = 10)
+
+    posterior$draws(format = "df") |>
+      as_tibble() |>
+      mutate(
+        mu1_bool = mu1 < data$sim$mu[1],
+        mu2_bool = mu2 < data$sim$mu[2],
+        omega_bool = omega < data$sim$omega) |>
+      summarise(
+        mu1_rank = sum(mu1_bool),
+        mu2_rank = sum(mu2_bool),
+        omega_rank = sum(omega_bool), 
+        )
+  }
+  simulaciones <- tibble(id = 1:500) |>
+    mutate(results = map(id, replicate_experiment, modelo))
+#+end_src
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/poisson-mix-histograms.jpeg :exports results :results output graphics file :eval never
+  n_reps <- 500
+
+  simulaciones |>
+    unnest(results) |>
+    pivot_longer(cols = 2:4) |>
+    ggplot(aes(x = value)) +
+    geom_hline(yintercept = n_reps/n_ranks, lty = 2, color = 'black') +
+    annotate("rect",
+             ymin = qbinom(.975, n_reps, 1/n_ranks),
+             ymax = qbinom(.025, n_reps, 1/n_ranks),
+             xmin = -Inf, xmax = Inf,
+             alpha = .4, fill = "gray") + 
+    geom_histogram(bins = n_ranks, color = "white") +
+    facet_wrap(~name) +
+    sin_lineas
+#+end_src
+
+#+RESULTS:
+[[file:../images/poisson-mix-histograms.jpeg]]
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/poisson-mix-hist-diff.jpeg  :exports results :results output graphics file :eval never
+simulaciones |>
+  unnest(results) |>
+  pivot_longer(cols = 2:4) |>
+  mutate(bins = cut(value, breaks = seq(0,100, length.out= 21))) |>
+  group_by(name, bins) |>
+  tally() |>
+  filter(!is.na(bins)) |>
+  mutate(ecdf = cumsum(n)/sum(n),
+         cdf  = 1:n_ranks/n_ranks,
+         rank = seq(2.5, 100, 5),
+         diff.cdf = ecdf - cdf,
+         diff.lo  = - 2 * sqrt(rank/100 * (1 - rank/100)/n_reps),
+         diff.hi  = + 2 * sqrt(rank/100 * (1 - rank/100)/n_reps), 
+         ) |>
+  ggplot(aes(x = rank)) +
+  geom_hline(yintercept = 0, lty = 2, color = "gray30") + 
+  geom_stepribbon(aes(ymin = diff.lo, ymax = diff.hi), fill = "grey70", alpha = .3) +
+  geom_step(aes(y = diff.cdf)) +
+  sin_lineas + facet_wrap(~name) +
+  ylab("Diferencia de acumulación") + xlab("Estadístico de orden")
+#+end_src
+
+#+RESULTS:
+[[file:../images/poisson-mix-hist-diff.jpeg]]
+
+Los resultados nos muestran histogramas que corresponden a un modelo
+sobre-disperso. Lo cual es consecuencia de un modelo posterior con mucho mayor
+incertidumbre de la que esperaríamos.
+
+#+REVEAL: split
+Por supuesto, esto lo pudimos haber diagnosticado observando una simulación de
+la posterior.  Sin embargo, bajo este enfoque (estudiar una sola simulación)
+siempre puede quedar la duda si lo que observamos es artificio de una simulación
+(por ejemplo de fijar una semilla) o es un comportamiento generalizado. 
+
+#+HEADER: :width 900 :height 600 :R-dev-args bg="transparent"
+#+begin_src R :file images/poisson-mix-single.jpeg :exports results :results output graphics file
+  data <- generate_poisson_mix(50)
+  posterior <- modelo$sample(data$obs, chains = 4,
+                             refresh = 1000,
+                             iter_sampling = 4000,
+                             seed = 108729)
+  mcmc_pairs(posterior$draws(),
+             regex_pars = "mu",
+             pars = c("omega"), 
+             off_diag_fun = "hex")
+#+end_src
+
+#+RESULTS:
+[[file:../images/poisson-mix-single.jpeg]]
+
+** Re-implementando
+
+#+begin_src stan :tangle ../modelos/calibracion/poisson-mix-full.stan
+  data {
+    int<lower=0> N;
+    int y[N];
+  }
+
+  parameters {
+    real mu1;
+    real mu2;
+    real<lower=0, upper=1> omega;
+  }
+
+  model {
+    for(n in 1:N) {
+      target += log_mix(omega,
+                        poisson_log_lpmf(y[n] | mu1),
+                        poisson_log_lpmf(y[n] | mu2));
+    }
+    target += normal_lpdf(mu1 | 3, 1);
+    target += normal_lpdf(mu2 | 3, 1);
+  }
+#+end_src
+
+#+begin_src R :exports none :results none
+  ## Caso: mezclas poisson implementacion ----------------------
+  modelos_files <- "modelos/compilados/calibracion"
+  ruta <- file.path("modelos/calibracion/poisson-mix-full.stan")
+  modelo <- cmdstan_model(ruta, dir = modelos_files)
+#+end_src
+
+#+begin_src R :exports code :results none :eval never
+  simulaciones <- tibble(id = 1:500) |>
+      mutate(results = map(id, replicate_experiment, modelo)) 
+#+end_src
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/poisson-mix-histograms-full.jpeg :exports results :results output graphics file :eval never 
+  n_reps <- 500
+
+  simulaciones |>
+    unnest(results) |>
+    pivot_longer(cols = 2:4) |>
+    ggplot(aes(x = value)) +
+    geom_hline(yintercept = n_reps/n_ranks, lty = 2, color = 'black') +
+    annotate("rect",
+             ymin = qbinom(.975, n_reps, 1/n_ranks),
+             ymax = qbinom(.025, n_reps, 1/n_ranks),
+             xmin = -Inf, xmax = Inf,
+             alpha = .4, fill = "gray") + 
+    geom_histogram(bins = n_ranks, color = "white") +
+    facet_wrap(~name) +
+    sin_lineas
+#+end_src
+
+#+RESULTS:
+[[file:../images/poisson-mix-histograms-full.jpeg]]
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/poisson-mix-hist-diff-full.jpeg  :exports results :results output graphics file :eval never
+simulaciones |>
+  unnest(results) |>
+  pivot_longer(cols = 2:4) |>
+  mutate(bins = cut(value, breaks = seq(0,100, length.out= 21))) |>
+  group_by(name, bins) |>
+  tally() |>
+  filter(!is.na(bins)) |>
+  mutate(ecdf = cumsum(n)/sum(n),
+         cdf  = 1:n_ranks/n_ranks,
+         rank = seq(2.5, 100, 5),
+         diff.cdf = ecdf - cdf,
+         diff.lo  = - 2 * sqrt(rank/100 * (1 - rank/100)/n_reps),
+         diff.hi  = + 2 * sqrt(rank/100 * (1 - rank/100)/n_reps), 
+         ) |>
+  ggplot(aes(x = rank)) +
+  geom_hline(yintercept = 0, lty = 2, color = "gray30") + 
+  geom_stepribbon(aes(ymin = diff.lo, ymax = diff.hi), fill = "grey70", alpha = .3) +
+  geom_step(aes(y = diff.cdf)) +
+  sin_lineas + facet_wrap(~name) +
+  ylab("Diferencia de acumulación") + xlab("Estadístico de orden")
+#+end_src
+
+#+RESULTS:
+[[file:../images/poisson-mix-hist-diff-full.jpeg]]
+
+Aun tenemos un modelo con muy poca incertidumbre. Al parecer hay todavía algo que no está bien en la implementación.
+
+#+HEADER: :width 900 :height 600 :R-dev-args bg="transparent"
+#+begin_src R :file images/poisson-mix-full.jpeg :exports results :results output graphics file
+  set.seed(108795)
+  data <- generate_poisson_mix(50)
+  posterior <- modelo$sample(data$obs, chains = 4,
+                             refresh = 1000,
+                             iter_warmup   = 2000,
+                             iter_sampling = 2000,
+                             seed = 108729)
+  mcmc_pairs(posterior$draws(),
+             regex_pars = "mu",
+             pars = c("omega"), 
+             off_diag_fun = "hex")
+#+end_src
+
+#+RESULTS:
+[[file:../images/poisson-mix-full.jpeg]]
+
+** Arreglando problemas de identificabilidad
+
+#+begin_src stan :tangle ../modelos/calibracion/poisson-mix-ordered.stan
+  data {
+    int<lower=0> N;
+    int y[N];
+  }
+
+  parameters {
+    ordered[2] mu;
+    real<lower=0, upper=1> omega;
+  }
+
+  model {
+    for(n in 1:N) {
+      target += log_mix(omega,
+                        poisson_log_lpmf(y[n] | mu[1]),
+                        poisson_log_lpmf(y[n] | mu[2]));
+    }
+    target += normal_lpdf(mu | 3, 1);
+  }
+#+end_src
+
+#+begin_src R :exports none :results none
+  ## Caso: mezclas poisson ordenadas ----------------------
+  modelos_files <- "modelos/compilados/calibracion"
+  ruta <- file.path("modelos/calibracion/poisson-mix-ordered.stan")
+  modelo <- cmdstan_model(ruta, dir = modelos_files)
+#+end_src
+
+#+begin_src R :exports code :results none
+  generate_poisson_mix_ordered <- function(N){
+    ## Generamos parametros simulados
+    mu <- sort(rnorm(2, 3, 1))
+    omega <- runif(1)
+    ## Generamos datos sinteticos
+    y <- numeric(N)
+    for(n in 1:N){
+      if(runif(1) < omega){
+        y[n] <- rpois(1, exp(mu[1]))
+      } else {
+        y[n] <- rpois(1, exp(mu[2]))
+      }
+    }
+    ## Regresamos en lista
+    sim <- within(list(), {
+                  mu <- mu
+                  omega <- omega
+    })
+    obs <- list(N = N, y = y)
+    list(sim = sim, obs = obs)
+  }
+#+end_src
+
+#+begin_src R :exports code :results none 
+  replicate_experiment_ordered <- function(id, modelo){
+    data <- generate_poisson_mix_ordered(50)
+    posterior <- modelo$sample(data$obs, chains = 1, refresh = 1000,
+                               iter_sampling = 990, thin = 10)
+
+    posterior$draws(format = "df") |>
+      as_tibble() |>
+      mutate(
+        mu1_bool = `mu[1]` < data$sim$mu[1],
+        mu2_bool = `mu[2]` < data$sim$mu[2],
+        omega_bool = omega < data$sim$omega) |>
+      summarise(
+        mu1_rank = sum(mu1_bool),
+        mu2_rank = sum(mu2_bool),
+        omega_rank = sum(omega_bool), 
+        )
+  }
+#+end_src
+
+#+begin_src R :exports code :results none :eval never
+  simulaciones <- tibble(id = 1:500) |>
+      mutate(results = map(id, replicate_experiment_ordered, modelo)) 
+#+end_src
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/poisson-mix-histograms-full-ordered.jpeg :exports results :results output graphics file :eval never
+  n_reps <- 500
+
+  simulaciones |>
+    unnest(results) |>
+    pivot_longer(cols = 2:4) |>
+    ggplot(aes(x = value)) +
+    geom_hline(yintercept = n_reps/n_ranks, lty = 2, color = 'black') +
+    annotate("rect",
+             ymin = qbinom(.975, n_reps, 1/n_ranks),
+             ymax = qbinom(.025, n_reps, 1/n_ranks),
+             xmin = -Inf, xmax = Inf,
+             alpha = .4, fill = "gray") + 
+    geom_histogram(bins = n_ranks, color = "white") +
+    facet_wrap(~name) +
+    sin_lineas
+#+end_src
+
+#+RESULTS:
+[[file:../images/poisson-mix-histograms-full-ordered.jpeg]]
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/poisson-mix-hist-diff-full-ordered.jpeg  :exports results :results output graphics file :eval never
+simulaciones |>
+  unnest(results) |>
+  pivot_longer(cols = 2:4) |>
+  mutate(bins = cut(value, breaks = seq(0,100, length.out= 21))) |>
+  group_by(name, bins) |>
+  tally() |>
+  filter(!is.na(bins)) |>
+  mutate(ecdf = cumsum(n)/sum(n),
+         cdf  = 1:n_ranks/n_ranks,
+         rank = seq(2.5, 100, 5),
+         diff.cdf = ecdf - cdf,
+         diff.lo  = - 2 * sqrt(rank/100 * (1 - rank/100)/n_reps),
+         diff.hi  = + 2 * sqrt(rank/100 * (1 - rank/100)/n_reps), 
+         ) |>
+  ggplot(aes(x = rank)) +
+  geom_hline(yintercept = 0, lty = 2, color = "gray30") + 
+  geom_stepribbon(aes(ymin = diff.lo, ymax = diff.hi), fill = "grey70", alpha = .3) +
+  geom_step(aes(y = diff.cdf)) +
+  sin_lineas + facet_wrap(~name) +
+  ylab("Diferencia de acumulación") + xlab("Estadístico de orden")
+#+end_src
+
+#+RESULTS:
+[[file:../images/poisson-mix-hist-diff-full-ordered.jpeg]]
+
+#+HEADER: :width 900 :height 600 :R-dev-args bg="transparent"
+#+begin_src R :file images/poisson-mix-full-ordered.jpeg :exports results :results output graphics file
+  set.seed(108795)
+  data <- generate_poisson_mix(50)
+  posterior <- modelo$sample(data$obs, chains = 4,
+                             refresh = 1000,
+                             iter_warmup   = 2000,
+                             iter_sampling = 2000,
+                             seed = 108729)
+  mcmc_pairs(posterior$draws(),
+             regex_pars = "mu",
+             pars = c("omega"), 
+             off_diag_fun = "hex")
+#+end_src
+
+#+RESULTS:
+[[file:../images/poisson-mix-full-ordered.jpeg]]
+
+  
 * Conclusiones
 
 En esta sección mostramos un mecanismo para identificar distribuciones bien
@@ -801,7 +1230,6 @@ rumbo al final del curso).
 En el mismo espíritu de diagnósticos de MCMC, ~SBC~ es un mecanismo para evaluar y
 criticar la implementación de un modelo. No nos dice qué modelo tiene sentido
 bajo un conjunto de datos. Esto es, justo lo que estudiaremos en la sección siguiente. 
-
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
