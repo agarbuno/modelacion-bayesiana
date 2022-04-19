@@ -111,6 +111,12 @@ La idea es: generar parámetros de la previa para generar datos condicionados en
 los parámetros simulados con el objetivo de estudiar la calibración de la
 posterior bajo escenarios independientes.
 
+#+REVEAL: split
+#+caption: Flujo de trabajo bayesiano. En esta sección nos concentraremos en realizar comparaciones de modelos.
+#+attr_html: :width 900 :align center
+file:../images/workflow.jpeg
+
+
 * Calibración de la posterior
 
 Supongamos que tenemos un modelo bayesiano donde tenemos una distribución previa
