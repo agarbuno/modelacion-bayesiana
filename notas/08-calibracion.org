@@ -38,7 +38,7 @@
 #+EXPORT_FILE_NAME: ../docs/08-calibracion.pdf
 :END:
 #+PROPERTY: header-args:R :session calibracion :exports both :results output org :tangle ../rscripts/08-calibracion.R :mkdirp yes :dir ../
-#+EXCLUDE_TAGS: toc
+#+EXCLUDE_TAGS: toc latex
 
 #+begin_src R :exports none :results none
   ## Setup --------------------------------------------
@@ -81,7 +81,7 @@
 :CONTENTS:
 - [[#introducción][Introducción]]
 - [[#calibración-de-la-posterior][Calibración de la posterior]]
-- [[#calibración-basada-en-calibración-cbs][Calibración basada en calibración (CBS)]]
+- [[#calibración-basada-en-simulación-cbs][Calibración basada en simulación (CBS)]]
   - [[#ejemplo-modelo-conjugado][Ejemplo: Modelo conjugado]]
   - [[#cuando-el-modelo-está-mal-especificado][Cuando el modelo está mal especificado]]
   - [[#pruebas-de-uniformidad][Pruebas de uniformidad]]
@@ -104,7 +104,7 @@ intervalo de probabilidad del $80\%$ , entonces 4 de 5 veces éste contendrá al
 verdadero valor del parámetro.
 
 Por definición, la distribución posterior está calibrada --si los datos son
-generados por el modelo--. Utilizando ~calibración basada en simulación~~
+generados por el modelo--. Utilizando ~calibración basada en simulación~
 explotaremos esta propiedad.
 
 La idea es: generar parámetros de la previa para generar datos condicionados en
@@ -117,6 +117,7 @@ Supongamos que tenemos un modelo bayesiano donde tenemos una distribución previ
 $\pi(\theta)$ para los parámetros del mecanismo generador de datos
 (verosimilitud) $\pi(y|\theta)$.
 
+#+REVEAL: split
 Ahora, consideremos que generamos una simulación
  \begin{align}
 \theta_{\mathsf{sim}} \sim \pi(\theta)\,,
@@ -130,6 +131,7 @@ Por construcción lo que hemos hecho es
 (y_{\mathsf{sim}}, \theta_{\mathsf{sim}}) \sim \pi(y, \theta)\,.
 \end{align}
 
+#+REVEAL: split
 Ahora, la regla de Bayes nos dice que la distribución posterior es proporcional a la conjunta
 \begin{align}
 \pi(\theta | y ) \propto \pi(y, \theta)\,.
@@ -139,6 +141,7 @@ Por lo que también podríamos pensar que
 \theta_{\mathsf{sim}} \sim \pi(\theta| y_{\mathsf{sim}})\,.
 \end{align}
 
+#+REVEAL: split
 Si utilizamos nuestro muestreador favorito para generar
 \begin{align}
 \theta_1, \ldots, \theta_M \sim \pi(\theta | y_{\mathsf{sim}})\,.
@@ -148,9 +151,9 @@ los datos. Esto es, por que $\theta_{\mathsf{sim}}$ es una realización aleatori
 de la posterior, y por lo tanto los estadísticos de orden de
 $\theta_{\mathsf{sim}}$ deberían de ser uniformes con respecto a los de
 $\theta_1, \ldots, \theta_M$.
-
+ 
+#+REVEAL: split
 \newpage
-
 O dicho de otra manera,
 \begin{align}
 \pi(\theta) = \int  \pi(\theta| y_{\mathsf{sim}})  \pi(y_{\mathsf{sim}} |\theta_{\mathsf{sim}}) \pi(\theta_{\mathsf{sim}}) \, \text{d}y_{\mathsf{sim}}\, \text{d}\theta_{\mathsf{sim}}\,.
@@ -158,19 +161,21 @@ O dicho de otra manera,
 Lo cual nos da un mecanismo para evaluar qué tan bien estamos utilizando nuestro
 algoritmo para generar muestras de la posterior citep:Talts2020.
 
-* Calibración basada en calibración (CBS)
+* Calibración basada en simulación (CBS)
 
 Utilizaremos la propiedad discutida arriba para generar 
 \begin{align}
 y_{\mathsf{sim}}^{(n)}, \theta_{\mathsf{sim}}^{(n)} \sim \pi(y, \theta), \qquad n = 1, \ldots, N\,.
 \end{align}
 
+#+REVEAL: split
 Para cada uno de los datos simulados $y_{\mathsf{sim}}^{(n)}$ utilizamos nuestro
 algoritmo para generar
 \begin{align}
 \theta_1^{(n)}, \ldots, \theta_M^{(n)} \sim \pi(\theta | y_{\mathsf{sim}}^{(n)})\,.
 \end{align}
 
+#+REVEAL: split
 Si consideramos los estadísticos de orden--el número de simulaciones de la
 posterior menores al parámetro simulado--en cada componente de nuestro vector de
 parámetros, tendremos que
@@ -195,6 +200,7 @@ conocimiento previo para los parámetros
 \end{gather}
 y asumimos una $\sigma$ conocida.
 
+#+REVEAL: split
 Este modelo es un modelo conjugado ~Normal-Normal~ el cual tiene un distribución posterior
 \begin{align}
 \mu | y \sim \mathsf{N}\left( \frac{y}{\sigma^2+ 1}, 1 + \frac{1}{\sigma^2} \right)\,.
@@ -204,8 +210,9 @@ Este modelo es un modelo conjugado ~Normal-Normal~ el cual tiene un distribució
   ## Modelo conjugado ------------------
 #+end_src
 
+#+REVEAL: split
 Consideremos $\sigma^2 = 2$. Si realizamos una simulación de la previa tenemos el siguiente parámetro:
-#+begin_src R :exports both :results org 
+#+begin_src R :exports results :results org 
   set.seed(108791)
   sim <- list(mu = rnorm(1))
   sim |> as.data.frame()
@@ -217,8 +224,9 @@ Consideremos $\sigma^2 = 2$. Si realizamos una simulación de la previa tenemos 
 1 0.61
 #+end_src
 
+#+REVEAL: split
 Con los cuales podemos simular un conjunto de datos:
-#+begin_src R :exports both :results org 
+#+begin_src R :exports results :results org 
   data <- list(y = rnorm(1, sim$mu, sd = sqrt(2)))
   data
 #+end_src
@@ -229,8 +237,9 @@ $y
 [1] 1.4
 #+end_src
 
+#+REVEAL: split
 Y con estos datos simulamos de la posterior $M = 4$ iteraciones: 
-#+begin_src R :exports both :results org 
+#+begin_src R :exports results :results org 
   params <- tibble(mu = rnorm(4, data$y/3, sd = sqrt(2/3)))
   params |> as.data.frame()
 #+end_src
@@ -244,8 +253,9 @@ Y con estos datos simulamos de la posterior $M = 4$ iteraciones:
 4  2.823
 #+end_src
 
+#+REVEAL: split
 Hacemos las comparaciones contra $\mu_{\mathsf{sim}} = 0.61$:  
-#+begin_src R :exports both :results org 
+#+begin_src R :exports results :results org 
   params |>
     mutate(indicadora = ifelse(mu < sim$mu, 1, 0)) |>
     as.data.frame()
@@ -260,7 +270,7 @@ Hacemos las comparaciones contra $\mu_{\mathsf{sim}} = 0.61$:
 4  2.823          0
 #+end_src
 
-Si calculamos el estadístico de rango, obtenemos una $r_{1, \mu} = 1$. El cual
+Si calculamos el estadístico de orden, obtenemos una $r_{1, \mu} = 1$. El cual
 debería de estar uniformemente distribuido entre los enteros del 0 al 4.
 ¿lo ponemos a prueba?
 
@@ -276,6 +286,7 @@ debería de estar uniformemente distribuido entre los enteros del 0 al 4.
      mutate(rank = map_dbl(id, experimento))
 #+end_src
 
+#+REVEAL: split
 La idea es replicar el procedimiento de generación de parámetros y muestras sintéticas con la intención de observar un comportamiento uniforme en los histogramas ([[fig:sbc-rank]]). 
 
 #+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
@@ -316,6 +327,7 @@ Para cada réplica $n = 1, \ldots, N$, podemos generar un número fijo de simula
   res.unif <- resultados
 #+end_src
 
+#+REVEAL: split
 #+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/sbc-normal-normal-20.jpeg :exports results :results output graphics file
   resultados |>
@@ -341,11 +353,9 @@ histogramas. Alternativas a esta estrategia es poder evaluar la función de
 acumulación empírica (~ECDF~) contra el modelo uniforme. Esto también puede
 compararse de manera visual como se muestra en la [[fig:sbc-ks]], en donde estamos
 comparando contra la función de acumulación (~CDF~) de experimentos uniformes
-(panel izquierdo). Por otro lado, la comparación gráfica entre la ~ECDF~ y ~CDF~ se
-vuelve compleja en realizarse si el número de cubetas ($M$) es muy elevado. Por
-eso tendemos a comparar la diferencia, asumiendo una aproximación Gaussiana
-(panel derecho).
+(panel izquierdo). 
 
+#+REVEAL: split
 #+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/sbc-histogramas-referencia.jpeg :exports results :results output graphics file
   library(pammtools)
@@ -385,6 +395,13 @@ eso tendemos a comparar la diferencia, asumiendo una aproximación Gaussiana
 #+caption: Gráficos alternativos para evaluar la prueba uniforme. 
 #+RESULTS:
 [[file:../images/sbc-histogramas-referencia.jpeg]]
+
+#+BEGIN_NOTES
+Por otro lado, la comparación gráfica entre la ~ECDF~ y ~CDF~ se
+vuelve compleja en realizarse si el número de cubetas ($M$) es muy elevado. Por
+eso tendemos a comparar la diferencia, asumiendo una aproximación Gaussiana
+(panel derecho) en [[fig:sbc-ks]].
+#+END_NOTES
 
 ** Cuando el modelo está mal especificado
 
@@ -606,6 +623,7 @@ Una manera de poder efectuar una prueba es considerar una $\chi^2$ y verificar
 que los conteos en las cubetas corresponden, en promedio, a lo que esperaríamos
 con ordenes uniformes.
 
+#+REVEAL: split
 El estadístico de prueba sería
 \begin{align}
 \hat \chi^2 = \sum_{m = 1}^{M} \frac{(b_m - e_m)^2}{e_m}\,,
@@ -613,6 +631,7 @@ El estadístico de prueba sería
 donde $b_m$ denota el número de réplicas en la cubeta $m$ ésima y $e_m$ denota
 el número de réplicas que esperaríamos caigan en dicha cubeta.
 
+#+REVEAL: split
 La prueba radica en que los términos de la suma son potencias cuadradas de una normal estándar y por lo tanto
 \begin{align}
 \hat \chi^2 \sim \chi^2_{M-1}\,,
@@ -627,11 +646,13 @@ La idea, como hemos mencionado antes, es poner a prueba si nuestra
 implementación de un modelo es la adecuada. Estas pruebas no están diseñadas
 para verificar que nuestro modelo es el adecuado.
 
+#+REVEAL: split
 Usaremos ~Stan~ para:
 1. Simular datos.
 2. Ajustar la distribución posterior.
 3. Calcular los estadísticos de orden.
 
+#+REVEAL: split
 Esto implicará que tenemos que correr nuestro simulador varias veces para poder
 producir un histograma de estadísticos de orden que esperamos tenga una
 distribución de muestreo uniforme dentro de los rangos.
@@ -647,6 +668,7 @@ Podemos utilizar un bloque ~transformed data~ para simular parámetros y datos p
   }
 #+end_src
 
+#+REVEAL: split
 Adicional, podemos utilizar un bloque ~generated quantities~ para calcular las indicadoras y los estadísticos de orden
 #+begin_src stan :tangle no
   generated quantities {
@@ -680,6 +702,9 @@ deficiente, que no será necesario pedir cadenas tan estables.
 #+END_NOTES
 
 
+#+REVEAL: split
+El código en ~Stan~ queda como se muestra a continuación:
+
 #+begin_src stan :tangle ../modelos/calibracion/escuelas.stan
   transformed data {
     real mu_sim = normal_rng(0, 5);
@@ -707,6 +732,7 @@ deficiente, que no será necesario pedir cadenas tan estables.
   }
 #+end_src
 
+#+REVEAL: split
 Nota que el bloque de ~transformed data~ escribe el proceso generador de los datos. Primero, simulamos los parámetros poblacionales $(\mu, \tau)$; después, los datos $(y_j, \sigma_j)$.
 
 #+begin_src R :exports none :results none
@@ -739,6 +765,7 @@ Nota que el bloque de ~transformed data~ escribe el proceso generador de los dat
     mutate(results = map(id, crea_muestras, modelo.bp))
 #+end_src
 
+#+REVEAL: split
 Los resultados de esta implementación nos están advirtiendo que el modelo
 posterior tiene una distribución con sobre-dispersión para el parámetro
 $\theta_1$.  Además para $\log\tau$ parece también haber evidencia de cierto
@@ -765,6 +792,7 @@ sesgo del modelo. Ver [[fig:schools-hist]] y [[fig:schools-diff]].
 #+RESULTS:
 [[file:../images/escuelas-sbc-histograms.jpeg]]
 
+#+REVEAL: split
 #+HEADER: :width 1200 :height 400  :R-dev-args bg="transparent"
 #+begin_src R :file images/escuelas-sbc-histogramas-diff.jpeg  :exports results :results output graphics file :eval never
   resultados.escuelas |>
@@ -838,6 +866,7 @@ la simulación de datos sintéticos, por lo tanto, no utilizaremos el bloque de
   modelo <- cmdstan_model(ruta, dir = modelos_files)
 #+end_src
 
+#+REVEAL: split
 La función para generar las simulaciones es el siguiente: 
 
 #+begin_src R :exports code :results none 
@@ -865,6 +894,7 @@ La función para generar las simulaciones es el siguiente:
   }
 #+end_src
 
+#+REVEAL: split
 El modelo tiene un poco de problemas en correr. Por ejemplo, algunas
 simulaciones tienen un número efectivo de simulaciones mucho menores de las que
 corremos (alrededor del $10\%$). Así que hace sentido adelgazar la cadena para
@@ -892,6 +922,7 @@ mitigar los efectos de correlación en los gráficos de diagnóstico.
     mutate(results = map(id, replicate_experiment, modelo))
 #+end_src
 
+#+REVEAL: split
 #+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/poisson-mix-histograms.jpeg :exports results :results output graphics file :eval never
   n_reps <- 500
@@ -915,6 +946,7 @@ mitigar los efectos de correlación en los gráficos de diagnóstico.
 #+RESULTS:
 [[file:../images/poisson-mix-histograms.jpeg]]
 
+#+REVEAL: split
 #+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/poisson-mix-hist-diff.jpeg  :exports results :results output graphics file :eval never
 simulaciones |>
@@ -948,11 +980,7 @@ sobre-disperso. Lo cual es consecuencia de un modelo posterior con mucho mayor
 incertidumbre de la que esperaríamos. Ver [[fig:poisson-mix-hist]] y [[fig:poisson-mix-diff]].
 
 #+REVEAL: split
-Por supuesto, esto lo pudimos haber diagnosticado observando una réplica de
-haber simulado de la posterior bajo un conjunto de datos hipotético.  Sin
-embargo, bajo este enfoque (estudiar una sola réplica) siempre puede quedar
-la duda si lo que observamos es un artificio de una simulación (por ejemplo de
-fijar una semilla) o es un comportamiento generalizable.
+Ahora vemos como se ve el ajuste posterior de esta implementación con un conjunto de datos sintético.
 
 #+HEADER: :width 900 :height 600 :R-dev-args bg="transparent"
 #+begin_src R :file images/poisson-mix-single.jpeg :exports results :results output graphics file
@@ -970,12 +998,21 @@ fijar una semilla) o es un comportamiento generalizable.
 #+RESULTS:
 [[file:../images/poisson-mix-single.jpeg]]
 
+#+BEGIN_NOTES
+Por supuesto, esto lo pudimos haber diagnosticado observando una réplica de
+haber simulado de la posterior bajo un conjunto de datos hipotético.  Sin
+embargo, bajo este enfoque (estudiar una sola réplica) siempre puede quedar
+la duda si lo que observamos es un artificio de una simulación (por ejemplo de
+fijar una semilla) o es un comportamiento generalizable.
+#+END_NOTES
+
+
 ** Re-implementando
 
 El problema anterior se debe a que el modelo sobre-ajusta a un componente. Nota
 que el parámetro de peso no puede ser ajustado por el modelo. Revisando la
 documentación de ~Stan~ sobre modelos de mezclas, notamos que teníamos mal
-implementado el modelo para mas de una observación.
+implementado el modelo para más de una observación.
 
 #+REVEAL: split
 Lo que hicimos anteriormente asigna el mismo componente de la mezcla para todos
@@ -1019,7 +1056,9 @@ identifican a cada uno de los componentes.
       mutate(results = map(id, replicate_experiment, modelo)) 
 #+end_src
 
-Los resultados con nuestra simulación (500 réplicas y utilizar muestras para identificar órdenes de hasta 100) nos brindan los siguientes gráficos. 
+#+REVEAL: split
+Los resultados con nuestra simulación (500 réplicas y utilizar muestras para
+identificar órdenes de hasta 100) nos brindan los siguientes gráficos.
 
 #+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/poisson-mix-histograms-full.jpeg :exports results :results output graphics file :eval never 
@@ -1044,6 +1083,7 @@ Los resultados con nuestra simulación (500 réplicas y utilizar muestras para i
 #+RESULTS:
 [[file:../images/poisson-mix-histograms-full.jpeg]]
 
+#+REVEAL: split
 #+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/poisson-mix-hist-diff-full.jpeg  :exports results :results output graphics file :eval never
 simulaciones |>
@@ -1072,6 +1112,7 @@ simulaciones |>
 #+RESULTS:
 [[file:../images/poisson-mix-hist-diff-full.jpeg]]
 
+#+REVEAL: split
 Después de observar [[fig:poisson-mix-correct-hist]] y [[fig:poisson-mix-correct-diff]],
 notamos que aún tenemos un modelo con muy poca incertidumbre. Al parecer hay
 todavía algo que no está bien en la implementación.
@@ -1130,6 +1171,7 @@ Para modelos de mezclas es usual no poder identificar cada componente de manera 
   modelo <- cmdstan_model(ruta, dir = modelos_files)
 #+end_src
 
+#+REVEAL: split
 Por supuesto, tenemos que cambiar nuestra implementación del mecanismo que
 genera datos del modelo generativo (la distribución conjunta de datos y
 parámetros).
@@ -1158,7 +1200,7 @@ parámetros).
   }
 #+end_src
 
-#+begin_src R :exports code :results none 
+#+begin_src R :exports results :results none 
   replicate_experiment_ordered <- function(id, modelo){
     data <- generate_poisson_mix_ordered(50)
     posterior <- modelo$sample(data$obs, chains = 1, refresh = 1000,
@@ -1183,6 +1225,7 @@ parámetros).
       mutate(results = map(id, replicate_experiment_ordered, modelo)) 
 #+end_src
 
+#+REVEAL: split
 Nuestros resultados se ilustran en las últimas figuras de esta sección. 
 
 #+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
@@ -1207,6 +1250,7 @@ Nuestros resultados se ilustran en las últimas figuras de esta sección.
 #+RESULTS:
 [[file:../images/poisson-mix-histograms-full-ordered.jpeg]]
 
+#+REVEAL: split
 #+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/poisson-mix-hist-diff-full-ordered.jpeg  :exports results :results output graphics file :eval never
 simulaciones |>
@@ -1234,6 +1278,9 @@ simulaciones |>
 #+RESULTS:
 [[file:../images/poisson-mix-hist-diff-full-ordered.jpeg]]
 
+
+#+REVEAL: split
+De igual manera podemos comparar con una realización aleatoria del problema de inferencia. 
 #+HEADER: :width 900 :height 600 :R-dev-args bg="transparent"
 #+begin_src R :file images/poisson-mix-full-ordered.jpeg :exports results :results output graphics file
   set.seed(108795)
@@ -1253,6 +1300,7 @@ simulaciones |>
 [[file:../images/poisson-mix-full-ordered.jpeg]]
 
 
+#+REVEAL: split
 Lo que vemos es que nuestro modelo está bien implementado. Ya no sufre de los
 problemas que veíamos anteriormente y esto nos pone en una situación donde
 podremos utilizar nuestro modelo para ajustar datos. Por supuesto, esto no garantiza que
@@ -1277,7 +1325,10 @@ rumbo al final del curso).
 #+REVEAL: split
 En el mismo espíritu de diagnósticos de MCMC, ~SBC~ es un mecanismo para evaluar y
 criticar la implementación de un modelo. No nos dice qué modelo tiene sentido
-bajo un conjunto de datos. Esto es, justo lo que estudiaremos en la sección siguiente. 
+bajo un conjunto de datos. Esto es justo lo que estudiaremos en la sección siguiente. 
+
+
+# * Referencias                                                         :latex:
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
