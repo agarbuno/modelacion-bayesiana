@@ -14,35 +14,12 @@
 #+REVEAL_EXTRA_CSS: ./mods.css
 #+REVEAL_PLUGINS: (notes)
 :END:
-:LATEX_PROPERTIES:
-#+OPTIONS: toc:nil date:nil author:nil tasks:nil
-#+LANGUAGE: sp
-#+LATEX_CLASS: handout
-#+LATEX_HEADER: \usepackage[spanish]{babel}
-#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
-#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
-#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
-#+LATEX_HEADER: \decimalpoint
-#+LATEX_HEADER:\usepackage{framed}
-#+LaTeX_HEADER: \usepackage{listings}
-#+LATEX_HEADER: \usepackage{fancyvrb}
-#+LATEX_HEADER: \usepackage{xcolor}
-#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
-#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
-#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
-#+LaTeX_HEADER: {}
-#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
-#+LaTeX_HEADER: {}
-#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
-#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
-#+EXPORT_FILE_NAME: ../docs/09-comparacion-modelos.pdf
-:END:
 #+PROPERTY: header-args:R :session comparacion :exports both :results output org :tangle ../rscripts/09-comparacion.R :mkdirp yes :dir ../
-#+EXCLUDE_TAGS: toc
+#+EXCLUDE_TAGS: toc latex
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Comparación de modelos.\\
-*Objetivo*: Que veremos.\\
-*Lectura recomendada*: Capítulo 2.5 de citep:Martin2021. Capítulo 7 de citep:McElreath2020. Capítulo 7 de citep:Gelman2014a. 
+*Objetivo*: Ya hemos visto cómo diagnosticar y criticar nuestros modelos bayesianos de manera interna. Estudiaremos mecanismos de validación y comparación de modelos que nos servirán para llevar un proceso iterativo de construcción y crítica de modelos en conjunto. \\
+*Lectura recomendada*: Parte de la discusión se ha tomado de citep:Gelman2014c, el Capítulo 2.5 de citep:Martin2021, el Capítulo 7 de citep:McElreath2020, y el Capítulo 7 de citep:Gelman2014a. 
 #+END_NOTES
 
 #+begin_src R :exports none :results none
@@ -65,6 +42,13 @@
   sin_ejes <- theme(axis.ticks = element_blank(), axis.text = element_blank())
 #+end_src
 
+#+begin_src R :exports none :results none
+  ## Librerias para modelacion bayesiana
+  library(cmdstanr)
+  library(posterior)
+  library(bayesplot)
+#+end_src
+
 
 * Contenido                                                             :toc:
 :PROPERTIES:
@@ -72,19 +56,698 @@
 :END:
 :CONTENTS:
 - [[#introducción][Introducción]]
-- [[#criterios-de-información][Criterios de información]]
+- [[#comparación-de-modelos-probabilísticos][Comparación de modelos probabilísticos]]
+  - [[#información-e-incertidumbre][Información e incertidumbre]]
+  - [[#en-el-contexto-bayesiano][En el contexto Bayesiano]]
+  - [[#consideraciones-prácticas][Consideraciones prácticas]]
+  - [[#precuaciones][Precuaciones]]
+- [[#métodos-de-comparación-de-modelos][Métodos de comparación de modelos]]
+  - [[#criterio-de-información-de-akaike-aic][Criterio de información de Akaike (AIC)]]
+  - [[#criterio-de-información-de-devianza-dic][Criterio de información de Devianza (DIC)]]
+  - [[#criterio-de-información-watanabe-akaike-waic][Criterio de información Watanabe-Akaike (WAIC)]]
+  - [[#validación-cruzada][Validación cruzada]]
+  - [[#ejemplo-modelo-jerárquico][Ejemplo: modelo jerárquico]]
+- [[#referencias][Referencias]]
 :END:
 
 * Introducción 
+
+Hemos estudiado usar evaluación y crítica de modelos por medio distribuciones
+predictivas. Esto nos permitió criticar un modelo en aislamiento. Es decir, sólo
+considerando el modelo --la elección de verosimilitud y previa-- que estamos
+utilizando. Por otro lado, en la sección pasada estudiamos mecanismos basados en
+generación de datos sintéticos para evaluar si el modelo está bien implementado.
 
 #+caption: Flujo de trabajo bayesiano. En esta sección nos concentraremos en realizar comparaciones de modelos.
 #+attr_html: :width 900 :align center
 file:../images/workflow.jpeg
 
+* Comparación de modelos probabilísticos
 
-* Criterios de información
+En el contexto de modelos probabilísticos tiene sentido preguntarnos no sólo por
+la capacidad predictiva del modelo (en términos puntuales) sino también por la
+confianza del modelo en dichas predicciones. Consideremos la gráfica en
+([[fig:prob-predictions]]).
 
-Capítulo 2 y apéndice de citep:Martin2021. 
+#+REVEAL: split
+#+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/probabilistic-comparison.jpeg :exports results :results output graphics file
+
+  g1 <- tibble(x = seq(-5, 5, length.out = 200)) |>
+    mutate(y = dnorm(x, 0, 2)) |>
+    ggplot(aes(x, y)) +
+    geom_ribbon(aes(ymin = 0, ymax = y), color = "gray70", alpha = .3) + 
+    geom_vline(xintercept = -2, lty = 2, color = 'red') +
+    sin_lineas + sin_ejes +
+    ylab("Densidad") + xlab("") +
+    ggtitle("erróneo / incierto")
+
+  g2 <- tibble(x = seq(-5, 5, length.out = 200)) |>
+    mutate(y = dnorm(x, 0,.5)) |>
+    ggplot(aes(x, y)) +
+    geom_ribbon(aes(ymin = 0, ymax = y), color = "gray70", alpha = .3) + 
+    geom_vline(xintercept = -2, lty = 2, color = 'red') +
+    sin_lineas + sin_ejes +
+    ylab("Densidad") + xlab("") +
+    ggtitle("erróneo / confiado")
+
+  g3 <- tibble(x = seq(-5, 5, length.out = 200)) |>
+    mutate(y = dnorm(x, -2, 2)) |>
+    ggplot(aes(x, y)) +
+    geom_ribbon(aes(ymin = 0, ymax = y), color = "gray70", alpha = .3) + 
+    geom_vline(xintercept = -2, lty = 2, color = 'red') +
+    sin_lineas + sin_ejes +
+    ylab("Densidad") + xlab("") +
+    ggtitle("acertado / incierto")
+
+  g4 <- tibble(x = seq(-5, 5, length.out = 200)) |>
+    mutate(y = dnorm(x, -2, .5)) |>
+    ggplot(aes(x, y)) +
+    geom_ribbon(aes(ymin = 0, ymax = y), color = "gray70", alpha = .3) + 
+    geom_vline(xintercept = -2, lty = 2, color = 'red') +
+    sin_lineas + sin_ejes +
+    ylab("Densidad") + xlab("") +
+    ggtitle("acertado / confiado")
+
+  (g1 + g2) / (g3 + g4)
+#+end_src
+#+name: fig:prob-predictions
+#+caption: Predicciones probabilísticas.
+#+RESULTS:
+[[file:../images/probabilistic-comparison.jpeg]]
+
+#+BEGIN_NOTES
+En la [[fig:prob-predictions]] tenemos 4 modelos tratando de predecir una cantidad no observada (la línea punteada vertical). Claramente hay ciertas situaciones que son preferibles a otras. Por ejemplo, entre los dos modelos ~confiados~ preferimos el modelo ~acertado~. Sin embargo, entre los dos modelos ~erróneos~ preferimos el modelo ~incierto~. Entre los dos modelos ~acertados~ preferimos que el tiene mayor confianza en sus predicciones. Si realizamos las comparaciones veremos que preferiremos un modelo y con predicciones precisas. Mientras que un modelo erróneo e incierto sólo será preferido si se contrasta con un modelo con erróneo y confiado. 
+#+END_NOTES
+
+#+REVEAL: split
+Lo que vemos es que para contrastar un modelo necesitamos una manera de poder
+comparar al mismo tiempo ~asertividad~ y ~certidumbre~. Justo podríamos comparar en
+términos de las densidades. Y por cuestiones numéricas argumentar sobre comparar
+basados en la ~log-densidad~.
+
+#+REVEAL: split
+Resulta que comparar con log-densidades es una regla que tiene muchas
+propiedades teóricas atractivas citep:Gneiting2007a. Lo que queremos es poder
+medir la log-densidad y compararla contra un oráculo que reporte las
+probabilidades verdaderas. La respuesta la encontramos en ~teoría de la
+información~ citep:MacKay2003.
+
+** Información e incertidumbre 
+
+La pregunta que queremos resolver es: /¿Qué tanto se ha reducido mi incertidumbre
+cuando observo un resultado?/
+
+#+REVEAL: split
+La función que nos ayuda a medir la incertidumbre reflejada en un función de
+probabilidad es la ~entropía~ de dicha función de probabilidad.  Supongamos
+que tenemos $n$ posibles observaciones, cada una ocurriendo con probabilidad
+$p_i$ entonces la entropía es
+\begin{align}
+H(p) = - \mathbb{E} \log p = - \sum_{i=1}^{n} p_i \log p_i \,.
+\end{align}
+
+#+REVEAL: split
+Con esa medida nos gustaría medir la incertidumbre adicional por utilizar una
+distribución distinta. Esto lo logramos con la ~divergencia de
+Kullback-Leibler~. La cual definimos como
+\begin{align}
+\mathsf{KL}(p \| q) = \sum_{i = 1}^{n} p_i (\log p_i - \log q_i) = \sum_{i=1}^{n} p_i \log \left( \frac{p_i}{q_i} \right)\,.
+\end{align}
+
+#+BEGIN_NOTES
+Nota que la divergencia de Kullback-Leibler la podemos escribir como
+\begin{align}
+\mathsf{KL}(p\| q) = H(p, q) - H(q)\,,
+\end{align}
+donde $H(p,q) = - \sum_{i=1}^{n} p_i \log q_i$ es la ~entropía cruzada~. 
+#+END_NOTES
+
+#+REVEAL: split
+Supongamos que tenemos un evento binario con probabilidades $p = \{0.3,
+0.7\}$. Consideremos $q$ una función que asigna las probabilidades de dicho evento binario. Esto puede ser desde una $q = \{0.01, 0.99\}$ hasta una $q = \{0.99, 0.01\}$.
+
+#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/kl-cartoon.jpeg :exports results :results output graphics file
+  g1 <- tibble(q = seq(0.01, .99, length.out = 150)) |>
+    mutate(kl = map_dbl(q, function(x){
+      0.3 * (log(.3) - log(x)) + 0.7 * (log(.7) - log(1-x))
+    })) |>
+    ggplot(aes(q, kl)) +
+    geom_line() +
+    geom_vline(xintercept = .3, lty = 2, color = 'red') +
+    ylab("Divergencia KL") + xlab(expression(q[1])) +
+        sin_lineas
+
+  g2 <- tibble(q = seq(0.01, .99, length.out = 150)) |>
+    mutate(kl = map_dbl(q, function(x){
+      0.3 * (log(.3) - log(x)) + 0.7 * (log(.7) - log(1-x))
+        })) |>
+    ggplot(aes(q, kl)) +
+    geom_line() +
+    geom_vline(xintercept = .3, lty = 2, color = 'red') +
+        scale_y_log10() +
+    ylab("log-Divergencia KL") + xlab(expression(q[1])) +
+    sin_lineas
+
+  g1 + g2
+#+end_src
+#+caption: Divergencia KL de usar $q$ cuando los eventos ocurren con distribución $p$, $\mathsf{KL}(p\|q)$. 
+#+RESULTS:
+[[file:../images/kl-cartoon.jpeg]]
+
+#+REVEAL: split
+En la práctica, por supuesto no conocemos $p$ ---no estaríamos haciendo
+inferencia--- pero nos interesa poder contrastar dos modelos de probabilidad,
+$q$ y $r$.  Lo cual podemos realizar por medio de medir diferencias:
+\begin{align}
+\mathsf{KL}(p\|q) - \mathsf{KL}(p\|r)\,.
+\end{align}
+
+#+BEGIN_NOTES
+¿Qué es lo que notas de la ecuación de arriba? 
+#+END_NOTES
+
+#+REVEAL: split
+Calcular la diferencia elimina el término $H(p)$ y al final no lo
+necesitamos. El término que queda es el referente a los términos de ~entropía
+cruzada~ entre nuestros modelos de probabilidad y el mecanismo que genera los
+datos $p$.
+
+** En el contexto Bayesiano
+
+Hemos establecido que podemos calcular la entropía cruzada de cada modelo para
+poder comparar entre alternativas. Para esto necesitamos calcular 
+las log-densidades bajo nuestro modelo bayesiano. Esto es,
+necesitamos calcular ~log-densidad predictiva posterior puntual~ en $\tilde y_i$
+\begin{align}
+\mathsf{lppd}(\tilde y_i) := \log \pi (\tilde y_i | \underline{y}_n)  = \log \int \pi (\tilde y_i | \theta ) \, \pi(\theta | \underline{y}_n ) \, \text{d}\theta \,.
+\end{align}
+
+#+REVEAL: split
+Notemos que estamos promediando el proceso generador de datos (verosimilitud)
+con respecto a las posibles configuraciones que tienen sentido través de la
+distribución posterior.
+
+#+REVEAL: split
+Podemos ir mas allá y establecer el cálculo del ~valor esperado de la
+log-densidad predictiva~ en $\tilde y_i$, o mejor aún, en una colección
+de realizaciones
+\begin{align}
+\mathsf{elppd} = \sum \int \pi( \tilde y_i) \log \pi(\tilde y_i | \underline{y}_n) \text{d}\tilde y_i\,,
+\end{align}
+donde estamos utilizando nuestra distribución predictiva posterior para un
+conjunto de datos nuevo $\tilde y_i$, después de haber observado un conjunto de
+datos $\underline{y}_n$.
+
+#+BEGIN_NOTES
+Nota que la expresión de $\mathsf{elpd}$ evalúa la capacidad predictiva del
+modelo en términos de la log-verosimilitud de manera puntual en cada una de
+nuevas muestras. El problema es nuestro desconocimiento de $\pi(\tilde y_i)$. 
+#+END_NOTES
+
+** Consideraciones prácticas
+
+En la expresión anterior estamos haciendo uso de una distribución para datos
+nuevos ($\pi(\tilde y)$) la cual no conocemos. Así que lo que hacemos es calcular un resumen
+de la ~log-densidad predictiva posterior puntual~ evaluada en nuestros datos
+\begin{align}
+\mathsf{lppd}(n) := \sum_{i = 1}^{n} \mathsf{lppd}(y_i) = \sum_{i = 1}^{n} \log \pi (y_i | \underline{y}_n) \,.
+\end{align}
+
+#+REVEAL: split
+Para la cual podemos utilizar un estimador Monte Carlo
+\begin{align}
+\widehat{\mathsf{lppd}}(n) = \sum_{i = 1}^{n} \log \left(\frac{1}{S} \sum_{s = 1}^{S} \pi (y_i | \theta^s) \right)\,,
+\end{align}
+donde $\theta^s \sim \pi(\theta | \underline{y}_n)$ . 
+
+** Precuaciones
+:PROPERTIES:
+:reveal_background: #00468b
+:END:
+
+El estimador construido arriba tiene el riesgo de dar valores pueden ser muy optimistas. ¿Por qué?
+
+* Métodos de comparación de modelos
+
+En cualquier tarea de modelado predictivo nos interesa poder evaluar la
+capacidad de generalización del modelo construido. Usualmente utilizaríamos un
+conjunto de datos distinto o un conjunto de datos que veremos en un futuro
+cercano para evaluar la capacidad predictiva. Pero *bajo el contexto Bayesiano* al
+momento de hacer inferencia sólo podemos considerar un conjunto de datos para el
+ajuste. Además, como hemos mencionado antes *no conocemos* el mecanismo de cómo de
+se generan los datos.
+
+
+#+REVEAL: split
+Los mecanismos usuales para medir la capacidad predictiva de un modelo son:
+1. /Capacidad predictiva dentro de muestra/.
+2. /Capacidad ajustada dentro de muestra/.
+3. /Validación cruzada/. 
+
+** Criterio de información de Akaike (AIC)
+
+El criterio de información de Akaike es el método tradicional para evaluar la
+capacidad predictiva general del modelo sin tener en consideración un conjunto
+de datos adicional. La métrica penaliza por el número de parámetros
+(citep:Gelman2014c,Akaike1973, ) a través de 
+\begin{align}
+\widehat{\mathsf{elpd}}_{\mathsf{AIC}} = \log \pi (\underline{y}_n | \hat \theta_{\mathsf{MLE}}) - k\,,
+\end{align}
+donde $k$  es el número de parámetros del modelo. 
+
+#+BEGIN_NOTES
+Nota que en la literatura es usual encontrar la expresión
+\begin{align}
+\mathsf{AIC} = -2 \cdot \widehat{\mathsf{elpd}}_{\mathsf{AIC}} =  - 2\log \pi (\underline{y}_n | \hat \theta_{\mathsf{MLE}}) +2 k\,,
+\end{align}
+donde en lugar de tenerlo escrito en términos de la /log densidad predictiva/
+(tema del curso) está definido en términos de devianza (en citep:Wilks1938 se
+argumenta por el factor de $-2$ para tener una distribución asintótica $\chi^2$
+para una diferencia de devianzas).
+#+END_NOTES
+
+** Criterio de información de Devianza (DIC)
+
+El criterio de información de Devianza (DIC) incorpora dos cambios en el
+contexto bayesiano. Reemplaza el estimador de ~MLE~ por un estimador bayesiano y
+el término relacionado a los parámetros se cambia por un estimado utilizando los
+datos. La métrica de capacidad predictiva es
+\begin{align}
+\widehat{\mathsf{elpd}}_{\mathsf{DIC}} = \log \pi(\underline{y}_n | \hat \theta_{\mathsf{Bayes}}) - p_{\mathsf{DIC}}\,,
+\end{align}
+donde $\hat \theta_{\mathsf{Bayes}}$ es la media posterior y $p_{\mathsf{DIC}}$
+es el ~número efectivo de parámetros~.
+
+#+REVEAL: split
+El número efectivo de parámetros se puede calcular por medio de dos expresiones:
+\begin{align}
+p_{\mathsf{DIC}} = 2 \left( \log \pi (\underline{y}_n | \hat \theta_{\mathsf{Bayes}})  - \mathbb{E}_{\theta | \underline{y}_n}[ \log \pi (\underline{y}_n |\theta ) ]\right)
+\end{align}
+ó
+\begin{align}
+p_{\mathsf{DIC}} = 2 \mathbb{V}_{\theta|\underline{y}_n}(\log \pi (\underline{y}_n | \theta))\,.
+\end{align}
+
+#+BEGIN_NOTES
+Ambas estimaciones dan el resultado correcto en el límite de un modelo con
+número de parámetros fijos una colección grande de datos.
+#+end_NOTES
+
+** Criterio de información Watanabe-Akaike (WAIC) 
+
+El criterio de Watanabe-Akaike (WAIC) utiliza la log-densidad predictiva
+posterior puntual ($\mathsf{lppd}$) y utiliza una corrección por el número
+efectivo de parámetros
+\begin{align}
+p_{\mathsf{WAIC}} = \sum_{i = 1}^{n} \mathbb{V}_{\theta | \underline{y}_n}(\log \pi(y_i | \theta))\,,
+\end{align}
+por lo que la métrica la calculamos por medio de
+\begin{align}
+\widehat{\mathsf{elppd}}_{\mathsf{WAIC}} = \widehat{\mathsf{lppd}}(n) - p_{\mathsf{WAIC}}\,.
+\end{align}
+
+#+BEGIN_NOTES
+Nota que es una métrica que necesita la log-densidad predictiva posterior
+puntual en cada una de las observaciones. Por detrás esto supone cierta
+estructura de independencia condicional de los datos. Se puede calcular para
+datos con cierta estructura (temporal o geográfica) pero es no es posible
+interpretar el resultado. 
+#+END_NOTES
+
+** Validación cruzada
+
+En modelado predictivo es usual partir los datos de tal manera que tengamos un
+conjunto para ajustar un modelo y un conjunto para estimar la capacidad
+predictiva de dicho modelo.
+
+#+DOWNLOADED: screenshot @ 2022-04-20 18:29:58
+#+caption: Esquema de validación por separación de muestras.
+#+attr_html: :width 700 :align center
+[[file:images/20220420-182958_screenshot.png]]
+
+#+REVEAL: split
+En la práctica no queremos dejar fuera los datos que tenemos para ajustar un
+modelo. Por lo tanto, lo que se usa es dividir el conjunto de datos en
+bloques. La idea es registrar el error de generalización (o alguna métrica
+adecuada de capacidad predictiva) cuando dejamos un bloque fuera del
+ajuste. Esto lo repetimos para cada bloque.
+
+
+#+DOWNLOADED: screenshot @ 2022-04-20 18:38:05
+#+caption: Esquema validación cruzada con tres bloques. 
+#+attr_html: :width 700 :align center
+[[file:images/20220420-183805_screenshot.png]]
+
+#+REVEAL: split
+El caso extremo es considerar tantos bloques como observaciones tengamos
+(/leave-one-out cross validation/, ~LOO-CV~). Aunque es un procedimiento costoso,
+existen diversas técnicas que permiten el cálculo del modelo completo y un
+ajuste por los ~pesos por importancia~ de cada una de las observaciones.
+
+#+REVEAL: split
+La capacidad predictiva con ~LOO-CV~ se calcula como
+\begin{align}
+\widehat{\mathsf{lppd}}_{\mathsf{LOO}} (n) =  \sum_{i= 1}^{n} \log \left(\frac1S \sum_{s = 1}^{S} \pi (y_i | \theta_{-i}^s)\right)\,,
+\end{align}
+donde $\theta^s_{-i} \sim \pi(\theta | y_1, \ldots, y_{i-1}, y_{i+1}, \ldots,  y_n)$.
+
+#+REVEAL: split
+Muestreo por importancia nos permite calcular la capacidad predictiva utilizando
+pesos
+\begin{align}
+w_s = \frac{1}{\pi(y_i | \theta^s)}, \qquad \theta \sim \pi(\theta^s | \underline{y}_n)\,.
+\end{align}
+para escribir
+\begin{align}
+\widehat{\mathsf{lppd}}_{\mathsf{IS}} (n) =  \sum_{i= 1}^{n} \log \left(   \sum_{s = 1}^{S}  \bar w_s\,  \pi (y_i | \theta^s)\right), \qquad \bar w_s = \frac{w_s}{\sum_{k= 1}^{S} w_k}\,.
+\end{align}
+
+#+REVEAL: split
+Lo que puede suceder es que existan algunos ~pesos mas grandes~ que los demás y
+que dominen el cálculo de la ecuación anterior. Por lo tanto, la estrategia de
+citep:Vehtari2021 es suavizar los pesos mas grandes de acuerdo a una
+distribución Pareto generalizada:
+\begin{align}
+\pi(r | u, \sigma, k) = \sigma^{-1} (1 + k (r - u) \sigma^{-1})^{-\frac{1}{k} -1}\,,
+\end{align}
+donde $u$ es una cota inferior, $\sigma$ un parámetro de escala (positivo), y
+$k$ un parámetro de forma.
+
+#+REVEAL: split
+Con el método de suavizamiento podemos estimar los parámetros de la distribución
+Pareto (para observación). En particular, el parámetro $k$ es el más
+informativo. Pues, nos da una indicación de que tan confiable es la aproximación.
+
+#+REVEAL: split
+La distribución Pareto tiene una varianza infinita si $k > 0.5$ que implica una
+distribución con colas pesadas. Como nos interesan los pesos y queremos suavizar
+los más grandes entonces buscamos que $k <0.7$ (esto está bien fundamentado
+teorica y prácticamente, pueden consultar las referencias de citep:Vehtari2021).
+
+** Ejemplo: modelo jerárquico
+
+Regresaremos a nuestro ejemplo estrella del curso: los datos de la pruebas
+estandarizadas en las escuelas. Utilizaremos tres modelos posibles:
+1. Modelo de parámetros independientes (/no pooling/).
+2. Modelo de parámetros agrupados (/complete pooling/).
+3. Modelo jerárquico.
+
+
+#+REVEAL: split
+ Los datos que utilizaremos son los de citep:Rubin1981.
+ 
+#+begin_src R :exports code :results none
+  ## Caso: escuelas --------------------------------------
+  data <- tibble( id = factor(seq(1, 8)), 
+                  y = c(28, 8, -3, 7, -1, 1, 18, 12), 
+                  sigma = c(15, 10, 16, 11, 9, 11, 10, 18))
+
+  data.list <- c(data, J = 8)
+#+end_src
+
+#+REVEAL: split
+Pondremos a prueba los tres modelos mencionados. Empezaremos con un modelo parámetros independientes.
+Esto es,
+\begin{gather}
+y_j \sim \mathsf{N}(\theta_j, \sigma_j)\,,\\
+\theta_j \sim \mathsf{Constante}\,.
+\end{gather}
+
+#+begin_src stan :tangle ../modelos/comparacion/escuelas-indep.stan
+  data {
+    int<lower=0> J;
+    real y[J];
+    real<lower=0> sigma[J];
+  }
+  parameters {
+    real theta[J];
+  }
+  model {
+    y ~ normal(theta, sigma);
+  }
+  generated quantities {
+    array[J] real log_lik;
+    for (jj in 1:J){
+      log_lik[jj] = normal_lpdf(y[jj] | theta[jj], sigma[jj]);
+    }
+  }
+#+end_src
+
+#+begin_src R :exports none :results none
+  modelos_files <- "modelos/compilados/comparacion"
+  ruta <- file.path("modelos/comparacion/escuelas-indep.stan")
+  modelo.indep <- cmdstan_model(ruta, dir = modelos_files)
+#+end_src
+
+#+REVEAL: split
+Calcularemos las métricas de capacidad predictiva. Pero antes, tenemos que hacer un pre-procesamiento.
+Necesitamos tener de nuestras muestras la evaluación de $\log \pi(y_j | \theta^s)$ y además la ~eficiencia relativa del muestreador~. 
+
+#+begin_src R :exports code :results none
+  library(loo)
+  posterior.indep <- modelo.indep$sample(data.list, refresh = 500)
+  stanfit <- rstan::read_stan_csv(posterior.indep$output_files())
+  log_lik <- extract_log_lik(stanfit, merge_chains = FALSE)
+  r_eff <- relative_eff(exp(log_lik), cores = 2) 
+#+end_src
+
+#+REVEAL: split
+Podemos calcular el ~WAIC~:
+#+begin_src R :exports results :results org 
+  waic(log_lik, r_eff = r_eff)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+
+Computed from 4000 by 8 log-likelihood matrix
+
+          Estimate  SE
+elpd_waic    -34.3 0.7
+p_waic         4.2 0.1
+waic          68.6 1.5
+
+8 (100.0%) p_waic estimates greater than 0.4. We recommend trying loo instead. 
+Warning message:
+
+8 (100.0%) p_waic estimates greater than 0.4. We recommend trying loo instead.
+#+end_src
+
+#+REVEAL: split
+Vehtari y coautores --puedes ver las referencias sugeridas en el [[https://mc-stan.org/loo/articles/online-only/faq.html][FAQ]] de ~Stan~--
+recomiendan utilizar estimadores de ~LOO-CV~ pues junto con el procedimiento de
+suavizamiento Pareto otorga mejores diagnósticos de la estimación:
+#+begin_src R :exports results :results org 
+  loo(log_lik, r_eff = r_eff)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+
+Computed from 4000 by 8 log-likelihood matrix
+
+         Estimate  SE
+elpd_loo    -36.4 0.8
+p_loo         6.3 0.3
+looic        72.9 1.7
+------
+Monte Carlo SE of elpd_loo is NA.
+
+Pareto k diagnostic values:
+                         Count Pct.    Min. n_eff
+(-Inf, 0.5]   (good)     0      0.0%   <
+     
+ (0.5, 0.7]   (ok)       1     12.5%   115       
+   (0.7, 1]   (bad)      6     75.0%   20        
+   (1, Inf)   (very bad) 1     12.5%   9         
+See help('pareto-k-diagnostic') for details.
+Warning message:
+Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.
+#+end_src
+
+#+begin_src R :exports none :results none 
+  calcula_metricas <- function(posterior){
+    log_lik <- posterior$draws(variables = "log_lik", format = "array")
+    r_eff <- relative_eff(exp(log_lik), cores = 2) 
+    within(list(), {
+      loo  <- loo(log_lik, r_eff = r_eff)
+      waic <- waic(log_lik, r_eff = r_eff)
+    })
+  }
+#+end_src
+
+#+REVEAL: split
+Ahora probemos un modelo completamente agrupado
+\begin{align}
+y_j \sim \mathsf{N}(\theta, \sigma_j)\,,\\
+\theta \sim \mathsf{N}(\mu, \tau)\,.
+\end{align}
+
+#+begin_src stan :tangle ../modelos/comparacion/escuelas-agrup.stan
+  data {
+    int<lower=0> J;
+    real y[J];
+    real<lower=0> sigma[J];
+  }
+  parameters {
+    real mu;
+    real<lower=0> tau;
+    real theta_tilde;
+  }
+  transformed parameters {
+    real theta = mu + tau * theta_tilde; 
+  }
+  model {
+    mu ~ normal(0, 5);
+    tau ~ cauchy(0, 5);
+    theta_tilde ~ normal(0, 1);
+    y ~ normal(theta, sigma);
+  }
+  generated quantities {
+    array[J] real log_lik;
+    for (jj in 1:J){
+      log_lik[jj] = normal_lpdf(y[jj] | theta, sigma[jj]);
+    }
+  }
+#+end_src
+
+#+begin_src R :exports none :results none
+  ruta <- file.path("modelos/comparacion/escuelas-agrup.stan")
+  modelo.agrup <- cmdstan_model(ruta, dir = modelos_files)
+  posterior.agrup <- modelo.agrup$sample(data.list, refresh = 500)
+#+end_src
+
+#+REVEAL: split
+Y también pondremos a prueba nuestro modelo jerárquico estudiado antes. 
+
+#+begin_src stan :tangle ../modelos/comparacion/escuelas-jerar.stan
+  data {
+    int<lower=0> J;
+    real y[J];
+    real<lower=0> sigma[J];
+  }
+  parameters {
+    real mu;
+    real<lower=0> tau;
+    real theta_tilde[J];
+  }
+  transformed parameters {
+    real theta[J];
+    for (j in 1:J)
+      theta[j] = mu + tau * theta_tilde[j];
+  }
+  model {
+    mu ~ normal(0, 5);
+    tau ~ cauchy(0, 5);
+    theta_tilde ~ normal(0, 1);
+    y ~ normal(theta, sigma);
+  }
+  generated quantities {
+    array[J] real log_lik;
+    for (jj in 1:J){
+      log_lik[jj] = normal_lpdf(y[jj] | theta[jj], sigma[jj]);
+    }
+  }
+#+end_src
+
+#+begin_src R :exports none :results none
+  ruta <- file.path("modelos/comparacion/escuelas-jerar.stan")
+  modelo.jerar <- cmdstan_model(ruta, dir = modelos_files)
+  posterior.jerar <- modelo.jerar$sample(data.list, refresh = 500)
+#+end_src
+
+#+begin_src R :exports none :results none
+  indep.metricas <- calcula_metricas(posterior.indep)
+  agrup.metricas <- calcula_metricas(posterior.agrup)
+  jerar.metricas <- calcula_metricas(posterior.jerar)
+#+end_src
+
+#+REVEAL: split
+Podemos comparar de manera puntual cada modelo por medio de ~WAIC~
+
+#+begin_src R :exports results :results org 
+  waic.diferencias <- loo_compare(list(
+    indep = indep.metricas$waic,
+    agrup = agrup.metricas$waic,
+    jerar = jerar.metricas$waic
+  ))
+  print(waic.diferencias, simplify = FALSE)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+      elpd_diff se_diff elpd_waic se_elpd_waic p_waic se_p_waic waic  se_waic
+agrup   0.0       0.0   -30.5       1.4          0.5    0.2      60.9   2.9  
+jerar  -0.2       0.2   -30.7       1.5          0.8    0.3      61.4   2.9  
+indep  -3.7       1.3   -34.1       0.8          4.1    0.1      68.3   1.7
+#+end_src
+
+#+REVEAL: split
+O podemos comparar por medio de ~LOO-PSIS~
+
+#+begin_src R :exports results :results org 
+  loo.diferencias <- loo_compare(list(
+    indep = indep.metricas$loo,
+    agrup = agrup.metricas$loo,
+    jerar = jerar.metricas$loo
+  ))
+  print(loo.diferencias, simplify = FALSE)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+      elpd_diff se_diff elpd_loo se_elpd_loo p_loo se_p_loo looic se_looic
+agrup   0.0       0.0   -30.5      1.4         0.5   0.2     61.0   2.9   
+jerar  -0.3       0.2   -30.7      1.5         0.9   0.3     61.5   2.9   
+indep  -6.5       1.5   -36.9      1.2         6.8   0.5     73.9   2.4
+#+end_src
+
+#+REVEAL: split
+Los resultados son muy similares bajo ambos métodos. Sin embargo, ~LOO-PSIS~ nos
+provee de mejores diagnósticos en el cómputo de la capacidad predictiva del modelo
+#+HEADER: :width 1200 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/escuelas-waic-plot.jpeg :exports results :results output graphics file
+  waic.diferencias |>
+    as_tibble() |>
+    mutate(modelo = rownames(waic.diferencias)) |>
+    ggplot(aes(waic, modelo)) +
+    geom_vline(aes(xintercept = min(waic)), lty = 2) + 
+    geom_linerange(aes(xmax = waic + 2 * se_waic,
+                       xmin = waic - 2 * se_waic)) +
+    geom_linerange(aes(xmax = waic + 1 * se_waic,
+                       xmin = waic - 1 * se_waic), size = 2) + 
+    geom_point(color = "red", size = 3) +
+    sin_lineas
+#+end_src
+
+#+RESULTS:
+[[file:../images/escuelas-waic-plot.jpeg]]
+
+#+HEADER: :width 1200 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/escuelas-loo-plot.jpeg :exports results :results output graphics file
+  loo.diferencias |>
+    as_tibble() |>
+    mutate(modelo = rownames(loo.diferencias)) |>
+    ggplot(aes(looic, modelo)) +
+    geom_vline(aes(xintercept = min(looic)), lty = 2) + 
+    geom_linerange(aes(xmax = looic + 2 * se_looic,
+                       xmin = looic - 2 * se_looic)) +
+    geom_linerange(aes(xmax = looic + 1 * se_looic,
+                       xmin = looic - 1 * se_looic), size = 2) + 
+    geom_point(color = "red", size = 3) +
+    sin_lineas
+#+end_src
+
+#+RESULTS:
+[[file:../images/escuelas-loo-plot.jpeg]]
+
+#+BEGIN_NOTES
+Nota que no hemos calculado el ~AIC~ para este modelo, ¿por qué?
+#+END_NOTES
+
+* Referencias                                                         :latex:
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
