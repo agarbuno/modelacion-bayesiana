@@ -84,10 +84,21 @@ file:../images/workflow.jpeg
 
 * Comparación de modelos probabilísticos
 
+#+begin_quote
+Even rich models are wrong in the sense that they
+do not fully correspond to the mechanisms in Nature that generated the data,
+but their usefulness can be assessed by evaluating their predictive performance
+or by some other model criticism approach. ---citet:Vehtari2012a. 
+#+end_quote
+
 En el contexto de modelos probabilísticos tiene sentido preguntarnos no sólo por
 la capacidad predictiva del modelo (en términos puntuales) sino también por la
 confianza del modelo en dichas predicciones. Consideremos la gráfica en
 ([[fig:prob-predictions]]).
+
+#+BEGIN_NOTES
+El problema de inferencia y, en particular,  de comparación de modelos se puede formular desde un problema de decisión estadístico donde definamos un espacio de acciones, estados, utilidades y grados de creencia sobre las posibilidades. Esto se puede consultar en citep:Vehtari2012a.  
+#+END_NOTES
 
 #+REVEAL: split
 #+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
@@ -145,6 +156,11 @@ Lo que vemos es que para contrastar un modelo necesitamos una manera de poder
 comparar al mismo tiempo ~asertividad~ y ~certidumbre~. Justo podríamos comparar en
 términos de las densidades. Y por cuestiones numéricas argumentar sobre comparar
 basados en la ~log-densidad~.
+
+#+BEGIN_NOTES
+En citep:Vehtari2012a se argumenta que la comparación adecuada depende de qué tipo de aplicación estamos considerando. Sin embargo, a falta de mayores detalles las reglas que usualmente se aplican son aquellas que se utilizan en reportes sobre inferencia científica.
+#+END_NOTES
+
 
 #+REVEAL: split
 Resulta que comparar con log-densidades es una regla que tiene muchas
@@ -725,6 +741,7 @@ provee de mejores diagnósticos en el cómputo de la capacidad predictiva del mo
 #+RESULTS:
 [[file:../images/escuelas-waic-plot.jpeg]]
 
+#+REVEAL: split
 #+HEADER: :width 1200 :height 300 :R-dev-args bg="transparent"
 #+begin_src R :file images/escuelas-loo-plot.jpeg :exports results :results output graphics file
   loo.diferencias |>
