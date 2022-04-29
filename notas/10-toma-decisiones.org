@@ -1,0 +1,372 @@
+#+TITLE: EST-46115: Modelación Bayesiana
+#+AUTHOR: Prof. Alfredo Garbuno Iñigo
+#+EMAIL:  agarbuno@itam.mx
+#+DATE: ~Toma de decisiones~
+#+STARTUP: showall
+:REVEAL_PROPERTIES:
+#+LANGUAGE: es
+#+OPTIONS: num:nil toc:nil timestamp:nil
+#+REVEAL_REVEAL_JS_VERSION: 4
+#+REVEAL_THEME: night
+#+REVEAL_SLIDE_NUMBER: t
+#+REVEAL_HEAD_PREAMBLE: <meta name="description" content="Modelación Bayesiana">
+#+REVEAL_INIT_OPTIONS: width:1600, height:900, margin:.2
+#+REVEAL_EXTRA_CSS: ./mods.css
+#+REVEAL_PLUGINS: (notes)
+:END:
+:LATEX_PROPERTIES:
+#+OPTIONS: toc:nil date:nil author:nil tasks:nil
+#+LANGUAGE: sp
+#+LATEX_CLASS: handout
+#+LATEX_HEADER: \usepackage[spanish]{babel}
+#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
+#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
+#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
+#+LATEX_HEADER: \decimalpoint
+#+LATEX_HEADER:\usepackage{framed}
+#+LaTeX_HEADER: \usepackage{listings}
+#+LATEX_HEADER: \usepackage{fancyvrb}
+#+LATEX_HEADER: \usepackage{xcolor}
+#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
+#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
+#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
+#+LaTeX_HEADER: {}
+#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
+#+LaTeX_HEADER: {}
+#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
+#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
+#+EXPORT_FILE_NAME: ../docs/10-toma-decisiones.pdf
+:END:
+#+PROPERTY: header-args:R :session toma-decisiones :exports both :results output org :tangle ../rscripts/10-toma-decisiones.R :mkdirp yes :dir ../
+#+EXCLUDE_TAGS: toc
+
+
+#+BEGIN_NOTES
+*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Toma de decisiones.\\
+*Objetivo*: Que veremos.\\
+*Lectura recomendada*: Sección 9.9 de citep:Martin2021. Capítulo 9 de citep:Gelman2014a. Algunos pasajes de citep:Vehtari2012a. el libro de citet:Gilboaa es una excelente referencia para el modelado de toma de decisiones bajo incertidumbre.  
+#+END_NOTES
+
+#+begin_src R :exports none :results none
+  ## Setup --------------------------------------------
+  library(tidyverse)
+  library(patchwork)
+  library(scales)
+  ## Cambia el default del tamaño de fuente 
+  theme_set(theme_linedraw(base_size = 25))
+
+  ## Cambia el número de decimales para mostrar
+  options(digits = 2)
+
+  sin_lineas <- theme(panel.grid.major = element_blank(),
+                      panel.grid.minor = element_blank())
+  color.itam  <- c("#00362b","#004a3b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f", NA)
+
+  sin_lineas <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+  sin_leyenda <- theme(legend.position = "none")
+  sin_ejes <- theme(axis.ticks = element_blank(), axis.text = element_blank())
+#+end_src
+
+
+#+begin_src R :exports none :results none
+  ## Librerias para modelacion bayesiana
+  library(cmdstanr)
+  library(posterior)
+  library(bayesplot)
+#+end_src
+
+
+* Contenido                                                             :toc:
+:PROPERTIES:
+:TOC:      :include all  :ignore this :depth 3
+:END:
+:CONTENTS:
+- [[#introducción][Introducción]]
+- [[#definición-de-un-problema-de-decisión][Definición de un problema de decisión]]
+  - [[#contexto-bayesiano][Contexto bayesiano]]
+  - [[#caso-enfoque-predictivo][Caso: enfoque predictivo]]
+  - [[#caso-enfoque-de-inferencia][Caso: enfoque de inferencia]]
+    - [[#pregunta][Pregunta:]]
+- [[#análisis-de-decisión][Análisis de decisión]]
+  - [[#definición-de-decisiones-y-observaciones][Definición de decisiones y observaciones]]
+  - [[#definición-de-estado-de-conocimiento][Definición de estado de conocimiento]]
+  - [[#definición-función-de-utilidad][Definición función de utilidad]]
+  - [[#cálculo-de-utilidad-esperada][Cálculo de utilidad esperada]]
+- [[#decisiones-continuas][Decisiones continuas]]
+:END:
+
+* Introducción 
+
+Retomaremos la discusión sobre toma de decisiones bajo incertidumbre. Para tomar
+decisiones debemos de especificar la noción de ~utilidad~ asociada a cada opción
+que podemos tomar. La decisión ~óptima Bayesiana~ corresponde a la que maximiza la
+utilidad esperada. Buscaremos ejemplificar cómo podemos utilizar ~Stan~ para
+estimar la distribución de posibles respuestas bajo decisiones y calcular 
+utilidades esperadas.
+
+* Definición de un problema de decisión
+
+Siguiendo a citep:Gelman2014a un problema de decisión Bayesiano necesita de los siguientes componentes:
+1. Definir un conjunto de posibles resultados $X$.
+2. Definir un conjunto de posibles decisiones $D$.
+3. Definir una función de utilidad que contraste la decisión, $d$, contra el resultado $x$, la cual denotamos por $U(x, d)$. 
+4. Especificar nuestro estado de conocimiento sobre las posibles realizaciones de posibles resultados a través de $\pi(x)$.
+
+#+BEGIN_NOTES
+También es usual, como veremos adelante, que consideremos una $\pi(x)$ para cada
+decisión que podamos tomar, lo cual lo denotamos por $\pi(x|d)$ si fuera necesario. 
+#+END_NOTES
+
+
+Con lo cual podemos escoger la decisión $d^*$ que obtenga la mejor utilidad esperada
+\begin{align}
+d^* = \arg \max_d \bar U [d]\,,
+\end{align}
+donde
+\begin{align}
+\bar U[d] = \mathbb{E} [U(X, d)] = \int U(x, d) \pi(x) \text{d}x\,.
+\end{align}
+
+#+REVEAL: split
+Los resultados deberán de representar la mayor información posible que sea
+relevante para la especificación de la función de utilidad.
+
+** Contexto bayesiano
+
+- Las decisiones pueden ser sobre los parámetros del modelo, $\theta$,  o cantidades observables, $\tilde y$.
+- Nuestro estado de conocimiento lo definimos como la distribución posterior o predictiva posterior.
+- La función de utilidad depende del contexto del problema.
+
+\newpage
+
+** Caso: enfoque predictivo
+
+Supongamos que tenemos el siguiente problema de decisión bayesiano con un ~enfoque predictivo~:
+- Los *estados* posibles son ~cantidades observables~ $\tilde y$.
+- Las *decisiones* que podemos tomar son sobre /todas/ los posibles ~funciones de
+  probabilidad~ relevantes para nuestro problema. Es decir, cualquier $d(\tilde
+  y)$ donde $d$ es una distribución de probabilidad sobre cantidades
+  observables.
+- La *función de utilidad* que escogeremos será ~utilidad logarítmica~, $\log (d)$.
+- Nuestro *estado de conocimiento* sobre los estados inciertos lo reflejamos a
+  través de la ~distribución predictiva posterior~, $\pi(\tilde y |
+  \underline{y}_n)$.
+
+#+REVEAL: split
+La decisión que maximiza la utilidad esperada bajo nuestro estado de
+conocimiento será la que ~maximice~
+\begin{align}
+\int \log {\color{orange} d(\tilde y )} \, \pi (\tilde y | \underline{y}_n) \, \text{d}\tilde y\,.
+\end{align}
+
+#+REVEAL: split
+Nota que pedimos que sea la que ~minimice~
+\begin{align}
+- \int \log {\color{orange} d(\tilde y )} \, \pi (\tilde y | \underline{y}_n) \, \text{d}\tilde y\,, 
+\end{align}
+que es justamente la ~entropía cruzada~ entre dos distribuciones y que sabemos
+tiene un punto óptimo siempre y cuando utilicemos la misma distribución con la
+que reflejamos nuestro estado de conocimiento.
+
+#+REVEAL: split
+Es decir, bajo un ~enfoque predictivo~ nuestra mejor decisión bajo utilidad
+logarítmica es utilizar la densidad predictiva posterior.
+
+** Caso: enfoque de inferencia
+
+Supongamos que tenemos el siguiente problema de decisión bayesiano con un ~enfoque de inferencia~:
+- Los *estados* posibles son ~la configuración del modelo~ que especifica un modelo
+  probabilístico, $\theta$.
+- Las *decisiones* que podemos tomar son /todas/ los posibles ~funciones de
+  probabilidad~ relevantes para nuestro poblema. Es decir, cualquier $d(\theta)$
+  donde $d$ es una distribución sobre configuraciones de un modelo.
+- La *función de utilidad*  que escogeremos será ~utilidad logarítmica~, $\log (d)$.
+- Nuestro *estado de conocimiento* sobre los estados inciertos lo reflejamos a
+  través de la ~distribución posterior~, $\pi(\theta| \underline{y}_n)$.
+
+
+*** Pregunta: 
+:PROPERTIES:
+:reveal_background: #00468b
+:END:
+¿Cuál será la mejor decisión que podemos tomar en este escenario? 
+
+
+* Análisis de decisión
+
+Vamos a seguir el [[https://mc-stan.org/docs/2_29/stan-users-guide/example-decision-analysis.html][ejemplo]] que está en la documentación de ~Stan~. En este
+escenario el tomador de decisiones tiene que decidir el medio de transporte para
+llegar a su trabajo: caminar, bicicleta, transporte público o taxi.
+
+#+REVEAL: split
+A lo largo del año ha registrado 200 días de trayectos a su trabajo y ha
+registrado el tiempo que le toma llegar.
+
+** Definición de ~decisiones~ y ~observaciones~ 
+
+- Las *decisiones* son el medio de transporte codificadas numéricamente.
+- Los *resultados*  $X= \mathbb{R}\times \mathbb{R}$ que observamos son el tiempo $t$ que toma y el costo $c$ asociado a ese tiempo, $x = (c, t)$.
+
+** Definición de ~estado de conocimiento~
+
+Necesitamos definir $\pi(x | d)$ la distribución de resultados posibles sujeta a
+la decisión que se ha tomado. Bajo el enfoque Bayesiano ésta será la distribución
+predictiva posterior de una observación condicional en la historia que hemos visto
+\begin{align}
+\pi(\tilde x  | d, \underline{x}_n, \underline{d}_n) = \int \pi(\tilde x | d, \theta) \,  \pi(\theta | \underline{x}_n, \underline{d}_n) \, \text{d}\theta\,.
+\end{align}
+
+#+REVEAL: split
+Por simplicidad utilizamos una distribución log-normal para los tiempos de llegada bajo cada transporte. Es decir, para una observación $x_n = (c_n, t_n)$ asociada a la decisión $d_n$ consideramos
+\begin{align}
+t_n \sim \mathsf{LogNormal} \left( \mu_{[d_n]}, \sigma_{[d_n]} \right)\,.\\
+c_n \sim \mathsf{LogNormal} \left( \nu_{[d_n]}, \tau_{[d_n]} \right)\,.
+\end{align}
+
+#+BEGIN_NOTES
+Decimos que una variable aleatoria se distribuye log-normal, denotado como $Y \sim \mathsf{logNormal}(\mu, \sigma)$, si $\log Y \sim \mathsf{Normal}(\mu, \sigma)$. 
+#+END_NOTES
+
+#+REVEAL: split
+Las previas que utilizamos para el tiempo de llegada en cada modo de transporte, $k \in \{1, \ldots, 4\}$, son
+\begin{align}
+\mu_k \sim \mathsf{Normal}(0, 5)\,, \\
+\sigma_k \sim \mathsf{logNormal}(0, 1)\,.
+\end{align}
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/transport-times-prior.jpeg  :exports results :results output graphics file
+  set.seed(108727)
+  tibble( id = 1:1000,
+         mu = rnorm(1000, 0, 5),
+         sigma = exp(rnorm(1000, 0, 1))) |>
+    nest(data = c(mu, sigma)) |>
+    mutate(y = map_dbl(data, function(params){
+      exp(rnorm(1, params$mu, sd = params$sigma))
+    })) |>
+    unnest(data) |>
+    mutate(log_time = log(y)) |>
+    pivot_longer(cols = c(mu, sigma, log_time)) |>
+    ggplot(aes(value)) +
+    geom_histogram(bins = 20, color = "white") +
+    facet_wrap(~name, scales = "free") + sin_lineas
+#+end_src
+
+#+RESULTS:
+[[file:../images/transport-times-prior.jpeg]]
+
+#+REVEAL: split
+Las previas que utilizamos para los costos por cada modo de transporte, $k \in \{1, \ldots, 4\}$, son
+\begin{align}
+\nu_k \sim \mathsf{Normal}(0, 5)\,, \\
+\tau_k \sim \mathsf{logNormal}(0, 1)\,.
+\end{align}
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/transport-costs-prior.jpeg  :exports results :results output graphics file
+  set.seed(108)
+  tibble( id = 1:1000,
+         nu = rnorm(1000, 0, 5),
+         tau = exp(rnorm(1000, 0, 1))) |>
+    nest(data = c(nu, tau)) |>
+    mutate(y = map_dbl(data, function(params){
+      exp(rnorm(1, params$nu, sd = params$tau))
+    })) |>
+    unnest(data) |>
+    mutate(log_cost = log(y)) |>
+    pivot_longer(cols = c(nu, tau, log_cost)) |>
+    ggplot(aes(value)) +
+    geom_histogram(bins = 20, color = "white") +
+    facet_wrap(~name, scales = "free") + sin_lineas
+#+end_src
+
+#+RESULTS:
+[[file:../images/transport-costs-prior.jpeg]]
+
+#+REVEAL: split
+El conjunto de parámetros del modelo que marginalizará en la predictiva posterior es
+\begin{align}
+\theta = (\mu_{1:4}, \sigma_{1:4}, \nu_{1:4}, \tau_{1:4})\,.
+\end{align}
+
+** Definición ~función de utilidad~
+
+Digamos que el tomador de decisión evalúa su tiempo de traslado de manera lineal
+y que el tiempo invertido en transporte lo evalúa en $25 por cada momento que
+éste pasa en su trayecto, por lo que la función de utilidad es
+\begin{align}
+U(c, t) = - (c + 25 \cdot t)\,.
+\end{align}
+
+#+BEGIN_NOTES
+Nota que podríamos considerar una utilidad distinta para cada modo de
+transporte, $U(x,d)$, de tal manera que se reflejen costos individuales de cada
+medio de transporte.
+#+END_NOTES
+
+** Cálculo de utilidad esperada
+
+Lo que necesitamos ahora es poder calcular la utilidad esperada de cada una de
+las posibles decisiones y tomar la que minimice dicha función. El siguiente código aprovecha que
+nuestro espacio de posibles decisiones es pequeño.
+
+#+begin_src stan :tangle ../modelos/decision/transporte.stan
+  functions {
+    real U(real c, real t) {
+      return -(c + 25 * t);
+    }
+  }
+  data {
+    int<lower=0> N;
+    array[N] int<lower=1, upper=4> d;
+    array[N] real c;
+    array[N] real<lower=0> t;
+  }
+  parameters {
+    vector[4] mu;
+    vector<lower=0>[4] sigma;
+    array[4] real nu;
+    array[4] real<lower=0> tau;
+  }
+  model {
+    mu ~ normal(0, 1);
+    sigma ~ lognormal(0, 0.25);
+    nu ~ normal(0, 20);
+    tau ~ lognormal(0, 0.25);
+    t ~ lognormal(mu[d], sigma[d]);
+    c ~ lognormal(nu[d], tau[d]); 
+  }
+  generated quantities {
+    array[4] real util;
+    for (k in 1:4) {
+      util[k] = U(lognormal_rng(mu[k], sigma[k]),
+                  lognormal_rng(nu[k], tau[k]));
+    }
+  }
+#+end_src
+
+#+REVEAL: split
+Lo que esta calculando ~Stan~ son los términos para estimar la utilidad esperada
+por medio de un ~estimador Monte Carlo~. Esto lo vemos de la expresión
+\begin{align}
+\bar U [d] &= \mathbb{E}[U(X, d) |  \underline{x}_n, \underline{d}_n] = \int U(x, d) \cdot \pi(x | d, \theta) \cdot \pi(\theta | \underline{x}_n, \underline{d}_n ) \, \text{d}\theta \, \text{d}x\,,\\
+&\approx \frac{1}{M} \sum_{m = 1}^{M} U(x^{(m)}) \,,
+\end{align}
+donde
+\begin{gather}
+x^{(m)} \sim \pi(x | d, \theta^{(m)})\,,\\
+\theta^{(m)} \sim \pi(\theta | \underline{x}_n, \underline{d}_n )\,.
+\end{gather}
+
+* Decisiones continuas
+
+El ejemplo anterior utilizaba decisiones discretas (o un espacio de decisiones
+discretas). Si las decisiones fueran sobre un continuo el problema se vuelve mas
+complicado, para lo cual las capacidades actuales de ~Stan~ son limitadas.
+
+
+# * Referencias                                                         :latex:
+
+bibliographystyle:abbrvnat
+bibliography:references.bib
+
