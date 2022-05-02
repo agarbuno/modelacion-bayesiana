@@ -14,31 +14,8 @@
 #+REVEAL_EXTRA_CSS: ./mods.css
 #+REVEAL_PLUGINS: (notes)
 :END:
-:LATEX_PROPERTIES:
-#+OPTIONS: toc:nil date:nil author:nil tasks:nil
-#+LANGUAGE: sp
-#+LATEX_CLASS: handout
-#+LATEX_HEADER: \usepackage[spanish]{babel}
-#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
-#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
-#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
-#+LATEX_HEADER: \decimalpoint
-#+LATEX_HEADER:\usepackage{framed}
-#+LaTeX_HEADER: \usepackage{listings}
-#+LATEX_HEADER: \usepackage{fancyvrb}
-#+LATEX_HEADER: \usepackage{xcolor}
-#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
-#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
-#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
-#+LaTeX_HEADER: {}
-#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
-#+LaTeX_HEADER: {}
-#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
-#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
-#+EXPORT_FILE_NAME: ../docs/10-toma-decisiones.pdf
-:END:
 #+PROPERTY: header-args:R :session toma-decisiones :exports both :results output org :tangle ../rscripts/10-toma-decisiones.R :mkdirp yes :dir ../
-#+EXCLUDE_TAGS: toc
+#+EXCLUDE_TAGS: toc latex
 
 
 #+BEGIN_NOTES
@@ -95,6 +72,7 @@
 - [[#funciones-de-utilidad][Funciones de utilidad]]
   - [[#ejemplo-prueba-bechdel][Ejemplo: Prueba Bechdel]]
 - [[#decisiones-continuas][Decisiones continuas]]
+- [[#referencias][Referencias]]
 :END:
 
 * Introducción 
@@ -119,7 +97,7 @@ También es usual, como veremos adelante, que consideremos una $\pi(x)$ para cad
 decisión que podamos tomar, lo cual lo denotamos por $\pi(x|d)$ si fuera necesario. 
 #+END_NOTES
 
-
+#+REVEAL: split
 Con lo cual podemos escoger la decisión $d^*$ que obtenga la mejor utilidad esperada
 \begin{align}
 d^* = \arg \max_d \bar U [d]\,,
@@ -132,8 +110,6 @@ donde
 #+REVEAL: split
 Los resultados deberán de representar la mayor información posible que sea
 relevante para la especificación de la función de utilidad.
-
-\newpage
 
 ** Contexto bayesiano
 
@@ -511,7 +487,7 @@ Los resultados se muestran a continuación de manera gráfica ([[fig:bechdel]]).
 [[file:../images/bechdel-utilidad-cuadratica-aprox-continua.jpeg]]
 
 #+REVEAL: split
-Notas que bajo pérdida cuadrática y pérdida 1-0 podemos identificar un único
+Nota que bajo pérdida cuadrática y pérdida 1-0 podemos identificar un único
 punto máximo de utilidad esperada. Bajo pérdida por intervalos, no.
 
 #+BEGIN_NOTES
@@ -533,7 +509,7 @@ complicado, para lo cual las capacidades actuales de ~Stan~ son limitadas.
 [[file:../images/bechdel-utilidad-cuadratica-aprox-continua.jpeg]]
 
 
-# * Referencias                                                         :latex:
+* Referencias                                                         :latex:
 
 bibliographystyle:abbrvnat
 bibliography:references.bib

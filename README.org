@@ -295,7 +295,7 @@ hacerlas si no cuentan con experiencia en: ~Git~, ~Github~, ~R~ y el ~tidyverse~
 bibliographystyle:abbrvnat
 bibliography:references.bib
 
-* COMMENT Plan de trabajo [8/15][53%]                              :noexport:
+* COMMENT Plan de trabajo [10/15][66%]                             :noexport:
 :PROPERTIES:
 :UNNUMBERED: notoc
 :END:
@@ -315,13 +315,16 @@ CLOSED: [2022-03-15 Tue 20:19]
 CLOSED: [2022-04-07 Thu 16:51]
 ** DONE Posterior and prior predictive checks
 CLOSED: [2022-04-07 Thu 16:51]
-** TODO Simulation Based calibration
-** TODO Evaluation and cross validation
-** TODO Poststratification
+** DONE Simulation Based calibration
+CLOSED: [2022-05-02 Mon 16:26]
+** DONE Evaluation and cross validation
+CLOSED: [2022-05-02 Mon 16:26]
 ** TODO Decision Analysis
+** TODO Poststratification
 ** TODO Clustering
 ** TODO Item response theory 
 ** TODO Variational inference
+citep:Kusmierczyk2019a
 
 * COMMENT Posibles temas                                           :noexport:
 :PROPERTIES:
