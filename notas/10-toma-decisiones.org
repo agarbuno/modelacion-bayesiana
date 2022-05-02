@@ -43,7 +43,7 @@
 
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Toma de decisiones.\\
-*Objetivo*: Que veremos.\\
+*Objetivo*: En esta sección conectaremos conceptos que hemos visto durante el curso para toma de decisiones bajo incertidumbre. Anteriormente, introdujimos el concepto de inferencia Bayesiana dentro del marco de teoría de la decisión. Retomaremos ciertos componentes de este marco en el contexto de inferencia y modelado predictivo..\\
 *Lectura recomendada*: Sección 9.9 de citep:Martin2021. Capítulo 9 de citep:Gelman2014a. Algunos pasajes de citep:Vehtari2012a. el libro de citet:Gilboaa es una excelente referencia para el modelado de toma de decisiones bajo incertidumbre.  
 #+END_NOTES
 
@@ -131,13 +131,13 @@ donde
 Los resultados deberán de representar la mayor información posible que sea
 relevante para la especificación de la función de utilidad.
 
+\newpage
+
 ** Contexto bayesiano
 
 - Las decisiones pueden ser sobre los parámetros del modelo, $\theta$,  o cantidades observables, $\tilde y$.
 - Nuestro estado de conocimiento lo definimos como la distribución posterior o predictiva posterior.
 - La función de utilidad depende del contexto del problema.
-
-\newpage
 
 ** Caso: enfoque predictivo
 
