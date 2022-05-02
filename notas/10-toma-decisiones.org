@@ -1,4 +1,4 @@
-#+TITLE: EST-46115: Modelación Bayesiana
+#+TITLE: EST-46115: Modelación Bayesiana. 
 #+AUTHOR: Prof. Alfredo Garbuno Iñigo
 #+EMAIL:  agarbuno@itam.mx
 #+DATE: ~Toma de decisiones~
@@ -93,6 +93,7 @@
   - [[#definición-función-de-utilidad][Definición función de utilidad]]
   - [[#cálculo-de-utilidad-esperada][Cálculo de utilidad esperada]]
 - [[#funciones-de-utilidad][Funciones de utilidad]]
+  - [[#ejemplo-prueba-bechdel][Ejemplo: Prueba Bechdel]]
 - [[#decisiones-continuas][Decisiones continuas]]
 :END:
 
@@ -361,6 +362,45 @@ x^{(m)} \sim \pi(x | d, \theta^{(m)})\,,\\
 
 * Funciones de utilidad
 
+La función de utilidad depende de la aplicación. En particular, de las
+características del problema y de la pregunta que se requiere responder con el
+análisis.
+
+#+REVEAL: split
+Bajo el contexto de ~modelado predictivo~ vimos que hace sentido utilizar la
+log-densidad predictiva posterior para tomar decisiones. Esto es cuando queremos
+escoger un modelo probabilístico con buenas capacidades predictivas.
+
+#+REVEAL: split
+Sin embargo, en algunas aplicaciones nos puede interesar hacer predicciones
+puntuales. Por ejemplo, en una aplicación nos puede interesar utilizar el
+concepto de ~pérdida cuadrática~ para tomar decisiones. La función de utilidad la podemos definir como
+\begin{align}
+U_{\mathsf{Q}}(\tilde y, d) = - (\tilde y - d)^2\,.
+\end{align}
+
+#+REVEAL: split
+De manera análoga, podemos utilizar nuestras nociones de ~pérdida en valor
+absoluto~ o ~pérdida en valor absoluto relativo~ para definir utilidades. Incluso
+podemos utilizar ~pérdidas por intervalos~ o ~pérdidas por predicción
+correcta/incorrecta~ (pérdida 1-0).
+
+#+REVEAL: split
+En la literatura existen algunos ejemplos de funciones de utilidad como en la
+Sección 9.9.1 de citep:Martin2021 o la Sección 9.4 de citep:Gelman2014a. Los
+libros citep:Gilboaa o citep:Smith2010 proveen de un muy buen marco teórico para
+estos conceptos.
+
+** Ejemplo: Prueba Bechdel
+
+Consideremos nuestro ejemplo del curso sobre las películas que pasan la prueba
+de Bechdel.  Consideremos nuestra previa como una $\mathsf{Beta}(5,
+11)$. También consideremos análisis predictivo bajo el enfoque de funciones de
+pérdida para las predicciones:
+1. Utilidad cuadrática;
+2. Utilidad 1-0.
+3. Utilidad por intervalos. 
+
 #+begin_src R  :exports none :resuls none
   library(bayesrules)
   set.seed(108727)
@@ -369,6 +409,9 @@ x^{(m)} \sim \pi(x | d, \theta^{(m)})\,,\\
     mutate(test = ifelse(binary == "PASS", 1, 0)) |>
     select(-title, -binary)
 #+end_src
+
+#+REVEAL: split
+El código que utilizaremos en ~Stan~ es el siguiente: 
 
 #+begin_src stan :tangle ../modelos/decision/peliculas-bechdel.stan
   functions {
@@ -386,7 +429,7 @@ x^{(m)} \sim \pi(x | d, \theta^{(m)})\,,\\
       if (fabs(y_tilde - d) < 10) {
         return 0;
       } else {
-        return -exp(-fabs(y_tilde - d)); 
+        return -fabs(y_tilde - d); 
       }
     }
   }
@@ -424,106 +467,70 @@ x^{(m)} \sim \pi(x | d, \theta^{(m)})\,,\\
   modelo <- cmdstan_model(ruta, dir = modelos_files)
 #+end_src
 
-#+begin_src R :exports code :results org 
+
+#+begin_src R :exports code :results none
   posterior <- modelo$sample(data = c(N = nrow(data),
                                       K = 20,
                                       data),
-                             refresh = 4000,
+                             refresh = 10000,
                              iter_sampling = 4000,
                              seed = 108727)
 #+end_src
 
-#+RESULTS:
-#+begin_src org
-Running MCMC with 4 sequential chains...
-
-Chain 1 Iteration:    1 / 5000 [  0%]  (Warmup) 
-Chain 1 Iteration: 1001 / 5000 [ 20%]  (Sampling) 
-Chain 1 Iteration: 5000 / 5000 [100%]  (Sampling) 
-Chain 1 finished in 0.2 seconds.
-Chain 2 Iteration:    1 / 5000 [  0%]  (Warmup) 
-Chain 2 Iteration: 1001 / 5000 [ 20%]  (Sampling) 
-Chain 2 Iteration: 5000 / 5000 [100%]  (Sampling) 
-Chain 2 finished in 0.2 seconds.
-Chain 3 Iteration:    1 / 5000 [  0%]  (Warmup) 
-Chain 3 Iteration: 1001 / 5000 [ 20%]  (Sampling) 
-Chain 3 Iteration: 5000 / 5000 [100%]  (Sampling) 
-Chain 3 finished in 0.3 seconds.
-Chain 4 Iteration:    1 / 5000 [  0%]  (Warmup) 
-Chain 4 Iteration: 1001 / 5000 [ 20%]  (Sampling) 
-Chain 4 Iteration: 5000 / 5000 [100%]  (Sampling) 
-Chain 4 finished in 0.3 seconds.
-
-All 4 chains finished successfully.
-Mean chain execution time: 0.2 seconds.
-Total execution time: 1.5 seconds.
-#+end_src
+#+REVEAL: split
+Los resultados se muestran a continuación de manera gráfica ([[fig:bechdel]]). 
 
 #+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/bechdel-utilidad-cuadratica.jpeg :exports results :results output graphics file
-   g1 <- posterior$draws("utilQuad", format = "df") |>
-     as_tibble() |>
-     pivot_longer(cols = 1:20) |>
-     mutate(name = fct_inorder(name)) |>
-     group_by(name) |>
-     summarise(expected.util = mean(value),
-               ribbon.lo = quantile(value, .05),
-               ribbon.hi = quantile(value, .95)) |>
-     mutate(decision = 1:20) |>
-     ggplot(aes(decision, expected.util)) +
-     geom_line() + geom_point() + 
-     geom_vline(xintercept = 9, color = 'red', lty = 2) + 
-     sin_lineas +
-     ylab("Utilidad Esperada") +
-     xlab("Decisión") +
-     ggtitle("Utilidad Cuadrática")
 
-   g2 <- posterior$draws("utilZeroOne", format = "df") |>
-     as_tibble() |>
-     pivot_longer(cols = 1:20) |>
-     mutate(name = fct_inorder(name)) |>
-     group_by(name) |>
-     summarise(expected.util = mean(value),
-               ribbon.lo = quantile(value, .05),
-               ribbon.hi = quantile(value, .95)) |>
-     mutate(decision = 1:20) |>
-     ggplot(aes(decision, expected.util)) +
-     geom_line() + geom_point() + 
-     geom_vline(xintercept = 9, color = 'red', lty = 2) + 
-     sin_lineas +
-     ylab("Utilidad Esperada") +
-     xlab("Decisión") +
-     ggtitle("Utilidad 0-1")
-
-  g3 <- posterior$draws("utilInterval", format = "df") |>
-     as_tibble() |>
-     pivot_longer(cols = 1:20) |>
-     mutate(name = fct_inorder(name)) |>
-     group_by(name) |>
+  posterior$draws(c("utilQuad", "utilZeroOne", "utilInterval"), format = "df") |>
+    as_tibble() |>
+    pivot_longer(cols = 1:60) |>
+    mutate(decision = rep(1:20, 3 * 4 * 4000),
+           utility  = rep(rep(c("Cuadratica", "Uno Cero", "Intervalo"),
+                              each = 20), 4 * 4000),
+           utility = fct_inorder(utility)) |>
+    group_by(utility, decision) |>
     summarise(expected.util = mean(value),
-              ribbon.lo = quantile(value, .05),
-              ribbon.hi = quantile(value, .95)) |>
-    mutate(decision = 1:20) |>
-     ggplot(aes(decision, expected.util)) +
-     geom_line() + geom_point() + 
-     geom_vline(xintercept = 9, color = 'red', lty = 2) + 
-     sin_lineas +
-     ylab("Utilidad Esperada") +
-     xlab("Decisión") +
-     ggtitle("Utilidad Intervalo")
+              ribbon.lo = quantile(value, .10),
+              ribbon.hi = quantile(value, .90)) |>
+    ungroup() |>
+    ggplot(aes(decision - .5, expected.util)) +
+    ## geom_line() + geom_point() +
+    geom_step() + 
+    geom_vline(xintercept = 9, color = 'red', lty = 2) +
+    facet_wrap(~utility, scales = "free_y") + 
+    sin_lineas +
+    ylab("Utilidad Esperada") +
+    xlab("Decisión") 
 
-   g1 + g2 + g3
 #+end_src
-
+#+name: fig:bechdel
+#+caption: Utilidad esperada bajo distintas funciones de utilidad.
 #+RESULTS:
-[[file:../images/bechdel-utilidad-cuadratica.jpeg]]
+[[file:../images/bechdel-utilidad-cuadratica-aprox-continua.jpeg]]
 
+#+REVEAL: split
+Notas que bajo pérdida cuadrática y pérdida 1-0 podemos identificar un único
+punto máximo de utilidad esperada. Bajo pérdida por intervalos, no.
+
+#+BEGIN_NOTES
+Bajo ciertas funciones de utilidad podemos identificar los resúmenes adecuados
+que maximicen la función de utilidad. Por ejemplo, para pérdida cuadrática
+corresponde el valor esperado posterior (en el ejemplo de las películas el de la
+distribución predictiva posterior). Para pérdida 1-0, la moda.
+#+END_NOTES
 
 * Decisiones continuas
 
 El ejemplo anterior utilizaba decisiones discretas (o un espacio de decisiones
-discretas). Si las decisiones fueran sobre un continuo el problema se vuelve mas
+discretas). Si las decisiones fueran sobre un continuo, el problema se vuelve mas
 complicado, para lo cual las capacidades actuales de ~Stan~ son limitadas.
+
+#+name: fig:bechdel-cont
+#+caption: Utilidad esperada bajo distintas funciones de utilidad.
+#+RESULTS:
+[[file:../images/bechdel-utilidad-cuadratica-aprox-continua.jpeg]]
 
 
 # * Referencias                                                         :latex:
