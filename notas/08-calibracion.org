@@ -209,7 +209,7 @@ y asumimos una $\sigma$ conocida.
 #+REVEAL: split
 Este modelo es un modelo conjugado ~Normal-Normal~ el cual tiene un distribución posterior
 \begin{align}
-\mu | y \sim \mathsf{N}\left( \frac{y}{\sigma^2+ 1}, 1 + \frac{1}{\sigma^2} \right)\,.
+\mu | y \sim \mathsf{N}\left( \frac{y}{\sigma^2+ 1}, \frac{2}{1 + \sigma^2} \right)\,.
 \end{align}
 
 #+begin_src R :exports none :results none
