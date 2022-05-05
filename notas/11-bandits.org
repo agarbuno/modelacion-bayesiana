@@ -502,8 +502,8 @@ proponen nuevos algoritmos con buenas propiedades teóricas.
 #+begin_src R :exports code :results none :eval never 
   ## Declaramos el problema
   K <- 2
-  theta <- c(0.5, 0.4)
-  N <- 1000
+  theta <- c(0.05, 0.04)
+  N <- 5000
 
   ## Inicializamos
   p_best <- matrix(0, N, K)
@@ -545,10 +545,37 @@ proponen nuevos algoritmos con buenas propiedades teóricas.
 #+RESULTS:
 [[file:../images/bandits-policy.jpeg]]
 
+La figura anterior nos muestra un resultado bastante poderoso. El aprendizaje
+secuencial Bayesiano sobre la incertidumbre en las tasas de recompensas nos
+puede ayudar a identificar con alta probabilidad la mejor opción. Un análisis de
+potencia frecuentista nos diría que necesitamos hasta 10 veces más experimentos
+para detectar la proporción correcta.
+
+#+begin_src R :exports both :results org 
+  power.prop.test(p1 = .05, p2 = .04, power = .95)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+
+     Two-sample comparison of proportions power calculation 
+
+              n = 11166
+             p1 = 0.05
+             p2 = 0.04
+      sig.level = 0.05
+          power = 0.95
+    alternative = two.sided
+
+NOTE: n is number in *each* group
+#+end_src
+
+
+
 * Decisiones, decisiones, ...
 
 En el marco de teoría de la decisión utilizaremos la opción maximice la utilidad
-esperada. Esto es, nuestra política óptima será aquella que en cada turno $n$ se
+esperada. Esto es, nuestra política óptima será aquella que en cada turno $n$
 escogerá
 \begin{align}
 k^*_n = \arg \max_{k = 1, \ldots, K} \mathbb{E} [Y_k | y_{1:n}, z_{1:n}]\,,
@@ -561,8 +588,8 @@ donde
 * Tragamonedas contextuales
 
 Se pueden utilizar modelos predictivos para obtener recompensas
-contextuales. Para esto, utilizamos covariables que nos ayuden a modelar de
-mejor manera
+contextuales. Esto se utiliza en sistemas de recomendación personalizados. Para
+esto, utilizamos covariables que nos ayuden a modelar de mejor manera
 \begin{align}
 \mathbb{E}[Y_k|X_k]\,,
 \end{align}
@@ -570,7 +597,9 @@ donde se pueden utilizar cualquier modelo de regresión generalizada, o modelos
 basados en /splines/, o modelos BART (ver citep:Martin2021,Li2010b).
 
 Alternativas --y una breve revisión de literatura-- también se pueden encontrar
-en el artículo citep:Gronau2020.
+en el artículo citep:Gronau2020. Por último, [[https://www.youtube.com/watch?v=kY-BCNHd_dM][la sesión de conferencia]] en
+tragamonedas de brazos múltiples por parte del equipo de ciencia de datos de
+Netflix es muy informativa sobre el tema. 
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
