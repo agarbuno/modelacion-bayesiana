@@ -43,8 +43,14 @@
 
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Bandits.\\
-*Objetivo*: Con este tema nos encontramos en la parte final del curso. Veremos aplicaciones del estado del arte y temas de inferencia aproximada.  En particular en esta sección estudiaremos pruebas A/B  en el contexto Bayesiano. \\
-*Lectura recomendada*: El artículo citep:Scott2010. 
+*Objetivo*: Con este tema nos encontramos en la parte final del curso. Veremos
+ aplicaciones del estado del arte y temas de inferencia aproximada.  En
+ particular en esta sección estudiaremos pruebas A/B en el contexto
+ Bayesiano. \\
+*Lectura recomendada*: El artículo citep:Scott2010. El artículo
+ citep:Gronau2020. También encontrarán este [[https://www.dynamicyield.com/lesson/bayesian-testing/][mini-curso]] relevante en la discusión
+ de este tema. También el libro citep:Lattimore2020 provee de un tratamiento
+ general de este tema.
 #+END_NOTES
 
 
@@ -130,7 +136,9 @@ minimizar el tiempo necesario para explorar las alternativas para encontrar la
 mejor.
 
 El problema de los traga-monedas es un problema clásico en la literatura de
-aprendizaje por refuerzo con un problema de decisión secuencia.
+aprendizaje por refuerzo con un problema de decisión secuencial y tiene
+aplicaciones en en toma de decisiones para distintos ámbitos como diseño de
+páginas web, sistemas de recomendación personalizados, etc.
 
 En particular nos concentraremos en explorar la política de muestreo Thompson,
 donde cada brazo del traga-monedas se escoge con probabilidad proporcional a la
@@ -559,7 +567,10 @@ mejor manera
 \mathbb{E}[Y_k|X_k]\,,
 \end{align}
 donde se pueden utilizar cualquier modelo de regresión generalizada, o modelos
-basados en /splines/, o modelos BART (ver citep:Martin2021,Li2010b). 
+basados en /splines/, o modelos BART (ver citep:Martin2021,Li2010b).
+
+Alternativas --y una breve revisión de literatura-- también se pueden encontrar
+en el artículo citep:Gronau2020.
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
