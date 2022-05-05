@@ -14,31 +14,8 @@
 #+REVEAL_EXTRA_CSS: ./mods.css
 #+REVEAL_PLUGINS: (notes)
 :END:
-:LATEX_PROPERTIES:
-#+OPTIONS: toc:nil date:nil author:nil tasks:nil
-#+LANGUAGE: sp
-#+LATEX_CLASS: handout
-#+LATEX_HEADER: \usepackage[spanish]{babel}
-#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
-#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
-#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
-#+LATEX_HEADER: \decimalpoint
-#+LATEX_HEADER:\usepackage{framed}
-#+LaTeX_HEADER: \usepackage{listings}
-#+LATEX_HEADER: \usepackage{fancyvrb}
-#+LATEX_HEADER: \usepackage{xcolor}
-#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
-#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
-#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
-#+LaTeX_HEADER: {}
-#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
-#+LaTeX_HEADER: {}
-#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
-#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
-#+EXPORT_FILE_NAME: ../docs/11-bandits.pdf
-:END:
 #+PROPERTY: header-args:R :session bayes-bandits :exports both :results output org :tangle ../rscripts/11-bandits.R :mkdirp yes :dir ../
-#+EXCLUDE_TAGS: toc latex reveal
+#+EXCLUDE_TAGS: toc latex 
 
 
 #+BEGIN_NOTES
@@ -104,12 +81,14 @@
   - [[#política-bayesiana][Política Bayesiana]]
 - [[#tragamonedas-bernoulli-en-stan][Tragamonedas Bernoulli en Stan]]
   - [[#estadísticas-suficientes][Estadísticas suficientes]]
+  - [[#modelo-conjugado][Modelo conjugado]]
 - [[#decisiones-decisiones-][Decisiones, decisiones, ...]]
 - [[#tragamonedas-contextuales][Tragamonedas contextuales]]
+- [[#referencias][Referencias]]
 :END:
 
 
-* /Disclaimer/                                                          :reveal:
+* /Disclaimer/                                                          
 :PROPERTIES:
 :reveal_background: #00468b
 :END:
@@ -127,23 +106,28 @@ interés~. Para esto se recolectan datos al respecto y después se hace inferenc
 estadística. En particular, nos concentraremos en experimentación secuencial que
 permite al diseñador decidir qué alternativa se presenta en cada iteración.
 
+#+REVEAL: split
 El objetivo con este mecanismo es diseñar la política que minimice la cantidad
 de datos necesarios para poder hacer la inferencia.
 
-Exploraremos la noción de los traga-monedas con brazos múltiples (/multi-armed
+#+REVEAL: split
+Exploraremos la noción de los ~traga-monedas con brazos múltiples~ (/multi-armed
 bandits/). Cada alternativa otorga una recompensa estocástica y el objetivo es
 minimizar el tiempo necesario para explorar las alternativas para encontrar la
 mejor.
 
+#+REVEAL: split
 El problema de los traga-monedas es un problema clásico en la literatura de
-aprendizaje por refuerzo con un problema de decisión secuencial y tiene
-aplicaciones en en toma de decisiones para distintos ámbitos como diseño de
+aprendizaje por refuerzo. Es un problema de decisión secuencial y tiene
+aplicaciones en la toma de decisiones para distintos ámbitos como diseño de
 páginas web, sistemas de recomendación personalizados, etc.
 
+#+REVEAL: split
 En particular nos concentraremos en explorar la política de muestreo Thompson,
 donde cada brazo del traga-monedas se escoge con probabilidad proporcional a la
 probabilidad posterior de obtener la máxima recompensa.
 
+#+REVEAL: split
 La agenda será:
 1. Experimentación Bernoulli.
 2. Experimentación secuencial.
@@ -156,19 +140,20 @@ Supongamos que estamos hambrientos y nos encontramos en un pueblito con 3
 restaurantes. El primero ha recibido 2/2 reseñas positivas; el segundo, 9/10 y
 el tercero, 32/40. ¿Cuál escogerías?
 
+#+REVEAL: split
 Supongamos que administramos un sitio /web/ y tenemos que escoger que /Ads/ tenemos
 que poner en la página. Cada /click/ nos da dinero de los
 patrocinadores. Supongamos que tenemos tres opciones donde los /Ads/ han recibido
 2/2 clicks, 9/10 y 32/40 clicks. ¿Cuál nos conviene?
 
+#+REVEAL: split
 En ambos problemas el conjunto de datos es el mismo. La pregunta es la misma,
 ¿qué opción tiene mayor probabilidad de éxito?
 
+#+REVEAL: split
 En general, los resultados no tienen que ser binarios. Estos pueden ser conteos,
 continuos o multivariados. Pero la pregunta es la misma, ¿cuál es la mejor
 opción?
-
-\newpage
 
 ** Pruebas A/B Bernoulli
 
@@ -176,11 +161,13 @@ Mantengamos por el momento el escenario binario con éxito o fracaso. Asumiremos
 que tenemos $K$ objetos para comparar. Para cada $k \in K$, hemos realizado
 $N_k$ pruebas de las cuales $y_k$ han sido éxitos.
 
+#+REVEAL: split
 El modelo tiene parámetros $\theta_k \in (0,1)$ para cada una de las
 posibilidades, que representa las probabilidades de éxito. Nuestro objetivo será
 definir cuál es la mejor opción. Esto es, qué opción tiene la mejor posibilidad
 de éxito.
 
+#+REVEAL: split
 De momento asumiremos previas
 \begin{align}
 \theta_k \sim \mathsf{Uniforme}(0,1)\,.
@@ -190,6 +177,7 @@ El modelo de verosimilitud es
 y_k \sim \mathsf{Binomial}(N_k, \theta_k)\,.
 \end{align}
 
+#+REVEAL: split
 Por último, queremos saber cuál es la mejor opción. Esto lo podemos escribir como
 \begin{align*}
 \mathbb{P}[ \text{ la mejor opción es  }k | y] &= \mathbb{E} [I[\theta_k \geq \max \theta] | y ]\\
@@ -198,6 +186,7 @@ Por último, queremos saber cuál es la mejor opción. Esto lo podemos escribir 
 \end{align*}
 donde $\theta^{(m)} \sim \pi(\theta|y)$ para $m = 1, \ldots, M$.
 
+#+REVEAL: split
 El código del modelo queda como sigue:
 #+begin_src  stan :tangle ../modelos/bandits/tragamonedas-ab.stan
   data {
@@ -233,6 +222,7 @@ El código del modelo queda como sigue:
   posterior <- modelo$sample(data = data.list, refresh = 1000)
 #+end_src
 
+#+REVEAL: split
 #+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/bandit-bernoulli.jpeg :exports results :results output graphics file
 g1 <- bayesplot::mcmc_intervals(posterior$draws(), regex_pars = "theta") +
@@ -245,6 +235,7 @@ g2/ g1 + patchwork::plot_layout(heights = c(3, 2))
 #+RESULTS:
 [[file:../images/bandit-bernoulli.jpeg]]
 
+#+REVEAL: split
 #+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/bandit-bernoulli-ganar.jpeg :exports results :results output graphics file
   posterior$draws(variables = "mejor_ix", format = "df") |>
@@ -268,7 +259,8 @@ debe de diseñar un experimento para poder determinar el tamaño de muestra
 necesario para determinar diferencias significativas en las alternativas
 posibles.
 
-El diseño asume que cada opción es ~intercambiable~ y por lo tanto se trata sobre
+#+REVEAL: split
+El diseño asume que cada opción es ~intercambiable~ y por lo tanto se necesita
 establecer cuántas veces se tienen que probar cada opción.
 
 #+BEGIN_NOTES
@@ -286,12 +278,12 @@ evento independiente.
 
 ** Exploración y explotación
 
-En este contexto hablamos que tenemos que /explorar/ la distribución de
-recompensas de cada una de las opciones y que tendremos que /explotar/ nuestro
+En este contexto hablamos que tenemos que ~explorar~ la distribución de
+recompensas de cada una de las opciones y que tendremos que ~explotar~ nuestro
 conocimiento sobre la opción que genera mejores retornos.
 
-Llamamos ~política~ a la forma en que exploramos las posibilidades. Nota que las elecciones
-no tienen que ser deterministas.
+Llamamos ~política~ a la forma en que exploramos las posibilidades. Nota que las
+elecciones no tienen que ser deterministas.
 
 ** Diseños secuenciales
 
@@ -312,11 +304,13 @@ $N$ iteraciones del proceso. En este caso, consideramos $n \in \{1, \ldots, N\}$
 donde hemos escogido el brazo $z_n \in \{1, \ldots, K\}$ y también hemos
 recibido una recompensa $y_n \in \mathbb{R}$.
 
+#+REVEAL: split
 El supuesto mas fuerte que hacemos es que cada opción tiene la misma
-distribución de recompensas. Independiente del número de veces que se ha
-utilizado o de la historia que hemos observado.
+distribución de recompensas. Esto es, los resultados son independientes del
+número de veces que se han utilizado o de la historia que hemos observado.
 
-Asumimos que las recompensas tienen distribución
+#+REVEAL: split
+Asumimos, en particular, que las recompensas tienen distribución
 \begin{align}
 y_n \sim \mathsf{Bernoulli}(\theta_{[z_n]})\,.
 \end{align}
@@ -358,7 +352,7 @@ Se tomará cada opción con una probabilidad equiprobable
 Se escoge una opción hasta que deja de dar recompensas, después, se cambia a la siguiente opción. Se empieza con la opción $z_n = 1$ y después se escogen las opciones de acuerdo a
 \begin{align}
 z_{n+1} = \begin{cases}
-z_n &\text{ si } \\
+z_n &\text{ si } y_n = 1 \\
 z_n + 1 &\text{ si } y_n = 0 \text{ y } z_n < K \\
 1 &\text{ si } y_n = 0 \text{ y } z_n = K \\
 \end{cases}. 
@@ -371,18 +365,22 @@ recompensas. Cada opción se escoge de acuerdo a la probabilidad de ser la mejor
 hasta el momento. Dados los parámetros $\theta = (\theta_1, \ldots, \theta_K)$,
 se considera que la opción $k$ es la mejor si $\theta_k = \max \theta$.
 
+#+REVEAL: split
 Las opciones se escogen de acuerdo
 \begin{align}
 z_n \sim \mathsf{Categorical}(\phi_n)\,,
 \end{align}
 donde $\sum \phi_{n,k} = 1$.
 
+#+REVEAL: split
 De acuerdo a los supuesto de recompensas Bernoulli y el supuesto de
 intercambiabilidad escogemos una previa
 \begin{align}
-\theta_k \sim \mathsf{Beta}(\alpha, \alpha)\,.
+\theta_k \sim \mathsf{Beta}(\alpha, \alpha)\,,
 \end{align}
+para las probabilidades de recibir una recompensa. 
 
+#+REVEAL: split
 Dado el modelo Bayesiano podemos escribir 
 \begin{align*}
 \phi_{k,n} &= \mathbb{P}[ \theta_k = \max \theta | y_{1:n}, z_{1:n}] \\
@@ -450,7 +448,9 @@ Y utilizaríamos un modelo
   }
 #+end_src
 
-Así que el código queda
+** Modelo conjugado 
+
+Podemos aprovechar, además, que tenemos un modelo conjugado 
 #+begin_src stan :tangle ../modelos/bandits/tragamonedas-conjugado.stan
   data {
     int<lower=1> K; 
@@ -487,8 +487,9 @@ Así que el código queda
   modelo <- cmdstan_model(ruta, dir = modelos_files)
 #+end_src
 
+#+REVEAL: split
 Lo que va a cambiar con los ejemplos anteriores que hemos visto en el curso es
-que haremos una actualización Bayesiana secuencial y necesitaremos hacer unos
+que haremos una ~actualización Bayesiana secuencial~ y necesitaremos hacer unos
 pequeños cambios en la forma que interactuamos con el código.
 
 #+BEGIN_NOTES
@@ -524,6 +525,7 @@ proponen nuevos algoritmos con buenas propiedades teóricas.
   }
 #+end_src
 
+#+REVEAL: split
 #+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/bandits-policy.jpeg :exports results :results output graphics file :eval never
   g1 <- tibble(rhat = r_hat[,1]) |>
@@ -545,6 +547,7 @@ proponen nuevos algoritmos con buenas propiedades teóricas.
 #+RESULTS:
 [[file:../images/bandits-policy.jpeg]]
 
+#+REVEAL: split
 La figura anterior nos muestra un resultado bastante poderoso. El aprendizaje
 secuencial Bayesiano sobre la incertidumbre en las tasas de recompensas nos
 puede ayudar a identificar con alta probabilidad la mejor opción. Un análisis de
@@ -596,10 +599,13 @@ esto, utilizamos covariables que nos ayuden a modelar de mejor manera
 donde se pueden utilizar cualquier modelo de regresión generalizada, o modelos
 basados en /splines/, o modelos BART (ver citep:Martin2021,Li2010b).
 
+#+REVEAL: split
 Alternativas --y una breve revisión de literatura-- también se pueden encontrar
 en el artículo citep:Gronau2020. Por último, [[https://www.youtube.com/watch?v=kY-BCNHd_dM][la sesión de conferencia]] en
 tragamonedas de brazos múltiples por parte del equipo de ciencia de datos de
 Netflix es muy informativa sobre el tema. 
+
+* Referencias                                                         :latex: 
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
