@@ -14,6 +14,29 @@
 #+REVEAL_EXTRA_CSS: ./mods.css
 #+REVEAL_PLUGINS: (notes)
 :END:
+:LATEX_PROPERTIES:
+#+OPTIONS: toc:nil date:nil author:nil tasks:nil
+#+LANGUAGE: sp
+#+LATEX_CLASS: handout
+#+LATEX_HEADER: \usepackage[spanish]{babel}
+#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
+#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
+#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
+#+LATEX_HEADER: \decimalpoint
+#+LATEX_HEADER:\usepackage{framed}
+#+LaTeX_HEADER: \usepackage{listings}
+#+LATEX_HEADER: \usepackage{fancyvrb}
+#+LATEX_HEADER: \usepackage{xcolor}
+#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
+#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
+#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
+#+LaTeX_HEADER: {}
+#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
+#+LaTeX_HEADER: {}
+#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
+#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
+#+EXPORT_FILE_NAME: ../docs/09-comparacion-modelos.pdf
+:END:
 #+PROPERTY: header-args:R :session comparacion :exports both :results output org :tangle ../rscripts/09-comparacion.R :mkdirp yes :dir ../
 #+EXCLUDE_TAGS: toc latex
 #+BEGIN_NOTES
@@ -67,7 +90,6 @@
   - [[#criterio-de-información-watanabe-akaike-waic][Criterio de información Watanabe-Akaike (WAIC)]]
   - [[#validación-cruzada][Validación cruzada]]
   - [[#ejemplo-modelo-jerárquico][Ejemplo: modelo jerárquico]]
-- [[#referencias][Referencias]]
 :END:
 
 * Introducción 
@@ -194,7 +216,7 @@ Kullback-Leibler~. La cual definimos como
 #+BEGIN_NOTES
 Nota que la divergencia de Kullback-Leibler la podemos escribir como
 \begin{align}
-\mathsf{KL}(p\| q) = H(p, q) - H(q)\,,
+\mathsf{KL}(p\| q) = H(p, q) - H(p)\,,
 \end{align}
 donde $H(p,q) = - \sum_{i=1}^{n} p_i \log q_i$ es la ~entropía cruzada~. 
 #+END_NOTES
@@ -764,7 +786,7 @@ provee de mejores diagnósticos en el cómputo de la capacidad predictiva del mo
 Nota que no hemos calculado el ~AIC~ para este modelo, ¿por qué?
 #+END_NOTES
 
-* Referencias                                                         :latex:
+# * Referencias                                                         :latex:
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
