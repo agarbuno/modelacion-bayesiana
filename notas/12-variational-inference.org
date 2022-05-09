@@ -80,7 +80,8 @@
   - [[#aproximación-por-optimización][Aproximación por optimización]]
   - [[#la-solución][La solución]]
   - [[#dirección-de-kl][Dirección de KL]]
-  - [[#solución-en-la-práctica][Solución en la práctica]]
+  - [[#conclusiones][Conclusiones]]
+- [[#inferencia-aproximada][Inferencia aproximada]]
 :END:
 
 
@@ -171,7 +172,6 @@ capturar propiedades globales importantes de la distribución objetivo.
 [[file:images/20220509-103933_screenshot.png]]
 
 
-
 ** Aproximación por optimización
 
 Una alternativa es definir una familia de posibles distribuciones $\mathcal{Q}$
@@ -232,7 +232,6 @@ En [[fig:vi-logistic]] se muestra la solución encontrada minimizando el criteri
 #+Attr_Latex: :width .65\linewidth
 [[file:images/20220509-104336_screenshot.png]]
 
-
 ** Dirección de ~KL~
 
 Hemos tomado la solución de $\mathsf{KL}(q\|\pi)$ por cuestiones numéricas y
@@ -240,12 +239,12 @@ también discutimos que la solución tiene la interpretación de ser una
 aproximación de la posterior (justo lo que nos interesa).
 
 #+REVEAL: split
-Por ejemplo, en [[fig:vi-reversed]], bajo una familia de Gaussianas independientes para
-$\mathcal{Q}$ la solución de $\mathsf{KL}(q\|\pi)$, además, se puede ver como
-una distribución que se concentra en las zonas de alta probabilidad. Mientras
-que la solución de $\mathsf{KL}(\pi\|q)$ se concentra en zonas de alta
-densidad. Lo que nos habla que la formulación correcta se fijará en las
-propiedades que nos interesen.
+Por ejemplo, en [[fig:vi-reversed]], bajo una familia de Gaussianas independientes
+para $\mathcal{Q}$ la solución de $\mathsf{KL}(q\|\pi)$, además, se puede ver
+como una distribución que se concentra en las zonas de ~alta
+probabilidad~. Mientras que la solución de $\mathsf{KL}(\pi\|q)$ se concentra en
+zonas de ~alta densidad~. Lo que nos habla que la formulación correcta se fijará
+en las propiedades que nos interesen.
 
 #+DOWNLOADED: screenshot @ 2022-05-09 10:54:36
 #+name: fig:vi-reversed
@@ -255,10 +254,43 @@ propiedades que nos interesen.
 [[file:images/20220509-105436_screenshot.png]]
 
 #+REVEAL: split
-El mismo efecto se muestra en 
+El mismo efecto se muestra en [[fig:vi-mixture]] donde dependiendo de la formulación
+se pueden recuperar ciertas propiedades de la distribución objetivo.
 
-** Solución en la práctica
+#+DOWNLOADED: screenshot @ 2022-05-09 12:19:44
+#+name: fig:vi-mixture
+#+caption: Imagen tomada de citep:Bishop2006. Modelo objetivo basado en una mezcla de Gaussianas (azul). En (a) se muestra la aproximación que minimiza $\mathsf{KL}(\pi\|q)$. En (b) y (c) se muestran mínimos globales que corresponden a $\mathsf{KL}(q\|\pi)$. 
+#+attr_html: :width 700 :align center
+[[file:images/20220509-121944_screenshot.png]]
 
+
+** Conclusiones
+
+La familia de distribuciones $\mathcal{Q}$ define la calidad de
+aproximación. Por simplicidad se utiliza una distribución Gaussiana con
+componentes independientes en el espacio de parámetros transformados (~solución
+de campo medio~, /mean field/).
+
+#+DOWNLOADED: screenshot @ 2022-05-09 12:33:06
+#+caption: Imagen tomada de citep:Kucukelbir2015.
+#+attr_html: :width 700 :align center
+[[file:images/20220509-123306_screenshot.png]]
+
+#+REVEAL: split
+Dado que la solución de
+\begin{align}
+\min_{q \in \mathcal{Q}} \mathsf{KL}(q \| \pi)\,,
+\end{align}
+necesita resolverse en un espacio de funciones de probabilidad se utilizan
+herramientas de ~cálculo de variaciones~. Por lo tanto, utilizar estas soluciones
+para resolver un problema de inferencia se llama ~inferencia variacional~ o ~bayes
+variacional~ citep:Bishop2006.
+
+* Inferencia aproximada
+
+~Stan~ en particular ofrece una solución basada en citep:Kucukelbir2015. En el cual se formula el problema en términos de:
+- Diferenciación automática.
+- Una familia $\mathcal{Q}$ de distribuciones que operan bajo un espacio sin restricciones.
 
 
 
