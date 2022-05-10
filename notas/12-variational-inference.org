@@ -1,0 +1,315 @@
+#+TITLE: EST-46115: Modelación Bayesiana
+#+AUTHOR: Prof. Alfredo Garbuno Iñigo
+#+EMAIL:  agarbuno@itam.mx
+#+DATE: ~Inferencia Aproximada~
+#+STARTUP: showall
+:REVEAL_PROPERTIES:
+#+LANGUAGE: es
+#+OPTIONS: num:nil toc:nil timestamp:nil
+#+REVEAL_REVEAL_JS_VERSION: 4
+#+REVEAL_THEME: night
+#+REVEAL_SLIDE_NUMBER: t
+#+REVEAL_HEAD_PREAMBLE: <meta name="description" content="Modelación Bayesiana">
+#+REVEAL_INIT_OPTIONS: width:1600, height:900, margin:.2
+#+REVEAL_EXTRA_CSS: ./mods.css
+#+REVEAL_PLUGINS: (notes)
+:END:
+:LATEX_PROPERTIES:
+#+OPTIONS: toc:nil date:nil author:nil tasks:nil
+#+LANGUAGE: sp
+#+LATEX_CLASS: handout
+#+LATEX_HEADER: \usepackage[spanish]{babel}
+#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
+#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
+#+LATEX_HEADER: \usepackage[nameinlink]{cleveref}
+#+LATEX_HEADER: \decimalpoint
+#+LATEX_HEADER:\usepackage{framed}
+#+LaTeX_HEADER: \usepackage{listings}
+#+LATEX_HEADER: \usepackage{fancyvrb}
+#+LATEX_HEADER: \usepackage{xcolor}
+#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
+#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
+#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
+#+LaTeX_HEADER: {}
+#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
+#+LaTeX_HEADER: {}
+#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
+#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
+#+EXPORT_FILE_NAME: ../docs/12-variational-inference.pdf
+:END:
+#+PROPERTY: header-args:R :session variational-inference :exports both :results output org :tangle ../rscripts/12-variational-inference.R :mkdirp yes :dir ../
+#+EXCLUDE_TAGS: toc latex
+
+#+BEGIN_NOTES
+*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Inferencia Aproximada.\\
+*Objetivo*: En esta sección del curso estudiaremos métodos aproximados de inferencia. En particular nos concentraremos en estudiar inferencia variacional. Lo cual implica utilizar una familia de distribuciones dónde buscaremos un sustituto para nuestra distribución posterior. ~Stan~ utiliza un método de esta colección de aproximaciones.\\
+*Lectura recomendada*: Una explicación de la aproximación Laplace la puedes encontrar en 2.4.4 de citep:McElreath2020 y 13.3 de citep:Gelman2014a. 
+#+END_NOTES
+
+
+#+begin_src R :exports none :results none
+  ## Setup --------------------------------------------
+  library(tidyverse)
+  library(patchwork)
+  library(scales)
+  ## Cambia el default del tamaño de fuente 
+  theme_set(theme_linedraw(base_size = 25))
+
+  ## Cambia el número de decimales para mostrar
+  options(digits = 2)
+
+  sin_lineas <- theme(panel.grid.major = element_blank(),
+                      panel.grid.minor = element_blank())
+  color.itam  <- c("#00362b","#004a3b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f", NA)
+
+  sin_lineas <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+  sin_leyenda <- theme(legend.position = "none")
+  sin_ejes <- theme(axis.ticks = element_blank(), axis.text = element_blank())
+#+end_src
+
+
+
+* Contenido                                                             :toc:
+:PROPERTIES:
+:TOC:      :include all  :ignore this :depth 3
+:END:
+:CONTENTS:
+- [[#introducción][Introducción]]
+- [[#muestreo-y-aproximaciones][Muestreo y aproximaciones]]
+  - [[#aproximación-por-curvatura][Aproximación por curvatura]]
+  - [[#aproximación-por-optimización][Aproximación por optimización]]
+  - [[#la-solución][La solución]]
+  - [[#dirección-de-kl][Dirección de KL]]
+  - [[#conclusiones][Conclusiones]]
+- [[#inferencia-aproximada][Inferencia aproximada]]
+:END:
+
+
+* Introducción
+
+En inferencia Bayesiana definimos un modelo conjunto para observaciones y las
+configuraciones del proceso generador de datos. Esto nos permite utilizar el
+teorema de Bayes para actualizar nuestro conocimiento sobre los parámetros que no conocemos
+por medio de
+#+name: eqn:post
+\begin{align}
+\pi(\theta | y ) \propto \pi(y | \theta )\, \pi(\theta)\,.
+\end{align}
+
+El procedimiento de inferencia dentro de este marco es sencillo y prácticamente directo pues se
+traduce en reportar la distribución posterior de las configuraciones en luz de las observaciones que tengamos. 
+
+A lo largo de este curso hemos establecido que de alguna u otra forma lo que
+necesitamos es reportar valores esperados (que se traduce en poder resolver
+integrales) utilizando dicho estado de conocimiento actualizado.
+
+En esta sección estudiaremos mecanismos para utilizar aproximaciones al proceso
+de inferencia basado en el lado derecho de  [[eqn:post]].
+
+* Muestreo y aproximaciones
+
+Hasta ahora lo que hemos visto son métodos de ~aproximación de integrales~. En
+particular utilizando el ~método Monte Carlo~. Hemos discutido que este es un
+método de estimación insesgado del cual se pueden esperar algunas propiedades
+bondadosas en el largo plazo.
+
+Con los métodos de ~simulación Markoviana~ esperamos poder eliminar los problemas
+de complejidad computacional que usualmente se encuentran en aplicaciones. Por ejemplo, la
+incapacidad de utilizar generadores de números aleatorios para cualquiera que sea la distribución dada. 
+
+Los métodos Markovianos generan muestras, que esperamos sean, ligeramente
+correlacionadas y cuya distribución corresponda a la distribución que nos interesa.
+
+** Aproximación por curvatura
+
+Existen alternativas para poder aproximar el problema de inferencia
+Bayesiana. Esto es particularmente importante cuando no podemos esperar a que
+nuestros muestreadores converjan.
+
+En clase hemos discutido que con un conjunto suficientemente grande de datos la
+distribución posterior se /parece/ a una Gaussiana. Parece natural poder,
+entonces, construir una aproximación con estas características. Es decir,
+\begin{align}
+\pi(\theta | y) \approx  \mathsf{Normal}\left( \theta | \hat \theta, \Sigma_{\hat \theta} \right)\,,
+\end{align}
+donde
+\begin{gather}
+\hat \theta = \mathsf{moda}(\theta|y), \qquad \Sigma_{\hat \theta} = \left[ - \nabla^2_\theta \log \pi(\hat \theta|y) \right]^{-1}\,.
+\end{gather}
+#+REVEAL: split
+La aproximación utiliza información de primero y segundo orden de la
+distribución posterior. Es decir
+\begin{align}
+\hat \theta = \arg \max_\theta \pi(\theta| \y)\,,
+\end{align}
+y $\Sigma_\theta$ nos da la información de la curvatura. Esta ~aproximación
+cuadrática~ se denomina ~aproximación de Laplace~.
+
+#+BEGIN_NOTES
+Para que la aproximación de Laplace tenga sentido para un problema con
+parámetros restringidos, es usual transformar los parámetros a una escala sin
+restricciones. Por ejemplo, utilizando una transformación logarítmica o /logit/ y
+recordando incorporar el término multiplicativo de la Jacobiana de dicha
+transformación.
+#+END_NOTES
+
+#+REVEAL: split
+La aproximación de Laplace nos permite sustituir un modelo de probabilidad por
+otro. Aunque en teoría podemos determinar la calidad de la aproximación --por
+medio de la expansión de Taylor-- en la práctica puede resultar infactible dar
+una estimación de este error.
+
+#+REVEAL: split
+El problema de la aproximación de Laplace es que utiliza información local y puede fallar en
+capturar propiedades globales importantes de la distribución objetivo.
+
+#+DOWNLOADED: screenshot @ 2022-05-09 10:39:33
+#+caption: Imagen tomada de citep:Bishop2006. Aproximación de Laplace en rojo. Distribución objetivo sombreada. 
+#+attr_html: :width 700 :align center
+#+attr_latex: :width 0.65\textwidth
+[[file:images/20220509-103933_screenshot.png]]
+
+
+** Aproximación por optimización
+
+Una alternativa es definir una familia de posibles distribuciones $\mathcal{Q}$
+y encontrar dentro de esta familia de distribuciones la que ~mejor se parezca~ a
+nuestra distribución objetivo $\pi(\theta | y)$.
+
+#+REVEAL: split
+Lo importante es poder definir la noción de encontrar al mejor candidato dentro de $\mathsf{Q}$. 
+
+** La solución
+
+En inferencia aproximada buscamos sustituir nuestra distribución objetivo con
+aquella que resuelva el problema
+\begin{align}
+\min_{q \in \mathcal{Q}} \mathsf{KL}\bigg( q(\theta) \bigg \| \pi(\theta| y)\bigg)\,,
+\end{align}
+donde la familia de distribuciones $\mathcal{Q}$ define la calidad/complejidad
+de nuestra aproximación.
+
+#+REVEAL: split
+El problema es que no podemos calcular la divergencia de KL, pues necesitamos
+calcular la constante de normalización en $\pi(\theta|y)$. Así que lo que hacemos es re-expresar
+\begin{align}
+\mathsf{KL}( q(\theta) \| \pi(\theta| y))  = \mathbb{E}[\log q(\theta)] - \mathbb{E}[\log \pi(\theta, y)] + \log \pi(y)\,.
+\end{align}
+
+#+REVEAL: split
+El lado derecho en el primer término define
+\begin{align}
+\mathsf{ELBO}(q) := \mathbb{E}[\log \pi(\theta, y)] - \mathbb{E}[\log q(\theta)]\,.
+\end{align}
+la cual se denomina la cota inferior de evidencia.
+
+#+REVEAL: split
+La cual podemos usar para re-expresar
+\begin{align}
+\log \pi(y) = \mathsf{KL}( q(\theta) \| \pi(\theta| y))   + \mathsf{ELBO}(q) \,,
+\end{align}
+de donde podemos ver que lo que podemos buscar es ~maximizar~ el ~ELBO~ en lugar de
+~minimizar~ la divergencia ~KL~.
+
+#+REVEAL: split
+Nota que también podemos expresar
+\begin{align}
+\mathsf{ELBO}(q) = \mathbb{E}[\log \pi(y | \theta)] - \mathsf{KL}(q(\theta) \| \pi(\theta))\,.
+\end{align}
+Lo cual nos dice que la distribución $q \in \mathcal{Q}$ que encontraremos será
+aquella que busque configuraciones afines al proceso generador de datos y que
+sea cercana a la distribución inicial.
+
+#+REVEAL: split
+En [[fig:vi-logistic]] se muestra la solución encontrada minimizando el criterio de ~ELBO~. 
+
+#+DOWNLOADED: screenshot @ 2022-05-09 10:43:36
+#+name: fig:vi-logistic
+#+caption: Imagen tomada de citep:Bishop2006. Solución de ~ELBO~ se muestra en verde. Aproximación de Laplace en rojo.
+#+attr_html: :width 700 :align center
+#+Attr_Latex: :width .65\linewidth
+[[file:images/20220509-104336_screenshot.png]]
+
+** Dirección de ~KL~
+
+Hemos tomado la solución de $\mathsf{KL}(q\|\pi)$ por cuestiones numéricas y
+también discutimos que la solución tiene la interpretación de ser una
+aproximación de la posterior (justo lo que nos interesa).
+
+#+REVEAL: split
+Por ejemplo, en [[fig:vi-reversed]], bajo una familia de Gaussianas independientes
+para $\mathcal{Q}$ la solución de $\mathsf{KL}(q\|\pi)$, además, se puede ver
+como una distribución que se concentra en las zonas de ~alta
+probabilidad~. Mientras que la solución de $\mathsf{KL}(\pi\|q)$ se concentra en
+zonas de ~alta densidad~. Lo que nos habla que la formulación correcta se fijará
+en las propiedades que nos interesen.
+
+#+DOWNLOADED: screenshot @ 2022-05-09 10:54:36
+#+name: fig:vi-reversed
+#+caption: Imagen tomada de citep:Bishop2006. En (a) se muestra $\mathsf{KL}(q\|\pi)$ y en (b) se muestra $\mathsf{KL}(\pi\|q)$ donde $q\in \mathcal{Q}$ y $\pi$ es la distribución objetivo. 
+#+attr_html: :width 700 :align center
+#+attr_latex: :width .65\linewidth
+[[file:images/20220509-105436_screenshot.png]]
+
+#+REVEAL: split
+El mismo efecto se muestra en [[fig:vi-mixture]] donde dependiendo de la formulación
+se pueden recuperar ciertas propiedades de la distribución objetivo.
+
+#+DOWNLOADED: screenshot @ 2022-05-09 12:19:44
+#+name: fig:vi-mixture
+#+caption: Imagen tomada de citep:Bishop2006. Modelo objetivo basado en una mezcla de Gaussianas (azul). En (a) se muestra la aproximación que minimiza $\mathsf{KL}(\pi\|q)$. En (b) y (c) se muestran mínimos globales que corresponden a $\mathsf{KL}(q\|\pi)$. 
+#+attr_html: :width 700 :align center
+[[file:images/20220509-121944_screenshot.png]]
+
+
+** Conclusiones
+
+La familia de distribuciones $\mathcal{Q}$ define la calidad de
+aproximación. Por simplicidad se utiliza una distribución Gaussiana con
+componentes independientes en el espacio de parámetros transformados (~solución
+de campo medio~, /mean field/).
+
+#+DOWNLOADED: screenshot @ 2022-05-09 12:33:06
+#+caption: Imagen tomada de citep:Kucukelbir2015.
+#+attr_html: :width 700 :align center
+[[file:images/20220509-123306_screenshot.png]]
+
+#+REVEAL: split
+Dado que la solución de
+\begin{align}
+\min_{q \in \mathcal{Q}} \mathsf{KL}(q \| \pi)\,,
+\end{align}
+necesita resolverse en un espacio de funciones de probabilidad se utilizan
+herramientas de ~cálculo de variaciones~. Por lo tanto, utilizar estas soluciones
+para resolver un problema de inferencia se llama ~inferencia variacional~ o ~bayes
+variacional~ citep:Bishop2006.
+
+#+REVEAL: split
+Sin embargo, es usual considerar ~familias parametrizadas~ y buscar 
+\begin{align}
+\min_{\omega \in \Omega} \mathsf{KL} \bigg(q_\omega(\theta) \bigg\| \pi (\theta | y) \bigg)\,,
+\end{align}
+donde la búsqueda se realiza mediante $\omega \in \Omega$. Por ejemplo, el
+vector de medias y matriz de varianzas-covarianzas de las distribuciones
+Gaussianas.
+
+* Inferencia aproximada
+
+~Stan~ en particular ofrece una solución basada en citep:Kucukelbir2015. En el cual se formula el problema en términos de:
+- Diferenciación automática.
+- Una familia $\mathcal{Q}$ de distribuciones que operan bajo un espacio sin
+  restricciones.
+- La familia $\mathcal{Q}$ es la familia de distribuciones Gaussianas con
+  componentes independientes (la matriz de varianzas es una matriz diagonal).
+
+
+
+
+bibliographystyle:abbrvnat
+bibliography:references.bib
+
+* COMMENT Notas
+
+La sección 4.1.4 de citep:Murphy2012. 
+
+
