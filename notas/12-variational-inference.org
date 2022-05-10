@@ -42,7 +42,7 @@
 
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Inferencia Aproximada.\\
-*Objetivo*: Que veremos.\\
+*Objetivo*: En esta sección del curso estudiaremos métodos aproximados de inferencia. En particular nos concentraremos en estudiar inferencia variacional. Lo cual implica utilizar una familia de distribuciones dónde buscaremos un sustituto para nuestra distribución posterior. ~Stan~ utiliza un método de esta colección de aproximaciones.\\
 *Lectura recomendada*: Una explicación de la aproximación Laplace la puedes encontrar en 2.4.4 de citep:McElreath2020 y 13.3 de citep:Gelman2014a. 
 #+END_NOTES
 
@@ -136,8 +136,6 @@ donde
 \begin{gather}
 \hat \theta = \mathsf{moda}(\theta|y), \qquad \Sigma_{\hat \theta} = \left[ - \nabla^2_\theta \log \pi(\hat \theta|y) \right]^{-1}\,.
 \end{gather}
-
-\newpage
 #+REVEAL: split
 La aproximación utiliza información de primero y segundo orden de la
 distribución posterior. Es decir
@@ -286,11 +284,23 @@ herramientas de ~cálculo de variaciones~. Por lo tanto, utilizar estas solucion
 para resolver un problema de inferencia se llama ~inferencia variacional~ o ~bayes
 variacional~ citep:Bishop2006.
 
+#+REVEAL: split
+Sin embargo, es usual considerar ~familias parametrizadas~ y buscar 
+\begin{align}
+\min_{\omega \in \Omega} \mathsf{KL} \bigg(q_\omega(\theta) \bigg\| \pi (\theta | y) \bigg)\,,
+\end{align}
+donde la búsqueda se realiza mediante $\omega \in \Omega$. Por ejemplo, el
+vector de medias y matriz de varianzas-covarianzas de las distribuciones
+Gaussianas.
+
 * Inferencia aproximada
 
 ~Stan~ en particular ofrece una solución basada en citep:Kucukelbir2015. En el cual se formula el problema en términos de:
 - Diferenciación automática.
-- Una familia $\mathcal{Q}$ de distribuciones que operan bajo un espacio sin restricciones.
+- Una familia $\mathcal{Q}$ de distribuciones que operan bajo un espacio sin
+  restricciones.
+- La familia $\mathcal{Q}$ es la familia de distribuciones Gaussianas con
+  componentes independientes (la matriz de varianzas es una matriz diagonal).
 
 
 
