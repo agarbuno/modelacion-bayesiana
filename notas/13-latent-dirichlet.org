@@ -1,0 +1,238 @@
+#+TITLE: EST-46115: Modelación Bayesiana
+#+AUTHOR: Prof. Alfredo Garbuno Iñigo
+#+EMAIL:  agarbuno@itam.mx
+#+DATE: ~Asignación Latente Dirichlet~
+#+STARTUP: showall
+:REVEAL_PROPERTIES:
+#+LANGUAGE: es
+#+OPTIONS: num:nil toc:nil timestamp:nil
+#+REVEAL_REVEAL_JS_VERSION: 4
+#+REVEAL_THEME: night
+#+REVEAL_SLIDE_NUMBER: t
+#+REVEAL_HEAD_PREAMBLE: <meta name="description" content="Modelación Bayesiana">
+#+REVEAL_INIT_OPTIONS: width:1600, height:900, margin:.2
+#+REVEAL_EXTRA_CSS: ./mods.css
+#+REVEAL_PLUGINS: (notes)
+:END:
+:LATEX_PROPERTIES:
+#+OPTIONS: toc:nil date:nil author:nil tasks:nil
+#+LANGUAGE: sp
+#+LATEX_CLASS: handout
+#+LATEX_HEADER: \usepackage[spanish]{babel}
+#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
+#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
+#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
+#+LATEX_HEADER: \decimalpoint
+#+LATEX_HEADER:\usepackage{framed}
+#+LaTeX_HEADER: \usepackage{listings}
+#+LATEX_HEADER: \usepackage{fancyvrb}
+#+LATEX_HEADER: \usepackage{xcolor}
+#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
+#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
+#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
+#+LaTeX_HEADER: {}
+#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
+#+LaTeX_HEADER: {}
+#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
+#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
+#+EXPORT_FILE_NAME: ../docs/13-latent-dirichlet.pdf
+:END:
+#+EXCLUDE_TAGS: toc
+#+PROPERTY: header-args:R :session latent-dirichlet :exports both :results output org :tangle ../rscripts/13-latent-dirichlet.R :mkdirp yes :dir ../
+
+#+begin_src R :exports none :results none
+  ## Setup --------------------------------------------
+  library(tidyverse)
+  library(patchwork)
+  library(scales)
+  ## Cambia el default del tamaño de fuente 
+  theme_set(theme_linedraw(base_size = 25))
+
+  ## Cambia el número de decimales para mostrar
+  options(digits = 2)
+
+  sin_lineas <- theme(panel.grid.major = element_blank(),
+                      panel.grid.minor = element_blank())
+  color.itam  <- c("#00362b","#004a3b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f", NA)
+
+  sin_lineas <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+  sin_leyenda <- theme(legend.position = "none")
+  sin_ejes <- theme(axis.ticks = element_blank(), axis.text = element_blank())
+#+end_src
+
+#+begin_src R :exports none :results none
+  ## Librerias para modelacion bayesiana
+  library(cmdstanr)
+  library(posterior)
+  library(bayesplot)
+#+end_src
+
+#+BEGIN_NOTES
+*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Asignación Latente Dirichlet.\\
+*Objetivo*: Que veremos. /Disclaimer/: Parte del material fue tomado del curso en métodos Bayesianos para Bioestadística impartido por Jeff Miller en Harvard en la escuela de Salud Pública, materiales [[https://jwmi.github.io/BMB/][aquí]].\\
+*Lectura recomendada*: Referencia.
+#+END_NOTES
+
+
+
+* Contenido                                                             :toc:
+:PROPERTIES:
+:TOC:      :include all  :ignore this :depth 3
+:END:
+:CONTENTS:
+- [[#introducción][Introducción]]
+- [[#el-modelo-de-lda][El modelo de LDA]]
+  - [[#especificación-probabilista][Especificación probabilista]]
+  - [[#observaciones-del-modelo][Observaciones del modelo]]
+  - [[#modelo-variacional][Modelo variacional]]
+  - [[#observaciones-del-método-variacional][Observaciones del método variacional]]
+  - [[#aplicación-associated-press][Aplicación: Associated Press]]
+- [[#extensiones-del-modelo][Extensiones del modelo]]
+- [[#mas-extensiones][Mas extensiones]]
+:END:
+
+
+* Introducción
+
+- VI es una estrategia para poder hacer inferencia Bayesiana por medio de aproximaciones a la distribución posterior.
+- La idea es:
+  1. Escoger una familia de distribuciones $\mathcal{Q}$ .
+  2. Encontrar el elemento $q \in \mathcal{Q}$ mas cercano a la distribución posterior.
+  3. Utilizar $q^*$ para resolver los problemas de inferencia.
+
+#+REVEAL: split
+- Aplicación de inferencia variacional en problemas de aplicación probabilística y
+/machine learning/.
+- Modelo para una colección de documentos.
+- Cada documento es una colección de palabras donde cada palabra se extrae de un tema en particular.
+- Los temas definen las palabras que se utilizarán para escribir el documento.
+- Los documentos pueden tener mas de un tema.
+- Las palabras son intercambiables.
+
+
+#+REVEAL: split
+- Con asignación latente Dirichlet (LDA), modelamos los tópicos de una colección de observaciones.
+- Usualmente se utiliza para datos no-estructurados.
+  - Imágenes, datos genómicos o redes sociales.
+- Se puede utilizar para datos en /stream/.
+- Catalogación automática de objetos.
+
+#+REVEAL: split
+#+DOWNLOADED: screenshot @ 2022-05-16 17:26:52
+#+caption: Imagen tomada de citep:Blei2012.
+#+attr_html: :width 700 :align center
+[[file:images/20220516-172652_screenshot.png]]
+
+#+REVEAL: split
+
+#+DOWNLOADED: screenshot @ 2022-05-16 17:28:49
+#+caption: Imagen tomada de citep:Blei2012.
+#+attr_html: :width 700 :align center
+[[file:images/20220516-172849_screenshot.png]]
+
+
+* El modelo de LDA
+
+- Supongamos que existen $K$ temas, $n$ documentos, $L_i$ palabras en el documento
+$i$, y $V$ palabras en el vocabulario.
+- Cada documento tiene:
+  - $w_{ik}$: la proporción del documento que proviene del tema $k$.
+  - $z_{i\ell}$: el tema de la palabra $\ell$.
+  - $x_{i\ell}$: la palabra en la posición $\ell$.
+- De manera global definimos $\beta_{kv}$: la frecuencia con la que aparece la palabra $v$ en el tema $k$.
+
+
+** Especificación probabilista
+
+Consideremos
+\begin{gather}
+Z_{i\ell} | w  \sim \mathsf{Categorical}(w_i)\,,\\
+x_{i\ell}  | \beta, Z_{i\ell} = k \sim \mathsf{Categorical}(\beta_k)\,,
+\end{gather}
+de manera independiente para cada $i \in \{1, \ldots, n\}$ y $\ell \in \{1, \ldots, L_i\}$.
+
+Nota que
+\begin{align}
+w_i = (w_{i1}, \ldots, w_{iK})^\top, \qquad \beta_k = (\beta_{k1}, \ldots, \beta_{kV})^\top\,.
+\end{align}
+
+La distribución previa es
+\begin{gather}
+w_i \sim \mathsf{Dirichlet}(\alpha_1, \ldots, \alpha_K)\,,\\
+\beta_k \sim \mathsf{Dirichlet}(\lambda_1, \ldots, \lambda_V)\,.
+\end{gather}
+
+** Observaciones del modelo
+
+- El orden no afecta la composición del modelo.
+- No es un buen modelo de lenguaje, pero ayuda a generar conocimiento de los documentos.
+- El modelo es invariante al orden en el que estudiamos los documentos. 
+
+** Modelo variacional
+
+- La distribución objetivo es la posterior $\pi(z, w, \beta | x)$.
+- Se consideran modelos
+  \begin{align}
+  q(z, w, \beta) = q(z) \, q(w) \, q(\beta)\,.
+  \end{align}
+- El modelo variacional obtiene
+  \begin{gather}
+  q(w) = \prod_{i = 1}^{n} \mathsf{Dirichlet}(w_i | r_{i1}, \ldots, r_{iK})\,,\\
+  q(\beta) = \prod_{k = 1}^{K} \mathsf{Dirichlet}(\beta_k | s_{k1}, \ldots, s_{kV})\,,\\
+  q(z) = \prod_{i = 1}^{n} \prod_{\ell = 1}^{L_i} \mathsf{Categorical}(z_{i\ell} | t_{i\ell})\,,
+  \end{gather}
+    en donde cada término explota la estructura conjugada del modelo. 
+
+** Observaciones del método variacional
+
+- Nota que aunque hemos asumido una factorización del estilo $q(z, w, \beta) = q(z) \, q(w) \, q(\beta)$  el modelo en si obtiene
+  \begin{align}
+  q(z, w, \beta) = \left( \prod_{i\ell} q(z_{i\ell}) \right) \, \left( \prod_{i} q(w_i) \right) \, \left( \prod_k q(\beta_k) \right)\,.
+  \end{align}
+- La funciones de densidad óptimas (en ~KL~) son distribuciones ~Dirichlet~. 
+
+
+** Aplicación: Associated Press
+
+- Ejemplo original en citep:Blei2003.
+- Contiene $n = 16,333$ artículos.
+- Contiene $V = 23,075$ palabras.
+- Se necesitan eliminar palabras sin contenido informativo (/stop-words/).
+- Se define un número de tópicos $K= 100$.
+- El artículo original solo usa ~VI~ en $z, w$.
+
+#+REVEAL: split
+#+DOWNLOADED: screenshot @ 2022-05-16 18:37:38
+#+caption: Resultados de citep:Blei2003.
+#+attr_html: :width 700 :align center
+[[file:images/20220516-183738_screenshot.png]]
+
+
+* Extensiones del modelo
+
+- LDA y un ~modelo de estados ocultos~: captura de dependencias en palabras cercanas.
+- Modelo no-paramétrico basado en un ~proceso Dirichlet~.
+- Modelo dinámico: cómo cambian los tópicos a lo largo del tiempo.
+- Modelo jerárquico de tópicos (temas): de lo mas general a lo mas particular.
+- Extensiones con meta-datos: autor, títulos de documentos, afiliaciones, etc.
+
+
+#+REVEAL: split
+#+DOWNLOADED: screenshot @ 2022-05-16 18:41:35
+#+caption: Imagen tomada de citep:Blei2012. 
+#+attr_html: :width 700 :align center
+[[file:images/20220516-184135_screenshot.png]]
+
+
+ 
+* Mas extensiones
+
+- LDA con temas correlacionados, citep:Blei2007. 
+- LDA en línea, citep:Hoffman2010.
+- LDA en paralelo, citep:Zhai2012.
+- LDA multilenguajes, citep:Hu2014. 
+- Inferencia automática (~Infer.NET~). 
+  
+
+bibliographystyle:abbrvnat
+bibliography:references.bib
