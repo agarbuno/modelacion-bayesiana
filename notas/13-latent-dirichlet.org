@@ -14,30 +14,7 @@
 #+REVEAL_EXTRA_CSS: ./mods.css
 #+REVEAL_PLUGINS: (notes)
 :END:
-:LATEX_PROPERTIES:
-#+OPTIONS: toc:nil date:nil author:nil tasks:nil
-#+LANGUAGE: sp
-#+LATEX_CLASS: handout
-#+LATEX_HEADER: \usepackage[spanish]{babel}
-#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
-#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
-#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
-#+LATEX_HEADER: \decimalpoint
-#+LATEX_HEADER:\usepackage{framed}
-#+LaTeX_HEADER: \usepackage{listings}
-#+LATEX_HEADER: \usepackage{fancyvrb}
-#+LATEX_HEADER: \usepackage{xcolor}
-#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
-#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
-#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
-#+LaTeX_HEADER: {}
-#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
-#+LaTeX_HEADER: {}
-#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
-#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
-#+EXPORT_FILE_NAME: ../docs/13-latent-dirichlet.pdf
-:END:
-#+EXCLUDE_TAGS: toc
+#+EXCLUDE_TAGS: toc latex
 #+PROPERTY: header-args:R :session latent-dirichlet :exports both :results output org :tangle ../rscripts/13-latent-dirichlet.R :mkdirp yes :dir ../
 
 #+begin_src R :exports none :results none
@@ -91,31 +68,31 @@
 - [[#extensiones-del-modelo][Extensiones del modelo]]
 - [[#mas-extensiones][Mas extensiones]]
 - [[#set-de-herramientas][Set de herramientas]]
+- [[#referencias][Referencias]]
 :END:
 
 
 * Introducción
 
-- VI es una estrategia para poder hacer inferencia Bayesiana por medio de aproximaciones a la distribución posterior.
+- VI es una estrategia para poder hacer ~inferencia Bayesiana por medio de aproximaciones~ a la distribución posterior.
 - La idea es:
   1. Escoger una familia de distribuciones $\mathcal{Q}$ .
   2. Encontrar el elemento $q \in \mathcal{Q}$ mas cercano a la distribución posterior.
   3. Utilizar $q^*$ para resolver los problemas de inferencia.
 
 #+REVEAL: split
-- Aplicación de inferencia variacional en problemas de aplicación probabilística
-  y /machine learning/.
-- Modelo para una colección de documentos.
-- Cada documento es una colección de palabras donde cada palabra se extrae de un
-  tema en particular.
+- Aplicación de inferencia variacional en problemas /machine learning/ bajo una formulación probabilista.
+- Modelo para una ~colección de documentos~.
+- Cada documento es una colección de ~palabras~ donde cada palabra se extrae de un
+  ~tema~ en particular.
 - Los temas definen las palabras que se utilizarán para escribir el documento.
 - Los documentos pueden tener mas de un tema.
 - Las palabras son intercambiables.
 
 
 #+REVEAL: split
-- Con asignación latente Dirichlet (LDA), modelamos los tópicos de una colección de observaciones.
-- Usualmente se utiliza para datos no-estructurados.
+- Con ~asignación latente Dirichlet~ (LDA), modelamos los tópicos de una colección de observaciones.
+- Usualmente se utiliza para datos no-estructurados:
   - Imágenes, datos genómicos o redes sociales.
 - Se puede utilizar para datos en /stream/.
 - Catalogación automática de objetos.
@@ -136,7 +113,7 @@
 
 * El modelo de LDA
 
-Asumimos que cada documento puede hablar de distintos temas al mismo tiempo. 
+Asumimos que cada documento puede hablar de distintos temas al mismo tiempo (por ejemplo, discursos). 
 
 #+DOWNLOADED: screenshot @ 2022-05-16 22:07:55
 #+caption: Modelo de tópicos sobre documentos en términos de contenido. Imagen tomada del curso de /Probabilistic ML/ de Phillip Hennig. 
@@ -153,7 +130,9 @@ podría hablar de todos los temas de conversación.
 [[file:images/20220516-221141_screenshot.png]]
 
 #+REVEAL: split
-En particular usaremos distribuciones Dirichlet pues nos permiten tener una representación ~rala~ de los componentes que estarán activos en nuestras observaciones.
+En particular usaremos distribuciones Dirichlet pues nos permiten tener una
+representación ~rala~ (/sparse/) de los componentes que estarán activos en nuestras
+observaciones.
 
 #+DOWNLOADED: screenshot @ 2022-05-16 22:15:35
 #+caption: Diferencia entre modelos de tópicos usando una distribución ~densa~ y una distribución ~rala~. Imagen tomada del curso de /Probabilistic ML/ de Phillip Hennig. 
@@ -180,6 +159,7 @@ x_{i\ell}  | \beta, Z_{i\ell} = k \sim \mathsf{Categorical}(\beta_k)\,,
 \end{gather}
 de manera independiente para cada $i \in \{1, \ldots, n\}$ y $\ell \in \{1, \ldots, L_i\}$.
 
+#+REVEAL: split
 Nota que
 \begin{align}
 w_i = (w_{i1}, \ldots, w_{iK})^\top, \qquad \beta_k = (\beta_{k1}, \ldots, \beta_{kV})^\top\,.
@@ -192,11 +172,13 @@ w_i \sim \mathsf{Dirichlet}(\alpha_1, \ldots, \alpha_K)\,,\\
 \end{gather}
 
 *** Definición (*Distribución Dirichlet*):
+:PROPERTIES:
+:reveal_background: #00468b
+:END:
 Decimos que un vector aleatorio $w\in \mathbb{R}^K$ tiene una distribución $\mathsf{Dirichlet}(\alpha)$ con $\alpha \in \mathbb{R}^K_+$ si su función de densidad es
 \begin{align}
-\pi(w | \alpha ) = \frac{\Gamma \left( \sum_{k = 1}^{K} \alpha_k \right)}{\prod_{k}^{} \Gamma(\alpha_k)} \cdot \prod_{k}^{} w_k^{\alpha_k - 1}\,,
+\pi(w | \alpha ) = \frac{\Gamma \left( \sum_{k = 1}^{K} \alpha_k \right)}{\prod_{k}^{} \Gamma(\alpha_k)} \cdot \prod_{k}^{} w_k^{\alpha_k - 1}\,, \qquad \sum_k w_k = 1\,.
 \end{align}
-y $\sum_k w_k = 1$.
 
 
 
@@ -209,6 +191,7 @@ el modelo Multinomial forman un ~modelo conjugado~.
 Aplicaciones clásicas de éstos modelos también se pueden encontrar en ~modelos de
 mezclas~ donde los pesos en la mezcla se consideran realizaciones aleatorias de
 un distribución Dirichlet.
+
 
 Además, nota que el vector aleatorio es un vector de longitud fija. Si
 quisiéramos modelar un vector donde el número de entradas es aleatoria entonces
@@ -231,7 +214,7 @@ resolver utilizando muestreo de Gibbs.
 
 ** Observaciones del modelo
 
-- El orden no afecta la composición del modelo.
+- El orden no afecta la composición del modelo (/bag of words/). 
 - No es un buen modelo de lenguaje, pero ayuda a generar conocimiento de los documentos.
 - El modelo es invariante al orden en el que estudiamos los documentos. 
 
@@ -242,6 +225,7 @@ resolver utilizando muestreo de Gibbs.
   \begin{align}
   q(z, w, \beta) = q(z) \, q(w) \, q(\beta)\,.
   \end{align}
+#+REVEAL: split
 - El modelo variacional obtiene
   \begin{gather}
   q(w) = \prod_{i = 1}^{n} \mathsf{Dirichlet}(w_i | r_{i1}, \ldots, r_{iK})\,,\\
@@ -306,16 +290,21 @@ En el curso  hemos aprendido:
 \int h(\theta) \, \pi(\theta) \,  \text{d}\theta, \qquad \pi(x, \theta) = \pi( x | \theta ) \pi(\theta)\,, \qquad \pi(\theta | y ) = \frac{\pi(y| \theta) \pi(\theta)}{\pi(y)}\,.
 \end{align}
 
+#+REVEAL: split
 En términos de modelado:
 - Modelos bayesianos.
 - Modelos predictivos probabilísticos.
 - Comparación de modelos.
 - Crítica de modelos.
 
+#+REVEAL: split
 En términos computacionales:
 - Monte Carlo.
 - Monte Carlo vía Cadenas de Markov.
 - Inferencia variacional. 
+
+
+* Referencias                                                         :latex:
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
