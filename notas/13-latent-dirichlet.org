@@ -83,6 +83,7 @@
 - [[#introducción][Introducción]]
 - [[#el-modelo-de-lda][El modelo de LDA]]
   - [[#especificación-probabilista][Especificación probabilista]]
+    - [[#definición-distribución-dirichlet][Definición [Distribución Dirichlet]:]]
   - [[#observaciones-del-modelo][Observaciones del modelo]]
   - [[#modelo-variacional][Modelo variacional]]
   - [[#observaciones-del-método-variacional][Observaciones del método variacional]]
@@ -161,6 +162,14 @@ La distribución previa es
 w_i \sim \mathsf{Dirichlet}(\alpha_1, \ldots, \alpha_K)\,,\\
 \beta_k \sim \mathsf{Dirichlet}(\lambda_1, \ldots, \lambda_V)\,.
 \end{gather}
+
+*** Definición [Distribución Dirichlet]:
+Decimos que un vector aleatorio $w\in \mathbb{R}^K$ tiene una distribución $\mathsf{Dirichlet}(\alpha)$ con $\alpha \in \mathbb{R}^K_+$ si su función de densidad es
+\begin{align}
+\pi(w | \alpha ) = \frac{\Gamma \left( \sum_{k = 1}^{K} \alpha_k \right)}{\prod_{k}^{} \Gamma(\alpha_k)} \cdot \prod_{k}^{} w_k^{\alpha_k - 1}\,,
+\end{align}
+y $\sum_k w_k = 1$.
+
 
 ** Observaciones del modelo
 
