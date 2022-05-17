@@ -297,8 +297,7 @@ resolver utilizando muestreo de Gibbs.
 - LDA en línea, citep:Hoffman2010.
 - LDA en paralelo, citep:Zhai2012.
 - LDA multilenguajes, citep:Hu2014. 
-- Inferencia automática (~Infer.NET~). 
-  
+- Inferencia automática (~Infer.NET~).   
 
 * /Set/ de herramientas
 

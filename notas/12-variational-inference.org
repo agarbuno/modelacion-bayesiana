@@ -14,29 +14,6 @@
 #+REVEAL_EXTRA_CSS: ./mods.css
 #+REVEAL_PLUGINS: (notes)
 :END:
-:LATEX_PROPERTIES:
-#+OPTIONS: toc:nil date:nil author:nil tasks:nil
-#+LANGUAGE: sp
-#+LATEX_CLASS: handout
-#+LATEX_HEADER: \usepackage[spanish]{babel}
-#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
-#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
-#+LATEX_HEADER: \usepackage[nameinlink]{cleveref}
-#+LATEX_HEADER: \decimalpoint
-#+LATEX_HEADER:\usepackage{framed}
-#+LaTeX_HEADER: \usepackage{listings}
-#+LATEX_HEADER: \usepackage{fancyvrb}
-#+LATEX_HEADER: \usepackage{xcolor}
-#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
-#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
-#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
-#+LaTeX_HEADER: {}
-#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
-#+LaTeX_HEADER: {}
-#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
-#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
-#+EXPORT_FILE_NAME: ../docs/12-variational-inference.pdf
-:END:
 #+PROPERTY: header-args:R :session variational-inference :exports both :results output org :tangle ../rscripts/12-variational-inference.R :mkdirp yes :dir ../
 #+EXCLUDE_TAGS: toc latex
 
@@ -103,8 +80,8 @@
 
 * Introducción
 
-En inferencia Bayesiana definimos un modelo conjunto para observaciones y las
-configuraciones del proceso generador de datos. Esto nos permite utilizar el
+En inferencia Bayesiana definimos un modelo conjunto para ~observaciones~ y las
+~configuraciones~ del proceso generador de datos. Esto nos permite utilizar el
 teorema de Bayes para actualizar nuestro conocimiento sobre los parámetros que no conocemos
 por medio de
 #+name: eqn:post
@@ -113,8 +90,9 @@ por medio de
 \end{align}
 
 El procedimiento de inferencia dentro de este marco es sencillo y prácticamente directo pues se
-traduce en reportar la distribución posterior de las configuraciones en luz de las observaciones que tengamos. 
+traduce en ~reportar la distribución posterior~ de las configuraciones en luz de las observaciones que tengamos. 
 
+#+REVEAL: split
 A lo largo de este curso hemos establecido que de alguna u otra forma lo que
 necesitamos es reportar valores esperados (que se traduce en poder resolver
 integrales) utilizando dicho estado de conocimiento actualizado.
@@ -136,17 +114,23 @@ incapacidad de utilizar generadores de números aleatorios para cualquiera que s
 Los métodos Markovianos generan muestras, que esperamos sean, ligeramente
 correlacionadas y cuya distribución corresponda a la distribución que nos interesa.
 
+#+REVEAL: split
+Resta estudiar qué alternativas tenemos cuando no podemos esperar a que termine
+de correr nuestro muestreador.
+
+
 ** Aproximación por curvatura
 
-Existen alternativas para poder aproximar el problema de inferencia
-Bayesiana. Esto es particularmente importante cuando no podemos esperar a que
-nuestros muestreadores converjan.
+Estudiaremos alternativas para poder aproximar el problema de inferencia
+Bayesiana. La aproximación ya no es sobre la resolución de una integral. Ahora,
+vamos a aproximar la distribución misma utilizando ciertas nociones de optimización. 
 
+#+REVEAL: split
 En clase hemos discutido que con un conjunto suficientemente grande de datos la
 distribución posterior se /parece/ a una Gaussiana. Parece natural poder,
 entonces, construir una aproximación con estas características. Es decir,
 \begin{align}
-\pi(\theta | y) \approx  \mathsf{Normal}\left( \theta | \hat \theta, \Sigma_{\hat \theta} \right)\,,
+\pi(\theta | y) \approx  \mathsf{Normal}\left( \theta \big| \hat \theta, \Sigma_{\hat \theta} \right)\,,
 \end{align}
 donde
 \begin{gather}
@@ -156,7 +140,7 @@ donde
 La aproximación utiliza información de primero y segundo orden de la
 distribución posterior. Es decir
 \begin{align}
-\hat \theta = \arg \max_\theta \pi(\theta| \y)\,,
+\hat \theta = \arg \max_\theta \pi(\theta| y)\,,
 \end{align}
 y $\Sigma_\theta$ nos da la información de la curvatura. Esta ~aproximación
 cuadrática~ se denomina ~aproximación de Laplace~.
@@ -171,8 +155,8 @@ transformación.
 
 #+REVEAL: split
 La aproximación de Laplace nos permite sustituir un modelo de probabilidad por
-otro. Aunque en teoría podemos determinar la calidad de la aproximación --por
-medio de la expansión de Taylor-- en la práctica puede resultar infactible dar
+otro. Aunque en teoría podemos determinar la ~calidad de la aproximación~ --por
+medio de la ~expansión de Taylor~-- en la práctica puede resultar infactible dar
 una estimación de este error.
 
 #+REVEAL: split
@@ -193,7 +177,7 @@ y encontrar dentro de esta familia de distribuciones la que ~mejor se parezca~ a
 nuestra distribución objetivo $\pi(\theta | y)$.
 
 #+REVEAL: split
-Lo importante es poder definir la noción de encontrar al mejor candidato dentro de $\mathsf{Q}$. 
+Lo importante es poder definir la noción de encontrar al mejor candidato dentro de $\mathcal{Q}$. 
 
 ** La solución
 
@@ -217,7 +201,7 @@ El lado derecho en el primer término define
 \begin{align}
 \mathsf{ELBO}(q) := \mathbb{E}[\log \pi(\theta, y)] - \mathbb{E}[\log q(\theta)]\,.
 \end{align}
-la cual se denomina la cota inferior de evidencia.
+la cual se denomina la cota inferior de evidencia (/evidence lower bound/, ~ELBO~).
 
 #+REVEAL: split
 La cual podemos usar para re-expresar
@@ -263,7 +247,7 @@ en las propiedades que nos interesen.
 #+DOWNLOADED: screenshot @ 2022-05-09 10:54:36
 #+name: fig:vi-reversed
 #+caption: Imagen tomada de citep:Bishop2006. En (a) se muestra $\mathsf{KL}(q\|\pi)$ y en (b) se muestra $\mathsf{KL}(\pi\|q)$ donde $q\in \mathcal{Q}$ y $\pi$ es la distribución objetivo. 
-#+attr_html: :width 700 :align center
+#+attr_html: :width 900 :align center
 #+attr_latex: :width .65\linewidth
 [[file:images/20220509-105436_screenshot.png]]
 
@@ -274,7 +258,7 @@ se pueden recuperar ciertas propiedades de la distribución objetivo.
 #+DOWNLOADED: screenshot @ 2022-05-09 12:19:44
 #+name: fig:vi-mixture
 #+caption: Imagen tomada de citep:Bishop2006. Modelo objetivo basado en una mezcla de Gaussianas (azul). En (a) se muestra la aproximación que minimiza $\mathsf{KL}(\pi\|q)$. En (b) y (c) se muestran mínimos globales que corresponden a $\mathsf{KL}(q\|\pi)$. 
-#+attr_html: :width 700 :align center
+#+attr_html: :width 900 :align center
 [[file:images/20220509-121944_screenshot.png]]
 
 
@@ -287,7 +271,7 @@ de campo medio~, /mean field/).
 
 #+DOWNLOADED: screenshot @ 2022-05-09 12:33:06
 #+caption: Imagen tomada de citep:Kucukelbir2015.
-#+attr_html: :width 700 :align center
+#+attr_html: :width 1200 :align center
 [[file:images/20220509-123306_screenshot.png]]
 
 #+REVEAL: split
@@ -298,7 +282,7 @@ Dado que la solución de
 necesita resolverse en un espacio de funciones de probabilidad se utilizan
 herramientas de ~cálculo de variaciones~. Por lo tanto, utilizar estas soluciones
 para resolver un problema de inferencia se llama ~inferencia variacional~ o ~bayes
-variacional~ citep:Bishop2006.
+variacional~ (citep:Bishop2006). 
 
 #+REVEAL: split
 Sin embargo, es usual considerar ~familias parametrizadas~ y buscar 
@@ -350,6 +334,7 @@ Tomado de la documentación de ~Stan~
   posterior <- modelo$sample(stan_data, seed = 123, chains = 2, refresh = 1000)
 #+end_src
 
+#+REVEAL: split
 #+begin_src R :exports both :results org
   posterior$summary() |> as.data.frame()
 #+end_src
@@ -369,8 +354,10 @@ Tomado de la documentación de ~Stan~
 #+RESULTS:
 [[file:../images/variational-mcmc.jpeg]]
 
+#+REVEAL: split
 #+begin_src R :exports both :results org
-  posterior.advi <- modelo$variational(stan_data, seed = 123, output_samples = 2000)
+  posterior.advi <- modelo$variational(stan_data, seed = 123,
+                                       output_samples = 2000)
 #+end_src
 
 #+RESULTS:
@@ -400,6 +387,7 @@ COMPLETED.
 Finished in  0.1 seconds.
 #+end_src
 
+#+REVEAL: split
 #+begin_src R :exports both :results org 
   posterior.advi$summary() |>
   as.data.frame()
@@ -421,6 +409,7 @@ Finished in  0.1 seconds.
 #+RESULTS:
 [[file:../images/variacional-bernoulli-advi.jpeg]]
 
+#+REVEAL: split
 #+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/variacional-bernoulli-comp.jpeg :exports results :results output graphics file
   posterior$draws("theta", format = "df") |>
@@ -453,16 +442,27 @@ cerrada donde podemos considerar para cada $j$
 donde usualmente la solución tiene un expresión analítica para miembros de la
 ~familia exponencial~.
 
+#+REVEAL: split
+En la práctica, se desarrolla el modelo y se desarrollan las ecuaciones para resolver el problema de optimización variacional.
+
+#+begin_quote
+¿Cuánto tiempo tardas en escribir y resolver el problema variacional para una
+aplicación? El mismo tiempo que tarda en converger tu MCMC. ---Frase popular en:
+[[http://approximateinference.org/][Conferencia en inferencia aproximada]].
+#+end_quote
+
 * Conclusiones
 
 - Inferencia variacional tiene poco de incorporarse a lenguajes de programación probabilística.
 - Es una alternativa viable para poner en producción modelos bayesianos (por ejemplo, la sesión de [[https://www.youtube.com/watch?v=lxIJca62ezU&t=1230s][conferencia]] de [[https://www.smartly.io/][Smartly.io]]). 
-- Tema activo de investigación que logra conjuntar el estado del arte en ML. 
+- Tema activo de investigación que logra conjuntar el estado del arte en ML con formulación probabilista. 
 
 #+REVEAL: split
 #+begin_quote
-Variational inference is an extremely flexible and powerful approximation method. Its downside is that constructing the bound and update equations can be tedious. For a quick test, variational inference is often not a good idea. But for a deployed product, ita can be the most powerful tool in the box. ---Philip Hennig, Probabilistic ML, Tübingen U. 
+Variational inference is an extremely flexible and powerful approximation method. Its downside is that constructing the bound and update equations can be tedious. For a quick test, variational inference is often not a good idea. But for a deployed product, ita can be the most powerful tool in the box. ---Philip Hennig, Probabilistic ML course, Tübingen U. 
 #+end_quote
+
+# * Referencias                                                         :latex:
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
