@@ -69,7 +69,7 @@
 
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Asignación Latente Dirichlet.\\
-*Objetivo*: Que veremos. /Disclaimer/: Parte del material fue tomado del curso en métodos Bayesianos para Bioestadística impartido por Jeff Miller en Harvard en la escuela de Salud Pública, materiales [[https://jwmi.github.io/BMB/][aquí]].\\
+*Objetivo*: En esta sección veremos un modelo que entra en la frontera de inferencia Bayesiana y Aprendizaje de Máquina: modelo de asignación latente. El cual puede ser entendido como un método de segmentación probabilística. Las aplicaciones de este modelo son variadas y en la clase lo discutiremos en términos de procesamiento de documentos escritos. /Disclaimer/: Parte del material fue tomado del curso en métodos Bayesianos para Bioestadística impartido por Jeff Miller en Harvard en la escuela de Salud Pública, materiales [[https://jwmi.github.io/BMB/][aquí]].\\
 *Lectura recomendada*: Referencia.
 #+END_NOTES
 
@@ -82,14 +82,15 @@
 :CONTENTS:
 - [[#introducción][Introducción]]
 - [[#el-modelo-de-lda][El modelo de LDA]]
-  - [[#especificación-probabilista][Especificación probabilista]]
-    - [[#definición-distribución-dirichlet][Definición [Distribución Dirichlet]:]]
+  - [[#modelo-generativo][Modelo generativo]]
+    - [[#definición-distribución-dirichlet][Definición (Distribución Dirichlet):]]
   - [[#observaciones-del-modelo][Observaciones del modelo]]
   - [[#modelo-variacional][Modelo variacional]]
   - [[#observaciones-del-método-variacional][Observaciones del método variacional]]
   - [[#aplicación-associated-press][Aplicación: Associated Press]]
 - [[#extensiones-del-modelo][Extensiones del modelo]]
 - [[#mas-extensiones][Mas extensiones]]
+- [[#set-de-herramientas][Set de herramientas]]
 :END:
 
 
@@ -102,10 +103,11 @@
   3. Utilizar $q^*$ para resolver los problemas de inferencia.
 
 #+REVEAL: split
-- Aplicación de inferencia variacional en problemas de aplicación probabilística y
-/machine learning/.
+- Aplicación de inferencia variacional en problemas de aplicación probabilística
+  y /machine learning/.
 - Modelo para una colección de documentos.
-- Cada documento es una colección de palabras donde cada palabra se extrae de un tema en particular.
+- Cada documento es una colección de palabras donde cada palabra se extrae de un
+  tema en particular.
 - Los temas definen las palabras que se utilizarán para escribir el documento.
 - Los documentos pueden tener mas de un tema.
 - Las palabras son intercambiables.
@@ -121,31 +123,57 @@
 #+REVEAL: split
 #+DOWNLOADED: screenshot @ 2022-05-16 17:26:52
 #+caption: Imagen tomada de citep:Blei2012.
-#+attr_html: :width 700 :align center
+#+attr_html: :width 1200 :align center
 [[file:images/20220516-172652_screenshot.png]]
 
 #+REVEAL: split
 
 #+DOWNLOADED: screenshot @ 2022-05-16 17:28:49
 #+caption: Imagen tomada de citep:Blei2012.
-#+attr_html: :width 700 :align center
+#+attr_html: :width 1200 :align center
 [[file:images/20220516-172849_screenshot.png]]
 
 
 * El modelo de LDA
 
-- Supongamos que existen $K$ temas, $n$ documentos, $L_i$ palabras en el documento
-$i$, y $V$ palabras en el vocabulario.
+Asumimos que cada documento puede hablar de distintos temas al mismo tiempo. 
+
+#+DOWNLOADED: screenshot @ 2022-05-16 22:07:55
+#+caption: Modelo de tópicos sobre documentos en términos de contenido. Imagen tomada del curso de /Probabilistic ML/ de Phillip Hennig. 
+#+attr_html: :width 1200 :align center
+[[file:images/20220516-220755_screenshot.png]]
+
+#+REVEAL: split
+
+Buscamos una representación con pocas entradas activas pues cada documento no
+podría hablar de todos los temas de conversación.
+
+#+caption: Diferencia entre modelo de mezcla y modelode tópicios sobre documentos en términos de contenido. Imagen tomada del curso de /Probabilistic ML/ de Phillip Hennig. 
+#+attr_html: :width 1200 :align center
+[[file:images/20220516-221141_screenshot.png]]
+
+#+REVEAL: split
+En particular usaremos distribuciones Dirichlet pues nos permiten tener una representación ~rala~ de los componentes que estarán activos en nuestras observaciones.
+
+#+DOWNLOADED: screenshot @ 2022-05-16 22:15:35
+#+caption: Diferencia entre modelos de tópicos usando una distribución ~densa~ y una distribución ~rala~. Imagen tomada del curso de /Probabilistic ML/ de Phillip Hennig. 
+#+attr_html: :width 1200 :align center
+[[file:images/20220516-221535_screenshot.png]]
+
+
+
+#+REVEAL: split
+- Supongamos que existen $K$ temas, $n$ documentos, $L_i$ palabras en el
+  documento $i$, y $V$ palabras en el vocabulario.
 - Cada documento tiene:
   - $w_{ik}$: la proporción del documento que proviene del tema $k$.
   - $z_{i\ell}$: el tema de la palabra $\ell$.
   - $x_{i\ell}$: la palabra en la posición $\ell$.
 - De manera global definimos $\beta_{kv}$: la frecuencia con la que aparece la palabra $v$ en el tema $k$.
 
+** Modelo generativo
 
-** Especificación probabilista
-
-Consideremos
+Consideremos un modelo donde las palabras tienen una asignación de tema y, además, cada palabra es una realización aleatoria de acuerdo al tópico y a la colección de posibles palabras que se utilizan en dicho tema
 \begin{gather}
 Z_{i\ell} | w  \sim \mathsf{Categorical}(w_i)\,,\\
 x_{i\ell}  | \beta, Z_{i\ell} = k \sim \mathsf{Categorical}(\beta_k)\,,
@@ -163,12 +191,42 @@ w_i \sim \mathsf{Dirichlet}(\alpha_1, \ldots, \alpha_K)\,,\\
 \beta_k \sim \mathsf{Dirichlet}(\lambda_1, \ldots, \lambda_V)\,.
 \end{gather}
 
-*** Definición [Distribución Dirichlet]:
+*** Definición (*Distribución Dirichlet*):
 Decimos que un vector aleatorio $w\in \mathbb{R}^K$ tiene una distribución $\mathsf{Dirichlet}(\alpha)$ con $\alpha \in \mathbb{R}^K_+$ si su función de densidad es
 \begin{align}
 \pi(w | \alpha ) = \frac{\Gamma \left( \sum_{k = 1}^{K} \alpha_k \right)}{\prod_{k}^{} \Gamma(\alpha_k)} \cdot \prod_{k}^{} w_k^{\alpha_k - 1}\,,
 \end{align}
 y $\sum_k w_k = 1$.
+
+
+
+#+BEGIN_NOTES
+La ~distribución Dirichlet~ es una generalización para la ~distribución Beta~. Es
+usual utilizar una distribución Dirichlet para el vector de probabilidades de un
+~modelo multinomial~. En este sentido la distribución inicial Dirichlet y
+el modelo Multinomial forman un ~modelo conjugado~.
+
+Aplicaciones clásicas de éstos modelos también se pueden encontrar en ~modelos de
+mezclas~ donde los pesos en la mezcla se consideran realizaciones aleatorias de
+un distribución Dirichlet.
+
+Además, nota que el vector aleatorio es un vector de longitud fija. Si
+quisiéramos modelar un vector donde el número de entradas es aleatoria entonces
+podemos considerar un ~proceso Dirichlet~.
+#+END_NOTES
+
+#+REVEAL: split
+
+El modelo completo queda escrito como en [[fig:lda-model]] donde queda claro que la
+estructura condicional del modelo es bastante compleja pero que es relativamente sencillo
+resolver utilizando muestreo de Gibbs. 
+
+#+DOWNLOADED: screenshot @ 2022-05-16 22:30:23
+#+name: fig:lda-model
+#+caption: Modelo completo en asignación de temas. Imagen tomada del curso de /Probabilistic ML/ de Phillip Hennig.
+#+attr_html: :width 1200 :align center
+[[file:images/20220516-223023_screenshot.png]]
+
 
 
 ** Observaciones del modelo
@@ -190,13 +248,13 @@ y $\sum_k w_k = 1$.
   q(\beta) = \prod_{k = 1}^{K} \mathsf{Dirichlet}(\beta_k | s_{k1}, \ldots, s_{kV})\,,\\
   q(z) = \prod_{i = 1}^{n} \prod_{\ell = 1}^{L_i} \mathsf{Categorical}(z_{i\ell} | t_{i\ell})\,,
   \end{gather}
-    en donde cada término explota la estructura conjugada del modelo. 
+  en donde cada término explota la estructura conjugada del modelo. 
 
 ** Observaciones del método variacional
 
 - Nota que aunque hemos asumido una factorización del estilo $q(z, w, \beta) = q(z) \, q(w) \, q(\beta)$  el modelo en si obtiene
   \begin{align}
-  q(z, w, \beta) = \left( \prod_{i\ell} q(z_{i\ell}) \right) \, \left( \prod_{i} q(w_i) \right) \, \left( \prod_k q(\beta_k) \right)\,.
+  q(z, w, \beta) = \left( \prod_{i,\ell} q(z_{i\ell}) \right) \, \left( \prod_{i} q(w_i) \right) \, \left( \prod_k q(\beta_k) \right)\,.
   \end{align}
 - La funciones de densidad óptimas (en ~KL~) son distribuciones ~Dirichlet~. 
 
@@ -233,7 +291,6 @@ y $\sum_k w_k = 1$.
 [[file:images/20220516-184135_screenshot.png]]
 
 
- 
 * Mas extensiones
 
 - LDA con temas correlacionados, citep:Blei2007. 
@@ -242,6 +299,24 @@ y $\sum_k w_k = 1$.
 - LDA multilenguajes, citep:Hu2014. 
 - Inferencia automática (~Infer.NET~). 
   
+
+* /Set/ de herramientas
+
+En el curso  hemos aprendido:
+\begin{align}
+\int h(\theta) \, \pi(\theta) \,  \text{d}\theta, \qquad \pi(x, \theta) = \pi( x | \theta ) \pi(\theta)\,, \qquad \pi(\theta | y ) = \frac{\pi(y| \theta) \pi(\theta)}{\pi(y)}\,.
+\end{align}
+
+En términos de modelado:
+- Modelos bayesianos.
+- Modelos predictivos probabilísticos.
+- Comparación de modelos.
+- Crítica de modelos.
+
+En términos computacionales:
+- Monte Carlo.
+- Monte Carlo vía Cadenas de Markov.
+- Inferencia variacional. 
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
