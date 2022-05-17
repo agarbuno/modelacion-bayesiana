@@ -88,6 +88,7 @@
   - [[#conclusiones][Conclusiones]]
 - [[#inferencia-aproximada][Inferencia aproximada]]
 - [[#ejemplo-numérico][Ejemplo numérico]]
+- [[#solución-de-campo-medio][Solución de campo medio]]
 - [[#conclusiones][Conclusiones]]
 :END:
 
@@ -426,11 +427,34 @@ Finished in  0.1 seconds.
 #+RESULTS:
 [[file:../images/variacional-bernoulli-comp.jpeg]]
 
+* Solución de campo medio
+
+El supuesto de factorización
+\begin{align}
+q(\theta) = \prod_{j} q_j(\theta_j)\,,
+\end{align}
+es una estrategia bastante útil en física (/mean field theory/) y modelación de
+sistemas expertos (/message passing/, citep:Koller2009).
+
+#+REVEAL: split
+La ventaja de esta factorización nos permite encontrar soluciones de forma
+cerrada donde podemos considerar para cada $j$
+\begin{align}
+\log q_j^*(\theta_j) = \mathbb{E}_{q, i \neq j} \left( \log \pi(y, \theta) \right) + \mathsf{const}\,,
+\end{align}
+donde usualmente la solución tiene un expresión analítica para miembros de la
+~familia exponencial~.
+
 * Conclusiones
 
 - Inferencia variacional tiene poco de incorporarse a lenguajes de programación probabilística.
 - Es una alternativa viable para poner en producción modelos bayesianos (por ejemplo, la sesión de [[https://www.youtube.com/watch?v=lxIJca62ezU&t=1230s][conferencia]] de [[https://www.smartly.io/][Smartly.io]]). 
 - Tema activo de investigación que logra conjuntar el estado del arte en ML. 
+
+#+REVEAL: split
+#+begin_quote
+Variational inference is an extremely flexible and powerful approximation method. Its downside is that constructing the bound and update equations can be tedious. For a quick test, variational inference is often not a good idea. But for a deployed product, ita can be the most powerful tool in the box. ---Philip Hennig, Probabilistic ML, Tübingen U. 
+#+end_quote
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
