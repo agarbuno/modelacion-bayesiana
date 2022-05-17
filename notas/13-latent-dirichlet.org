@@ -70,7 +70,7 @@
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Asignación Latente Dirichlet.\\
 *Objetivo*: En esta sección veremos un modelo que entra en la frontera de inferencia Bayesiana y Aprendizaje de Máquina: modelo de asignación latente. El cual puede ser entendido como un método de segmentación probabilística. Las aplicaciones de este modelo son variadas y en la clase lo discutiremos en términos de procesamiento de documentos escritos. /Disclaimer/: Parte del material fue tomado del curso en métodos Bayesianos para Bioestadística impartido por Jeff Miller en Harvard en la escuela de Salud Pública, materiales [[https://jwmi.github.io/BMB/][aquí]].\\
-*Lectura recomendada*: Referencia.
+*Lectura recomendada*: El modelo de asignación latente Dirichlet lo puedes encontrar en citep:Murphy2012 (pronto saldrá la nueva edición). Los artículos originales también son una buena referencia, citep:Blei2003. 
 #+END_NOTES
 
 
@@ -293,10 +293,10 @@ resolver utilizando muestreo de Gibbs.
 
 * Mas extensiones
 
-- LDA con temas correlacionados, citep:Blei2007. 
-- LDA en línea, citep:Hoffman2010.
-- LDA en paralelo, citep:Zhai2012.
-- LDA multilenguajes, citep:Hu2014. 
+- LDA con temas correlacionados, citet:Blei2007. 
+- LDA en línea, citet:Hoffman2010.
+- LDA en paralelo, citet:Zhai2012.
+- LDA multilenguajes, citet:Hu2014. 
 - Inferencia automática (~Infer.NET~).   
 
 * /Set/ de herramientas
