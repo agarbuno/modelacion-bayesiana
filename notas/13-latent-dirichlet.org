@@ -211,7 +211,6 @@ resolver utilizando muestreo de Gibbs.
 [[file:images/20220516-223023_screenshot.png]]
 
 
-
 ** Observaciones del modelo
 
 - El orden no afecta la composición del modelo (/bag of words/). 
