@@ -183,10 +183,10 @@ utilizar la interfase de [[https://www.python.org/][python]].
 
 #+REVEAL: split
 
-Como herramienta de trabajo se sugiere utilizar [[https://www.rstudio.com/products/rstudio/download/][Rstudio]] para poder trabajar en
-sus proyectos y sus tareas. En particular, el material de clase será editado en
-[[https://www.gnu.org/software/emacs/][GNU Emacs]] a través de =orgfiles= (archivos con sufijo ~.org~) pero pueden ser
-visualizados en ~Github~.
+Como herramienta de trabajo se sugiere utilizar +[[https://www.rstudio.com/products/rstudio/download/][Rstudio]]+ [[https://code.visualstudio.com/][Visual Studio Code]] para
+poder trabajar en sus proyectos y sus tareas. En particular, el material de
+clase será editado en [[https://www.gnu.org/software/emacs/][GNU Emacs]] a través de =orgfiles= (archivos con sufijo ~.org~)
+pero pueden ser visualizados en ~Github~.
 
 #+REVEAL: split
 
@@ -216,7 +216,9 @@ mantendrá el cache de ~renv~ en un lugar centralizado
 Las imágenes de ~agarbuno/bayesiana~ (puedes ver imágenes en mi hub de Docker
 [[https://hub.docker.com/repository/docker/agarbuno/bayesiana][aqui]], y/o los ~Dockerfiles~ [[https://github.com/agarbuno/dockerfiles][aqui]]) permiten tener un ambiente para trabajar con
 ~Docker~ en nuestro curso.
-1) El /tag/ ~2023~ ó ~latest~, basado en una distribución linux en una emulación con un procesador ~Intel~.
+1) El /tag/ ~notas~ basado en una distribución linux en una emulación con un
+   procesador ~Intel~, tiene la configuración mínima necesaria para poder
+   reproducir el ambiente de cómputo para poder ejecutar el material del curso.
 
 #+REVEAL: split
 Esta imagen provee de un ambiente donde se podrán instalar las paqueterías que
@@ -264,13 +266,13 @@ Un ejemplo de como construir y correr este contenedor sería lo siguiente. En un
 terminal, dentro del folder del repo, correr la siguiente línea
 
 #+begin_src shell :exports code :results none
-  docker build --tag bayesiana:2022 .
+  docker build --tag bayesiana:notas .
 #+end_src
 
 El contenedor lo podemos despertar con
 
 #+begin_src shell
-  docker run -e PASSWORD=qwerty -p 8787:8787 --rm bayesiana:2022
+  docker run -e PASSWORD=qwerty -p 8787:8787 --rm bayesiana:notas
 #+end_src
 
 Para vistarlo basta con utilizar la ruta ~localhost:8787~ en cualquier /browser/ de

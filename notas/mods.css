@@ -11,9 +11,13 @@
 
 /* Code blocks */
 .reveal pre code{
+    width: 99%;
     padding: 0.5em;
     background:#2a2727;
     color:white;
     block-size: 120%;
     border-radius: 10px;
+    font-family: "Fira Code";
+    font-size: .8em;
+    max-height: 600px;
 }
