@@ -3,7 +3,7 @@ name: Docker Build
 on:
   push:
     branches:
-      - main
+      - spring-2023
     paths:
       - Dockerfile
   workflow_dispatch:
