@@ -1,0 +1,16 @@
+{
+    "files.associations": {
+        "*.Rmd": "rmd",
+        "*.rmd": "rmd"
+    },
+    "terminal.integrated.defaultProfile.linux": "zsh",
+    "editor.fontFamily": "'FiraCodeNerdFontCompleteM-Retina', 'Fira Code', Menlo, Monaco, 'Courier New', monospace",
+    "editor.fontLigatures": true,
+    "editor.wordWrap": "on",
+    "editor.bracketPairColorization.enabled": true,
+    "r.bracketedPaste": false,
+    "editor.renderWhitespace": "none",
+    "diffEditor.ignoreTrimWhitespace": false,
+    "editor.minimap.enabled": false,
+    "r.plot.useHttpgd": false,
+}
