@@ -40,6 +40,6 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/grader:beta
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/bayesiana:beta
           cache-from: type=gha
           cache-to: type=gha,mode=max           
