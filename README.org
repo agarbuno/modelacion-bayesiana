@@ -35,7 +35,6 @@
   - [[#formato][Formato]]
   - [[#canvas][Canvas]]
   - [[#fechas-importantes][Fechas importantes]]
-  - [[#grabaciones-de-clases][Grabaciones de clases]]
 - [[#evaluación][Evaluación]]
   - [[#proyecto-final][Proyecto final]]
 - [[#ambiente-de-trabajo][Ambiente de trabajo]]
@@ -129,7 +128,7 @@ tree -L 1 -d
 ├── css
 ├── docs
 ├── images
-├── img
+├── modelos
 ├── notas
 ├── renv
 └── rscripts
@@ -139,14 +138,12 @@ tree -L 1 -d
 
 * Horarios
 
-El curso será los días Martes y Jueves en un horario de 13:00 a 14:30.
+El curso será los días Martes y Jueves en el horario
 
 ** Formato
 
-El curso será remoto (vía Zoom) *por el momento*. Si las condiciones sanitarias lo
-permiten el formato de la clase será ~completamente presencial~ a partir del *14 de
-Febrero*. Por otro lado, salvo se indique lo contrario, ~las evaluaciones serán
-presenciales~.
+El curso será ~completamente presencial~. Por otro lado, salvo se indique lo
+contrario, ~las evaluaciones serán presenciales~.
 
 ** Canvas
 
@@ -157,13 +154,6 @@ necesiten a lo largo del semestre.
 ** Fechas importantes
 
 #+ATTR_REVEAL: :frag (appear)
-- La sesión del ~Martes 8 de Febrero~ será una sesión de ~3 horas~. El jueves 10 de Febrero *no habrá clase*.
-- La sesión del ~Martes 10 de Mayo~ no habrá clases. 
-
-** Grabaciones de clases
-
-La clase se enriquece exponencialmente si existe una conversación entre los
-asistentes. Por lo tanto, las sesiones no se grabarán (si, incluso si hay un cumpleaños!). 
 
 * Evaluación
 
@@ -173,35 +163,48 @@ La evaluación del curso será por medio de:
 - Evaluaciones parciales (30%)
 - Proyecto final (40%)
 
-La entrega de los trabajos/tareas se realizará por medio de un [[https://github.blog/2021-08-12-teaching-learning-github-classroom-visual-studio-code/][Github Classroom]]. 
+La entrega de los trabajos/tareas se realizará por medio del ambiente que se gestionará a través de [[https://github.blog/2021-08-12-teaching-learning-github-classroom-visual-studio-code/][Github Classroom]]. 
 
 ** Proyecto final
 
 Trabajo basado en un /paper/, método, modelo, aplicación relacionado con la temática de la clase.
 Entregables: 
-1. Seguimiento (10%),
-2. Reporte escrito (20%)
-3. Presentación (10%). 
+1. Seguimiento (25%),
+2. Reporte escrito (50%)
+3. Presentación (25%). 
 
 * Ambiente de trabajo
 
-El curso es agnóstico al lenguaje de programación. Sin embargo, utilizaremos [[https://mc-stan.org/][Stan]] como lenguaje para definir y ajustar modelos bayesianos (tanto asintóticamente correctos , como aproximados). En particular utilizaremos la interfase de [[https://www.r-project.org/][R]] por medio de ~cmdstanr~ pero de igual manera son bienvenidos en utilizar la interfase de [[https://www.python.org/][python]]. 
+El curso es agnóstico al lenguaje de programación. Sin embargo, utilizaremos
+[[https://mc-stan.org/][Stan]] como lenguaje para definir y ajustar modelos bayesianos (tanto
+asintóticamente correctos , como aproximados). En particular utilizaremos la
+interfase de [[https://www.r-project.org/][R]] por medio de ~cmdstanr~ pero de igual manera son bienvenidos en
+utilizar la interfase de [[https://www.python.org/][python]].
 
 #+REVEAL: split
 
-Como herramienta de trabajo tendrán que utilizar [[https://www.rstudio.com/products/rstudio/download/][Rstudio]] para poder trabajar en sus proyectos y sus tareas. En particular, el material de clase será editado en [[https://www.gnu.org/software/emacs/][GNU Emacs]] a través de =orgfiles= (archivos con sufijo ~.org~) pero pueden ser visualizados  en ~Github~.
+Como herramienta de trabajo se sugiere utilizar [[https://www.rstudio.com/products/rstudio/download/][Rstudio]] para poder trabajar en
+sus proyectos y sus tareas. En particular, el material de clase será editado en
+[[https://www.gnu.org/software/emacs/][GNU Emacs]] a través de =orgfiles= (archivos con sufijo ~.org~) pero pueden ser
+visualizados en ~Github~.
 
 #+REVEAL: split
 
-*Nota*: Si van a utilizar ~R~ se recomienda tener instalada la versión ~4.1.1~ para tener la mejor compatibilidad con el código del curso.
+*Nota*: Si van a utilizar ~R~ se recomienda tener instalada la versión ~4.2.1~ para
+tener la mejor compatibilidad con el código del curso.
 
 ** Configuración ~R~
 
-Utilizaremos ~renv~ para mantener actualizada las herramientas de ~R~ junto con el contenido del curso. En la carpeta =notas= se encuentran los archivos de requerimientos (=renv.lock=)  con el que podrán usar los archivos que se vayan decantando en la carpeta =rscripts=. Aún asi, la configuración se irá construyendo en los ejercicios de tarea que vayamos utilizando en el curso.
+Utilizaremos ~renv~ para mantener actualizada las herramientas de ~R~ junto con el
+contenido del curso. En la carpeta =notas= se encuentran los archivos de
+requerimientos (=renv.lock=) con el que podrán usar los archivos que se vayan
+decantando en la carpeta =rscripts=. Aún asi, la configuración se irá construyendo
+en los ejercicios de tarea que vayamos utilizando en el curso.
 
 ** Configuración ~renv~
 
-Se recomienda escribir en el archivo ~~/.Renviron~ la siguiente línea lo cual mantendrá el cache de ~renv~ en un lugar centralizado 
+Se recomienda escribir en el archivo ~~/.Renviron~ la siguiente línea lo cual
+mantendrá el cache de ~renv~ en un lugar centralizado
 
 #+begin_src conf :tangle ~/.Renviron :mkdirp yes
   RENV_PATHS_ROOT=~/.renv
@@ -210,14 +213,20 @@ Se recomienda escribir en el archivo ~~/.Renviron~ la siguiente línea lo cual m
 
 ** Trabajando con ambiente ~Dockerizado~
 
-Las imágenes de  ~agarbuno/bayesiana~ (puedes ver imágenes en mi hub de Docker  [[https://hub.docker.com/repository/docker/agarbuno/bayesiana][aqui]], y/o los ~Dockerfiles~ [[https://github.com/agarbuno/dockerfiles][aqui]]) permiten tener un ambiente para trabajar con ~Docker~ en nuestro curso. 
-1) El /tag/ ~2022~ ó ~latest~, basado en una distribución linux en una emulación con un procesador ~Intel~.
+Las imágenes de ~agarbuno/bayesiana~ (puedes ver imágenes en mi hub de Docker
+[[https://hub.docker.com/repository/docker/agarbuno/bayesiana][aqui]], y/o los ~Dockerfiles~ [[https://github.com/agarbuno/dockerfiles][aqui]]) permiten tener un ambiente para trabajar con
+~Docker~ en nuestro curso.
+1) El /tag/ ~2023~ ó ~latest~, basado en una distribución linux en una emulación con un procesador ~Intel~.
 
 #+REVEAL: split
-Esta imagen provee de un ambiente donde se podrán instalar las paqueterías que utilizaremos sin ningún problema$\dagger$. La idea, adicional, es que utilicemos /volumes/ para poder tener permanencia en nuestro trabajo.
+Esta imagen provee de un ambiente donde se podrán instalar las paqueterías que
+utilizaremos sin ningún problema$\dagger$. La idea, adicional, es que utilicemos
+/volumes/ para poder tener permanencia en nuestro trabajo.
 
 #+REVEAL: split
-El contenedor se podrá levantar sin ningún problema por medio de la siguiente serie de instrucciones en terminal (también se puede establecer un script de /shell/).
+El contenedor se podrá levantar sin ningún problema por medio de la siguiente
+serie de instrucciones en terminal (también se puede establecer un script de
+/shell/).
 
 #+begin_src shell
   # Ruta del cache de renv en el contenedor
@@ -239,17 +248,20 @@ El contenedor se podrá levantar sin ningún problema por medio de la siguiente 
 
 ** Configuración de ~Docker~                                          :github:
 
-La imágen de Docker para el ambiente de RStudio está basada en la imagen de [[https://hub.docker.com/r/rocker/tidyverse][rocker/tidyverse]] de los desarrolladores en el [[https://www.rocker-project.org/][Proyecto de Rocker]] con las siguientes herramientas agregadas para la materia de modelación bayesiana: 
+La imágen de Docker para el ambiente de RStudio está basada en la imagen de
+[[https://hub.docker.com/r/rocker/tidyverse][rocker/tidyverse]] de los desarrolladores en el [[https://www.rocker-project.org/][Proyecto de Rocker]] con las
+siguientes herramientas agregadas para la materia de modelación bayesiana:
 
-- [posterior](https://cran.r-project.org/web/packages/posterior/index.html)
-- [bayesplot](https://cran.r-project.org/web/packages/bayesplot/index.html)
-- [tidybayes](https://github.com/mjskay/tidybayes)
-- [CmdStan](https://mc-stan.org/users/interfaces/cmdstan)
-- [CmdStanR](https://mc-stan.org/cmdstanr/)
+- [[https://cran.r-project.org/web/packages/posterior/index.html][posterior]]
+- [[https://cran.r-project.org/web/packages/bayesplot/index.html][bayesplot]]
+- [[https://github.com/mjskay/tidybayes][tidybayes]]
+- [[https://mc-stan.org/users/interfaces/cmdstan][cmdstan]]
+- [[https://mc-stan.org/cmdstanr/][cmdstanr]]
 
 Para instrucciones de uso, se sugiere seguir la [[https://github.com/rocker-org/rocker/wiki/Using-the-RStudio-image][Documentación de Rocker]]
 
-Un ejemplo de como construir y correr este contenedor sería lo siguiente. En un terminal, dentro del folder del repo, correr la siguiente línea
+Un ejemplo de como construir y correr este contenedor sería lo siguiente. En un
+terminal, dentro del folder del repo, correr la siguiente línea
 
 #+begin_src shell :exports code :results none
   docker build --tag bayesiana:2022 .
@@ -261,23 +273,10 @@ El contenedor lo podemos despertar con
   docker run -e PASSWORD=qwerty -p 8787:8787 --rm bayesiana:2022
 #+end_src
 
-Para vistarlo basta con utilizar la ruta ~localhost:8787~  en un /browser/  de internet y utilizar la contraseña especificada. Se puede agregar la bandera de `-v` si se quiere acceder a un folder local. Mas información de volúmenes se puede encontrar en la [[https://docs.docker.com/storage/volumes/][documentación]]. 
-
-La imágen de Docker para el ambiente de RStudio está basada en la imagen de [[https://hub.docker.com/r/rocker/tidyverse][rocker/tidyverse]] de los desarrolladores en el [[https://www.rocker-project.org/][Proyecto de Rocker]] con las siguientes herramientas agregadas para modelación bayesiana: 
-
-- [[https://cran.r-project.org/web/packages/posterior/index.html][posterior]]
-- [[https://cran.r-project.org/web/packages/bayesplot/index.html][bayesplot]]
-- [[https://github.com/mjskay/tidybayes][tidybayes]]
-- [[https://mc-stan.org/users/interfaces/cmdstan][CmdStan]]
-- [[https://mc-stan.org/cmdstanr/][CmdStanR]]
-
-Para instrucciones de uso, se sugiere seguir la [[https://github.com/rocker-org/rocker/wiki/Using-the-RStudio-image][Documentación de Rocker]]
-
-Un ejemplo de como construir y correr este contenedor sería: 
-
-Dentro del folder del repo, correr: ~docker build . -t rocker-bayes~
-
-Correr ~docker run -e PASSWORD=qwerty -p 8787:8787 --rm rocker-bayes~ debería de iniciar el contenedor, con la contraseña especificada. Se puede agregar la bandera de ~-v~ si se quiere acceder a un folder local. Mas información de volúmenes [[https://docs.docker.com/storage/volumes/][aquí]]. 
+Para vistarlo basta con utilizar la ruta ~localhost:8787~ en cualquier /browser/ de
+internet y utilizar la contraseña especificada. Se puede agregar la bandera de
+`-v` si se quiere acceder a un folder local. Mas información de volúmenes se
+pueden encontrar en la [[https://docs.docker.com/storage/volumes/][documentación]].
 
 * Tarea 
 
@@ -324,7 +323,7 @@ CLOSED: [2022-05-02 Mon 16:26]
 ** TODO Clustering
 ** TODO Item response theory 
 ** TODO Variational inference
-citep:Kusmierczyk2019a
+
 
 * COMMENT Posibles temas                                           :noexport:
 :PROPERTIES:
@@ -336,3 +335,5 @@ Tomar el caso en [[https://www.smartly.io/blog/tutorial-how-we-productized-bayes
 Tomar el caso en [Grenable, Stan tutorial]. 
 
 Referencia muy general [[https://michaeldewittjr.com/dewitt_blog/posts/2020-08-28-bayesian-sir/][Michael DeWitt: Bayesian SIR]]. El caso mas completo aqui: [[https://mc-stan.org/users/documentation/case-studies/boarding_school_case_study.html][Bayesian workflow for disease transmission modeling in Stan]]. Referencia de Grenable: [[https://www.generable.com/post/fitting-a-basic-sir-model-in-stan][Fitting a Basic SIR Model in Stan]]. 
+
+citep:Kusmierczyk2019a
