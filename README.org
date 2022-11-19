@@ -1,10 +1,72 @@
-* Introducción
+#+TITLE: EST-46115: Modelación Bayesiana
+#+AUTHOR: Prof. Alfredo Garbuno Iñigo
+#+EMAIL:  agarbuno@itam.mx
+#+DATE: ~Primavera, 2023~
+:REVEAL_PROPERTIES:
+#+LANGUAGE: es
+#+OPTIONS: num:nil toc:nil timestamp:nil
+#+REVEAL_REVEAL_JS_VERSION: 4
+#+REVEAL_THEME: night
+#+REVEAL_SLIDE_NUMBER: t
+#+REVEAL_HEAD_PREAMBLE: <meta name="description" content="Modelación Bayesiana">
+#+REVEAL_INIT_OPTIONS: width:1600, height:900, margin:.2
+#+REVEAL_EXTRA_CSS: ./notas/mods.css
+#+REVEAL_PLUGINS: (notes)
+:END:
+#+STARTUP: showall
+#+EXCLUDE_TAGS: toc github latex
+
+[[https://mybinder.org/v2/gh/agarbuno/modelacion-bayesiana/binder-rocker?urlpath=rstudio][https://mybinder.org/badge_logo.svg]]
+
+* Contenido                                                             :toc:
+:PROPERTIES:
+:TOC:      :include all  :ignore this :depth 2
+:END:
+:CONTENTS:
+- [[#introducción][Introducción]]
+- [[#objetivo][Objetivo]]
+- [[#temario][Temario]]
+  - [[#de-qué-trata-el-curso][¿De qué trata el curso?]]
+  - [[#estructura-del-curso][Estructura del curso]]
+  - [[#existe-un-libro-de-texto][¿Existe un libro de texto?]]
+  - [[#lo-lograremos][¿Lo lograremos?]]
+- [[#recursos][Recursos]]
+- [[#horarios][Horarios]]
+  - [[#formato][Formato]]
+  - [[#canvas][Canvas]]
+  - [[#fechas-importantes][Fechas importantes]]
+  - [[#grabaciones-de-clases][Grabaciones de clases]]
+- [[#evaluación][Evaluación]]
+  - [[#proyecto-final][Proyecto final]]
+- [[#ambiente-de-trabajo][Ambiente de trabajo]]
+  - [[#configuración-r][Configuración R]]
+  - [[#configuración-renv][Configuración renv]]
+  - [[#trabajando-con-ambiente-dockerizado][Trabajando con ambiente Dockerizado]]
+  - [[#configuración-de-docker][Configuración de Docker]]
+- [[#tarea][Tarea]]
+- [[#dudas][¿Dudas?]]
+- [[#contribuidores][Contribuidores]]
+- [[#bibliografía][Bibliografía]]
+:END:
+
+* Introducción                                                       :github:
 
 Este es el repositorio con el contenido del curso en *Modelación Bayesiana* de la
 *maestría en ciencia de datos*. También ofrecida de manera simultánea para alumnos
 avanzados en las licenciaturas de matemáticas aplicadas, ciencia de datos y
 actuaría.
 
+#+REVEAL: split
+#+begin_quote
+Our goal is ~not to eliminate uncertainty~, but to understand and quantify the
+uncertainty in order to make sound decisions. ---Netflix Tech Blog
+#+end_quote
+
+#+REVEAL: split
+
+#+DOWNLOADED: screenshot @ 2022-01-23 01:22:55
+#+attr_html: :width 1200 :align center
+[[file:images/20220123-012255_screenshot.png]]
 * Objetivo
 
 En este curso se verán temas avanzados en la visualización, simulación y
@@ -14,9 +76,263 @@ bayesiano que permite validar y evaluar hipótesis. Se introducirán algunos
 modelos modernos utilizados en distintas áreas como: modelos predictivos,
 selección de variables y sistemas de recomendación. El material se complementará
 con lecturas de artículos de divulgación e investigación a lo largo del curso.
+ 
+* Temario
+
+El temario para el semestre de primavera 2022 se puede encontrar [[https://github.com/ITAM-DS/modelacion-bayesiana/blob/spring-2022/docs/temario-modelacion-bayesiana.pdf][aqui]]. Este es
+un plan preliminar que está sujeto al avance del curso a lo largo del semestre. 
+
+** ¿De qué trata el curso?
+
+En esta iteración del curso se estudiarán las ~bases algorítmicas~ de la
+inferencia bayesiana (métodos de simulación por cadenas de Markov) así como los
+~diagnósticos~ pertinentes. De igual manera estudiaremos un ~flujo de trabajo~
+basado en calibración y simulación para poder identificar rutas potenciales de
+mejora en nuestros modelos y revisaremos principios basados en el método
+científico. El curso continuará con métodos de ~inferencia aproximada~ que han
+dado lugar a aplicaciones del estado de arte como sistemas de recomendación o
+análisis de texto.
+# \newpage
+** Estructura del curso
+
+El curso está planeado alrededor de tres temas centrales:
+#+ATTR_REVEAL: :frag (appear)
+1. Cómputo probabilístico.
+2. Flujo de trabajo Bayesiano.
+3. Modelación predictiva probabilística. 
+
+** ¿Existe un libro de texto?
+
+#+DOWNLOADED: screenshot @ 2022-01-23 01:11:36
+#+attr_html: :width 1200 :align center
+[[file:images/20220123-011136_screenshot.png]]
+
+** ¿Lo lograremos?
+
+Seguramente no, pero el camino y el final pueden resultar súper divertidos!
 
 * Recursos
 
-El contenido actual del curso se encuentra en la rama: [[https://github.com/ITAM-DS/modelacion-bayesiana/tree/spring-2022][spring-2022]].
+El contenido actual del curso se encuentra en la rama: [[https://github.com/ITAM-DS/modelacion-bayesiana/tree/spring-2022][spring-2022]]. La
+estructura del repositorio se muestra a continuación donde tenemos a grandes
+razgos:
+
+#+begin_src bash :exports results :results org
+
+tree -L 1 -d 
+
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+.
+├── css
+├── docs
+├── images
+├── img
+├── notas
+├── renv
+└── rscripts
+
+7 directories
+#+end_src
+
+* Horarios
+
+El curso será los días Martes y Jueves en un horario de 13:00 a 14:30.
+
+** Formato
+
+El curso será remoto (vía Zoom) *por el momento*. Si las condiciones sanitarias lo
+permiten el formato de la clase será ~completamente presencial~ a partir del *14 de
+Febrero*. Por otro lado, salvo se indique lo contrario, ~las evaluaciones serán
+presenciales~.
+
+** Canvas
+
+Utilizaremos este LMS para gestionar la comunicación fuera de los horarios de
+clase. Asimismo, ahi tendrán acceso al calendario y las sesiones de zoom que se
+necesiten a lo largo del semestre.
+
+** Fechas importantes
+
+#+ATTR_REVEAL: :frag (appear)
+- La sesión del ~Martes 8 de Febrero~ será una sesión de ~3 horas~. El jueves 10 de Febrero *no habrá clase*.
+- La sesión del ~Martes 10 de Mayo~ no habrá clases. 
+
+** Grabaciones de clases
+
+La clase se enriquece exponencialmente si existe una conversación entre los
+asistentes. Por lo tanto, las sesiones no se grabarán (si, incluso si hay un cumpleaños!). 
+
+* Evaluación
+
+La evaluación del curso será por medio de:
+#+ATTR_REVEAL: :frag (appear)
+- Participación y tareas (30%)
+- Evaluaciones parciales (30%)
+- Proyecto final (40%)
+
+La entrega de los trabajos/tareas se realizará por medio de un [[https://github.blog/2021-08-12-teaching-learning-github-classroom-visual-studio-code/][Github Classroom]]. 
+
+** Proyecto final
+
+Trabajo basado en un /paper/, método, modelo, aplicación relacionado con la temática de la clase.
+Entregables: 
+1. Seguimiento (10%),
+2. Reporte escrito (20%)
+3. Presentación (10%). 
+
+* Ambiente de trabajo
+
+El curso es agnóstico al lenguaje de programación. Sin embargo, utilizaremos [[https://mc-stan.org/][Stan]] como lenguaje para definir y ajustar modelos bayesianos (tanto asintóticamente correctos , como aproximados). En particular utilizaremos la interfase de [[https://www.r-project.org/][R]] por medio de ~cmdstanr~ pero de igual manera son bienvenidos en utilizar la interfase de [[https://www.python.org/][python]]. 
+
+#+REVEAL: split
+
+Como herramienta de trabajo tendrán que utilizar [[https://www.rstudio.com/products/rstudio/download/][Rstudio]] para poder trabajar en sus proyectos y sus tareas. En particular, el material de clase será editado en [[https://www.gnu.org/software/emacs/][GNU Emacs]] a través de =orgfiles= (archivos con sufijo ~.org~) pero pueden ser visualizados  en ~Github~.
+
+#+REVEAL: split
+
+*Nota*: Si van a utilizar ~R~ se recomienda tener instalada la versión ~4.1.1~ para tener la mejor compatibilidad con el código del curso.
+
+** Configuración ~R~
+
+Utilizaremos ~renv~ para mantener actualizada las herramientas de ~R~ junto con el contenido del curso. En la carpeta =notas= se encuentran los archivos de requerimientos (=renv.lock=)  con el que podrán usar los archivos que se vayan decantando en la carpeta =rscripts=. Aún asi, la configuración se irá construyendo en los ejercicios de tarea que vayamos utilizando en el curso.
+
+** Configuración ~renv~
+
+Se recomienda escribir en el archivo ~~/.Renviron~ la siguiente línea lo cual mantendrá el cache de ~renv~ en un lugar centralizado 
+
+#+begin_src conf :tangle ~/.Renviron :mkdirp yes
+  RENV_PATHS_ROOT=~/.renv
+#+end_src
 
 
+** Trabajando con ambiente ~Dockerizado~
+
+Las imágenes de  ~agarbuno/bayesiana~ (puedes ver imágenes en mi hub de Docker  [[https://hub.docker.com/repository/docker/agarbuno/bayesiana][aqui]], y/o los ~Dockerfiles~ [[https://github.com/agarbuno/dockerfiles][aqui]]) permiten tener un ambiente para trabajar con ~Docker~ en nuestro curso. 
+1) El /tag/ ~2022~ ó ~latest~, basado en una distribución linux en una emulación con un procesador ~Intel~.
+
+#+REVEAL: split
+Esta imagen provee de un ambiente donde se podrán instalar las paqueterías que utilizaremos sin ningún problema$\dagger$. La idea, adicional, es que utilicemos /volumes/ para poder tener permanencia en nuestro trabajo.
+
+#+REVEAL: split
+El contenedor se podrá levantar sin ningún problema por medio de la siguiente serie de instrucciones en terminal (también se puede establecer un script de /shell/).
+
+#+begin_src shell
+  # Ruta del cache de renv en el contenedor
+  RENV_PATHS_CACHE_CONTAINER=/home/rstudio/.renv
+  # Ruta del cache de renv en tu maquina
+  RENV_PATHS_CACHE_HOST=~/.renv/cache
+  # Ruta donde guardes los clones de las tareas
+  PATH_TRABAJO_HOST=<ruta hacia las carpetas de los repos de tareas>
+
+  docker run -p 8787:8787 \
+      -e PASSWORD=<contraseña de tu preferencia> \
+      -e "RENV_PATHS_CACHE=${RENV_PATHS_CACHE_CONTAINER}" \
+      -e "RENV_PATHS_ROOT=${RENV_PATHS_CACHE_CONTAINER}" \
+      -v "${RENV_PATHS_CACHE_HOST}:${RENV_PATHS_CACHE_CONTAINER}" \
+      -m 6g \ 
+      -v "${PATH_TRABAJO_HOST}:/home/rstudio/documentos" \
+      agarbuno/bayesiana:<tag>
+#+end_src
+
+** Configuración de ~Docker~                                          :github:
+
+La imágen de Docker para el ambiente de RStudio está basada en la imagen de [[https://hub.docker.com/r/rocker/tidyverse][rocker/tidyverse]] de los desarrolladores en el [[https://www.rocker-project.org/][Proyecto de Rocker]] con las siguientes herramientas agregadas para la materia de modelación bayesiana: 
+
+- [posterior](https://cran.r-project.org/web/packages/posterior/index.html)
+- [bayesplot](https://cran.r-project.org/web/packages/bayesplot/index.html)
+- [tidybayes](https://github.com/mjskay/tidybayes)
+- [CmdStan](https://mc-stan.org/users/interfaces/cmdstan)
+- [CmdStanR](https://mc-stan.org/cmdstanr/)
+
+Para instrucciones de uso, se sugiere seguir la [[https://github.com/rocker-org/rocker/wiki/Using-the-RStudio-image][Documentación de Rocker]]
+
+Un ejemplo de como construir y correr este contenedor sería lo siguiente. En un terminal, dentro del folder del repo, correr la siguiente línea
+
+#+begin_src shell :exports code :results none
+  docker build --tag bayesiana:2022 .
+#+end_src
+
+El contenedor lo podemos despertar con
+
+#+begin_src shell
+  docker run -e PASSWORD=qwerty -p 8787:8787 --rm bayesiana:2022
+#+end_src
+
+Para vistarlo basta con utilizar la ruta ~localhost:8787~  en un /browser/  de internet y utilizar la contraseña especificada. Se puede agregar la bandera de `-v` si se quiere acceder a un folder local. Mas información de volúmenes se puede encontrar en la [[https://docs.docker.com/storage/volumes/][documentación]]. 
+
+La imágen de Docker para el ambiente de RStudio está basada en la imagen de [[https://hub.docker.com/r/rocker/tidyverse][rocker/tidyverse]] de los desarrolladores en el [[https://www.rocker-project.org/][Proyecto de Rocker]] con las siguientes herramientas agregadas para modelación bayesiana: 
+
+- [[https://cran.r-project.org/web/packages/posterior/index.html][posterior]]
+- [[https://cran.r-project.org/web/packages/bayesplot/index.html][bayesplot]]
+- [[https://github.com/mjskay/tidybayes][tidybayes]]
+- [[https://mc-stan.org/users/interfaces/cmdstan][CmdStan]]
+- [[https://mc-stan.org/cmdstanr/][CmdStanR]]
+
+Para instrucciones de uso, se sugiere seguir la [[https://github.com/rocker-org/rocker/wiki/Using-the-RStudio-image][Documentación de Rocker]]
+
+Un ejemplo de como construir y correr este contenedor sería: 
+
+Dentro del folder del repo, correr: ~docker build . -t rocker-bayes~
+
+Correr ~docker run -e PASSWORD=qwerty -p 8787:8787 --rm rocker-bayes~ debería de iniciar el contenedor, con la contraseña especificada. Se puede agregar la bandera de ~-v~ si se quiere acceder a un folder local. Mas información de volúmenes [[https://docs.docker.com/storage/volumes/][aquí]]. 
+
+* Tarea 
+
+Las primeras tareas del semestre son básicamente configuración y es recomendable
+hacerlas si no cuentan con experiencia en: ~Git~, ~Github~, ~R~ y el ~tidyverse~.
+
+* ¿Dudas?
+
+* Contribuidores                                                     :github:
+
+[[https://github.com/AdrianTJ][AdrianTJ]] (ambiente en ~Docker~). 
+
+* Bibliografía                                                        :latex:
+\nocite{*}
+bibliographystyle:abbrvnat
+bibliography:references.bib
+
+* COMMENT Plan de trabajo [10/15][66%]                             :noexport:
+:PROPERTIES:
+:UNNUMBERED: notoc
+:END:
+** DONE Repaso 
+CLOSED: [2022-03-04 Fri 19:42]
+** DONE Integración numerica
+CLOSED: [2022-03-04 Fri 19:43]
+** DONE MCMC (Parte 1)
+CLOSED: [2022-03-04 Fri 19:43]
+** DONE MCMC (Parte 2)
+CLOSED: [2022-03-04 Fri 19:43]
+** DONE HMC
+CLOSED: [2022-03-04 Fri 19:43]
+** DONE Diagnosticos
+CLOSED: [2022-03-15 Tue 20:19]
+** DONE Posterior Predictive Sampling
+CLOSED: [2022-04-07 Thu 16:51]
+** DONE Posterior and prior predictive checks
+CLOSED: [2022-04-07 Thu 16:51]
+** DONE Simulation Based calibration
+CLOSED: [2022-05-02 Mon 16:26]
+** DONE Evaluation and cross validation
+CLOSED: [2022-05-02 Mon 16:26]
+** TODO Decision Analysis
+** TODO Poststratification
+** TODO Clustering
+** TODO Item response theory 
+** TODO Variational inference
+citep:Kusmierczyk2019a
+
+* COMMENT Posibles temas                                           :noexport:
+:PROPERTIES:
+:UNNUMBERED: notoc
+:END:
+** TODO Multi-Armed Bandits
+Tomar el caso en [[https://www.smartly.io/blog/tutorial-how-we-productized-bayesian-revenue-estimation-with-stan][Smartly.io]] o también [[https://www.linkedin.com/pulse/tutorial-how-we-productized-bayesian-revenue-estimation-markus-ojala/][aqui]]. Comentarios por [[https://statmodeling.stat.columbia.edu/2018/01/21/smartly-io-productized-bayesian-revenue-estimation-stan/][Andrew Gelman]]. 
+** TODO SIR modeling 
+Tomar el caso en [Grenable, Stan tutorial]. 
+
+Referencia muy general [[https://michaeldewittjr.com/dewitt_blog/posts/2020-08-28-bayesian-sir/][Michael DeWitt: Bayesian SIR]]. El caso mas completo aqui: [[https://mc-stan.org/users/documentation/case-studies/boarding_school_case_study.html][Bayesian workflow for disease transmission modeling in Stan]]. Referencia de Grenable: [[https://www.generable.com/post/fitting-a-basic-sir-model-in-stan][Fitting a Basic SIR Model in Stan]]. 
