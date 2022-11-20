@@ -70,7 +70,7 @@ uncertainty in order to make sound decisions. ---Netflix Tech Blog
 
 #+REVEAL: split
 #+begin_quote
-A previous acquaintance with proba- bility and statistics is not necessary;
+A previous acquaintance with probability and statistics is not necessary;
 indeed, a certain amount of innocence in this area may be desirable, because
 there will be less to unlearn. ---Jaynes, 2003.
 #+end_quote
