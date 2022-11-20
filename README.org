@@ -117,10 +117,6 @@ El curso está planeado alrededor de tres temas centrales:
 #+attr_html: :width 1200 :align center
 [[file:images/20220123-011136_screenshot.png]]
 
-** ¿Lo lograremos?
-
-Seguramente no, pero el camino y el final pueden resultar súper divertidos!
-
 * Recursos
 
 El contenido actual del curso se encuentra en la rama: [[https://github.com/agarbuno/modelacion-bayesiana/tree/spring-2023][spring-2023]]. La
@@ -182,17 +178,17 @@ La evaluación del curso será por medio de:
 
 Trabajo basado en un /paper/, método, modelo, aplicación relacionado con la temática de la clase.
 Entregables: 
-1. Seguimiento (25%),
+1. Presentaciones de Seguimiento (25%),
 2. Reporte escrito (50%)
-3. Presentación (25%). 
+3. Presentación final (25%). 
 
 * Ambiente de trabajo
 
-El curso es agnóstico al lenguaje de programación. Sin embargo, utilizaremos
+El curso puede ser seguido en Python, Julia, etc (básicamente cualquier lenguaje de /scripteo/ con interface a `Stan`). El curso utilizará
 [[https://mc-stan.org/][Stan]] como lenguaje para definir y ajustar modelos bayesianos (tanto
-asintóticamente correctos , como aproximados). En particular utilizaremos la
+asintóticamente correctos, como aproximados). En particular utilizaré la
 interfase de [[https://www.r-project.org/][R]] por medio de ~cmdstanr~ pero de igual manera son bienvenidos en
-utilizar la interfase de [[https://www.python.org/][python]].
+utilizar la interfase de [[https://www.python.org/][python]] o la que les acomode$^\dagger$.
 
 #+REVEAL: split
 
