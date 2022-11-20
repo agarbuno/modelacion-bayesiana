@@ -43,8 +43,14 @@ COPY renv.lock renv.lock
 COPY .Rprofile .Rprofile
 COPY renv/activate.R renv/activate.R
 COPY renv/settings.dcf renv/settings.dcf
-RUN R -e "renv::restore()"
 RUN install2.r --error rmarkdown httpgd languageserver
+
+RUN wget --progress=dot:mega https://github.com/stan-dev/cmdstan/releases/download/v2.27.0/cmdstan-2.27.0.tar.gz
+RUN tar -zxpf cmdstan-2.27.0.tar.gz
+RUN ln -s cmdstan-2.27.0 cmdstan
+RUN cd cmdstan; make build
+
+RUN R -e "renv::restore()"
 RUN rm -rf renv.lock .Rprofile renv
 
 # Aseguramos que podemos trabajar desde ~/rstudio/home =========================
