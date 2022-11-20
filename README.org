@@ -184,7 +184,7 @@ Entregables:
 
 * Ambiente de trabajo
 
-El curso puede ser seguido en Python, Julia, etc (básicamente cualquier lenguaje de /scripteo/ con interface a `Stan`). El curso utilizará
+El curso puede ser seguido en Python, Julia, etc (básicamente cualquier lenguaje de /scripteo/ con interface a ~Stan~). El curso utilizará
 [[https://mc-stan.org/][Stan]] como lenguaje para definir y ajustar modelos bayesianos (tanto
 asintóticamente correctos, como aproximados). En particular utilizaré la
 interfase de [[https://www.r-project.org/][R]] por medio de ~cmdstanr~ pero de igual manera son bienvenidos en
@@ -233,7 +233,7 @@ Las imágenes de ~agarbuno/bayesiana~ (puedes ver imágenes en mi hub de Docker
 
 #+REVEAL: split
 Esta imagen provee de un ambiente donde se podrán instalar las paqueterías que
-utilizaremos sin ningún problema$\dagger$. La idea, adicional, es que utilicemos
+utilizaremos sin ningún problema$^\dagger$. La idea, adicional, es que utilicemos
 /volumes/ para poder tener permanencia en nuestro trabajo.
 
 #+REVEAL: split
@@ -288,7 +288,7 @@ El contenedor lo podemos despertar con
 
 Para vistarlo basta con utilizar la ruta ~localhost:8787~ en cualquier /browser/ de
 internet y utilizar la contraseña especificada. Se puede agregar la bandera de
-`-v` si se quiere acceder a un folder local. Mas información de volúmenes se
+~-v~ si se quiere acceder a un folder local. Mas información de volúmenes se
 pueden encontrar en la [[https://docs.docker.com/storage/volumes/][documentación]].
 
 * Tareas 
