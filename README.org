@@ -17,7 +17,9 @@
 #+EXCLUDE_TAGS: toc github latex
 
 
-[[https://github.com/agarbuno/modelacion-bayesiana/actions/workflows/docker.yml/badge.svg]] [[https://img.shields.io/docker/pulls/agarbuno/bayesiana]] [[https://img.shields.io/github/languages/top/agarbuno/modelacion-bayesiana]]
+[[https://github.com/agarbuno/modelacion-bayesiana/actions/workflows/docker.yml/badge.svg]]  
+[[https://img.shields.io/docker/pulls/agarbuno/bayesiana]]  
+[[https://img.shields.io/github/languages/top/agarbuno/modelacion-bayesiana]]  
 
 * Contenido                                                             :toc:
 :PROPERTIES:
