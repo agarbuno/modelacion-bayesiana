@@ -47,8 +47,9 @@ RUN install2.r --error rmarkdown httpgd languageserver
 
 RUN wget --progress=dot:mega https://github.com/stan-dev/cmdstan/releases/download/v2.30.1/cmdstan-2.30.1.tar.gz
 RUN tar -zxpf cmdstan-2.30.1.tar.gz
-RUN ln -s cmdstan-2.30.1 /root/.cmdstan
-RUN cd /root/.cmdstan; make build
+RUN ln -s cmdstan-2.30.1 .cmdstan
+RUN cd .cmdstan; make build
+RUN ln -sf .cmdstan /root/.cmdstan
 
 RUN R -e "renv::restore()"
 RUN rm -rf renv.lock .Rprofile renv
