@@ -16,8 +16,7 @@
 #+STARTUP: showall
 #+EXCLUDE_TAGS: toc github latex
 
-
-[[https://github.com/agarbuno/modelacion-bayesiana/actions/workflows/docker/badge.svg]]
+[[https://github.com/agarbuno/modelacion-bayesiana/actions/workflows/docker.yml/badge.svg]] [[https://img.shields.io/docker/pulls/agarbuno/bayesiana.svg?logo=docker]] [[https://img.shields.io/docker/image-size/agarbuno/bayesiana/notas.svg?logo=docker]] [[https://img.shields.io/github/languages/top/agarbuno/modelacion-bayesiana.svg?logo=r]] [[https://img.shields.io/github/languages/code-size/agarbuno/modelacion-bayesiana.svg?logo=r]] 
 
 * Contenido                                                             :toc:
 :PROPERTIES:
@@ -36,6 +35,7 @@
   - [[#formato][Formato]]
   - [[#canvas][Canvas]]
   - [[#fechas-importantes][Fechas importantes]]
+  - [[#atención-de-alumnos][Atención de alumnos]]
 - [[#evaluación][Evaluación]]
   - [[#proyecto-final][Proyecto final]]
 - [[#ambiente-de-trabajo][Ambiente de trabajo]]
@@ -43,7 +43,7 @@
   - [[#configuración-renv][Configuración renv]]
   - [[#trabajando-con-ambiente-dockerizado][Trabajando con ambiente Dockerizado]]
   - [[#configuración-de-docker][Configuración de Docker]]
-- [[#tarea][Tarea]]
+- [[#tareas][Tareas]]
 - [[#dudas][¿Dudas?]]
 - [[#contribuidores][Contribuidores]]
 - [[#bibliografía][Bibliografía]]
@@ -67,6 +67,15 @@ uncertainty in order to make sound decisions. ---Netflix Tech Blog
 #+DOWNLOADED: screenshot @ 2022-01-23 01:22:55
 #+attr_html: :width 1200 :align center
 [[file:images/20220123-012255_screenshot.png]]
+
+#+REVEAL: split
+#+begin_quote
+A previous acquaintance with proba- bility and statistics is not necessary;
+indeed, a certain amount of innocence in this area may be desirable, because
+there will be less to unlearn. ---Jaynes, 2003.
+#+end_quote
+
+
 * Objetivo
 
 En este curso se verán temas avanzados en la visualización, simulación y
@@ -75,7 +84,8 @@ calibración de procedimientos estadísticos. Se estudiará, un flujo de trabajo
 bayesiano que permite validar y evaluar hipótesis. Se introducirán algunos
 modelos modernos utilizados en distintas áreas como: modelos predictivos,
 selección de variables y sistemas de recomendación. El material se complementará
-con lecturas de artículos de divulgación e investigación a lo largo del curso.
+con algunos podcasts y lecturas de artículos de divulgación e investigación a lo
+largo del curso.
  
 * Temario
 
@@ -113,11 +123,11 @@ Seguramente no, pero el camino y el final pueden resultar súper divertidos!
 
 * Recursos
 
-El contenido actual del curso se encuentra en la rama: [[https://github.com/ITAM-DS/modelacion-bayesiana/tree/spring-2022][spring-2022]]. La
-estructura del repositorio se muestra a continuación donde tenemos a grandes
-razgos:
+El contenido actual del curso se encuentra en la rama: [[https://github.com/agarbuno/modelacion-bayesiana/tree/spring-2023][spring-2023]]. La
+estructura del repositorio se muestra a continuación donde a grandes
+razgos tenemos:
 
-#+begin_src bash :exports results :results org
+#+begin_src bash :exports results :results org :eval never
 
 tree -L 1 -d 
 
@@ -126,15 +136,14 @@ tree -L 1 -d
 #+RESULTS:
 #+begin_src org
 .
-├── css
-├── docs
-├── images
-├── modelos
-├── notas
-├── renv
-└── rscripts
+├── docs       # Handouts con las notas de clase
+├── images     # Material visual de apoyo
+├── modelos    # Directorio con los modelos que usaremos en el curso
+├── notas      # Material fuente de las notas (emacs)
+├── renv       # Archivos de estructura de ambiente (R)
+└── rscripts   # Codigo de R para interactuar con Stan
 
-7 directories
+6 directories
 #+end_src
 
 * Horarios
@@ -155,6 +164,11 @@ necesiten a lo largo del semestre.
 ** Fechas importantes
 
 #+ATTR_REVEAL: :frag (appear)
+** Atención de alumnos
+
+El horario de atención a alumnos será Lunes y Miércoles en un horario de 11:00am
+a 1:00pm. Recomiendo utilizar el sitio de [[https://calendly.com/alfredo-garbuno/entrevistas][calendly]]. Por supuesto, si no les
+queda algún horario podemos agendar por ~correo electrónico~.
 
 * Evaluación
 
@@ -163,8 +177,6 @@ La evaluación del curso será por medio de:
 - Participación y tareas (30%)
 - Evaluaciones parciales (30%)
 - Proyecto final (40%)
-
-La entrega de los trabajos/tareas se realizará por medio del ambiente que se gestionará a través de [[https://github.blog/2021-08-12-teaching-learning-github-classroom-visual-studio-code/][Github Classroom]]. 
 
 ** Proyecto final
 
@@ -204,8 +216,10 @@ en los ejercicios de tarea que vayamos utilizando en el curso.
 
 ** Configuración ~renv~
 
-Se recomienda escribir en el archivo ~~/.Renviron~ la siguiente línea lo cual
-mantendrá el cache de ~renv~ en un lugar centralizado
+
+Si utilizas ~MacOS~ o alguna distribución ~Linux~ se recomienda escribir en el
+archivo ~~/.Renviron~ la siguiente línea lo cual mantendrá el cache de ~renv~ en un
+lugar centralizado:
 
 #+begin_src conf :tangle ~/.Renviron :mkdirp yes
   RENV_PATHS_ROOT=~/.renv
@@ -281,10 +295,19 @@ internet y utilizar la contraseña especificada. Se puede agregar la bandera de
 `-v` si se quiere acceder a un folder local. Mas información de volúmenes se
 pueden encontrar en la [[https://docs.docker.com/storage/volumes/][documentación]].
 
-* Tarea 
+* Tareas 
 
 Las primeras tareas del semestre son básicamente configuración y es recomendable
 hacerlas si no cuentan con experiencia en: ~Git~, ~Github~, ~R~ y el ~tidyverse~.
+
+Las tareas las gestionaremos a través de ~Github Classroom~ lo cual me permite
+administrar sus entregas como proyectos de ~Git~. Además, habrá ejercicios de las
+tareas que tendrán mecanismos de calificación automatizada.
+
+#+REVEAL: split
+#+DOWNLOADED: screenshot @ 2022-06-24 18:23:16
+#+attr_html: :width 400 :align center
+[[file:images/20220624-182316_screenshot.png]]
 
 * ¿Dudas?
 
