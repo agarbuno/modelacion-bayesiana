@@ -52,7 +52,7 @@
 * Introducción                                                       :github:
 
 Este es el repositorio con el contenido del curso en *Modelación Bayesiana* de la
-*maestría en ciencia de datos*. También ofrecida de manera simultánea para alumnos
+*maestría en ciencia de datos*. También puede ser ofrecida de manera simultánea para alumnos
 avanzados en las licenciaturas de matemáticas aplicadas, ciencia de datos y
 actuaría.
 
@@ -75,22 +75,28 @@ indeed, a certain amount of innocence in this area may be desirable, because
 there will be less to unlearn. ---Jaynes, 2003.
 #+end_quote
 
+* Contexto 
+
+Este es el curso ~EST-46115: Temas Selectos de Estadística~. Lo conoceremos como 
+~Modelación Bayesiana~ y corresponde al segundo semestre de la Maestría en Ciencia 
+de Datos. 
 
 * Objetivo
 
 En este curso se verán temas avanzados en la visualización, simulación y
 diagnóstico de modelos bayesianos para: inferencia, análisis de potencia y
-calibración de procedimientos estadísticos. Se estudiará, un flujo de trabajo
+calibración de procedimientos estadísticos. Se estudiará un flujo de trabajo
 bayesiano que permite validar y evaluar hipótesis. Se introducirán algunos
 modelos modernos utilizados en distintas áreas como: modelos predictivos,
 selección de variables y sistemas de recomendación. El material se complementará
-con algunos podcasts y lecturas de artículos de divulgación e investigación a lo
+con algunos /podcasts/ y lecturas de artículos de divulgación e investigación a lo
 largo del curso.
  
 * Temario
 
-El temario para el semestre de primavera 2022 se puede encontrar [[https://github.com/ITAM-DS/modelacion-bayesiana/blob/spring-2022/docs/temario-modelacion-bayesiana.pdf][aqui]]. Este es
-un plan preliminar que está sujeto al avance del curso a lo largo del semestre. 
+El temario para el semestre de primavera 2022 se puede encontrar 
+[[https://github.com/ITAM-DS/modelacion-bayesiana/blob/spring-2022/docs/temario-modelacion-bayesiana.pdf][aqui]]. 
+Este es un plan preliminar que está sujeto al avance del curso a lo largo del semestre. 
 
 ** ¿De qué trata el curso?
 
@@ -102,7 +108,7 @@ mejora en nuestros modelos y revisaremos principios basados en el método
 científico. El curso continuará con métodos de ~inferencia aproximada~ que han
 dado lugar a aplicaciones del estado de arte como sistemas de recomendación o
 análisis de texto.
-# \newpage
+
 ** Estructura del curso
 
 El curso está planeado alrededor de tres temas centrales:
@@ -119,7 +125,8 @@ El curso está planeado alrededor de tres temas centrales:
 
 * Recursos
 
-El contenido actual del curso se encuentra en la rama: [[https://github.com/agarbuno/modelacion-bayesiana/tree/spring-2023][spring-2023]]. La
+El contenido actual del curso se encuentra en la rama: 
+[[https://github.com/agarbuno/modelacion-bayesiana/tree/spring-2023][spring-2023]]. La
 estructura del repositorio se muestra a continuación donde a grandes
 razgos tenemos:
 
@@ -160,11 +167,16 @@ necesiten a lo largo del semestre.
 ** Fechas importantes
 
 #+ATTR_REVEAL: :frag (appear)
+
 ** Atención de alumnos
 
 El horario de atención a alumnos será Lunes y Miércoles en un horario de 11:00am
 a 1:00pm. Recomiendo utilizar el sitio de [[https://calendly.com/alfredo-garbuno/entrevistas][calendly]]. Por supuesto, si no les
 queda algún horario podemos agendar por ~correo electrónico~.
+
+#+DOWNLOADED: screenshot @ 2022-08-09 10:19:38
+#+attr_html: :width 700 :align center
+[[file:images/20220809-101938_screenshot.png]]
 
 * Evaluación
 
@@ -192,10 +204,11 @@ utilizar la interfase de [[https://www.python.org/][python]] o la que les acomod
 
 #+REVEAL: split
 
-Como herramienta de trabajo se sugiere utilizar +[[https://www.rstudio.com/products/rstudio/download/][Rstudio]]+ [[https://code.visualstudio.com/][Visual Studio Code]] para
+Como herramienta de trabajo se sugiere utilizar +[[https://www.rstudio.com/products/rstudio/download/][Rstudio]]+ 
+[[https://code.visualstudio.com/][Visual Studio Code]] para
 poder trabajar en sus proyectos y sus tareas. En particular, el material de
-clase será editado en [[https://www.gnu.org/software/emacs/][GNU Emacs]] a través de =orgfiles= (archivos con sufijo ~.org~)
-pero pueden ser visualizados en ~Github~.
+clase es editado en [[https://www.gnu.org/software/emacs/][GNU Emacs]] a través de =orgfiles= 
+(archivos de texto plano con sufijo ~.org~) pero pueden ser visualizados en ~Github~.
 
 #+REVEAL: split
 
@@ -207,25 +220,24 @@ tener la mejor compatibilidad con el código del curso.
 Utilizaremos ~renv~ para mantener actualizada las herramientas de ~R~ junto con el
 contenido del curso. En la carpeta =notas= se encuentran los archivos de
 requerimientos (=renv.lock=) con el que podrán usar los archivos que se vayan
-decantando en la carpeta =rscripts=. Aún asi, la configuración se irá construyendo
+decantando en la carpeta =rscripts=. Aún asi, la configuración se irá refinando
 en los ejercicios de tarea que vayamos utilizando en el curso.
 
 ** Configuración ~renv~
 
-
 Si utilizas ~MacOS~ o alguna distribución ~Linux~ se recomienda escribir en el
 archivo ~~/.Renviron~ la siguiente línea lo cual mantendrá el cache de ~renv~ en un
-lugar centralizado:
+lugar centralizado y de fácil acceso:
 
 #+begin_src conf :tangle ~/.Renviron :mkdirp yes
   RENV_PATHS_ROOT=~/.renv
 #+end_src
 
-
 ** Trabajando con ambiente ~Dockerizado~
 
 Las imágenes de ~agarbuno/bayesiana~ (puedes ver imágenes en mi hub de Docker
-[[https://hub.docker.com/repository/docker/agarbuno/bayesiana][aqui]], y/o los ~Dockerfiles~ [[https://github.com/agarbuno/dockerfiles][aqui]]) permiten tener un ambiente para trabajar con
+[[https://hub.docker.com/repository/docker/agarbuno/bayesiana][aqui]], y/o los 
+~Dockerfiles~ [[https://github.com/agarbuno/dockerfiles][aqui]]) permiten tener un ambiente para trabajar con
 ~Docker~ en nuestro curso.
 1) El /tag/ ~notas~ basado en una distribución linux en una emulación con un
    procesador ~Intel~, tiene la configuración mínima necesaria para poder
