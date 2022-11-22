@@ -5,7 +5,7 @@ MAINTAINER Alfredo Garbuno Iñigo "alfredo.garbuno@itam.mx"
 ENV RSTUDIO_USER rstudio
 ENV TARGET_DIR ""
 ENV RUNNING_IN_DOCKER true
-ENV CMDSTAN /root/.cmdstan
+ENV CMDSTAN /home/.cmdstan
 
 # Lets declare the work directory ==============================================
 RUN adduser $RSTUDIO_USER sudo
@@ -46,11 +46,14 @@ COPY renv/activate.R renv/activate.R
 COPY renv/settings.dcf renv/settings.dcf
 RUN install2.r --error rmarkdown httpgd languageserver
 
-RUN wget --progress=dot:mega https://github.com/stan-dev/cmdstan/releases/download/v2.30.1/cmdstan-2.30.1.tar.gz
-RUN tar -zxpf cmdstan-2.30.1.tar.gz
-RUN ln -s cmdstan-2.30.1 .cmdstan
-RUN cd .cmdstan; make build
-RUN ln -sf .cmdstan /root/.cmdstan
+WORKDIR /home/.cmdstan
+
+RUN wget --progress=dot:mega https://github.com/stan-dev/cmdstan/releases/download/v2.30.1/cmdstan-2.30.1.tar.gz \ 
+ && tar -zxpf cmdstan-2.30.1.tar.gz \
+ && ln -s cmdstan-2.30.1 .cmdstan \
+ && cd .cmdstan; make build 
+
+WORKDIR /home/$RSTUDIO_USER/
 
 RUN R -e "renv::restore()"
 RUN rm -rf renv.lock .Rprofile renv
