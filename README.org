@@ -218,7 +218,7 @@ tener la mejor compatibilidad con el código del curso.
 ** Configuración ~R~
 
 Utilizaremos ~renv~ para mantener actualizada las herramientas de ~R~ junto con el
-contenido del curso. En la carpeta =notas= se encuentran los archivos de
+contenido del curso. En la carpeta principal se encuentran los archivos de
 requerimientos (=renv.lock=) con el que podrán usar los archivos que se vayan
 decantando en la carpeta =rscripts=. Aún asi, la configuración se irá refinando
 en los ejercicios de tarea que vayamos utilizando en el curso.
