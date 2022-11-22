@@ -24,12 +24,12 @@
 :END:
 :CONTENTS:
 - [[#introducción][Introducción]]
+- [[#contexto][Contexto]]
 - [[#objetivo][Objetivo]]
 - [[#temario][Temario]]
   - [[#de-qué-trata-el-curso][¿De qué trata el curso?]]
   - [[#estructura-del-curso][Estructura del curso]]
   - [[#existe-un-libro-de-texto][¿Existe un libro de texto?]]
-  - [[#lo-lograremos][¿Lo lograremos?]]
 - [[#recursos][Recursos]]
 - [[#horarios][Horarios]]
   - [[#formato][Formato]]
@@ -240,9 +240,14 @@ Las imágenes de ~agarbuno/bayesiana~ (puedes ver imágenes en mi hub de Docker
 ~Dockerfiles~ [[https://github.com/agarbuno/dockerfiles][aqui]]) permiten tener un ambiente para trabajar con
 ~Docker~ en nuestro curso.
 
-Mi idea de trabajo computacional 
+#+REVEAL: split
+Mi idea de ambiente computacional es el que se puede reproducir en cualquier
+sistema operativo. Para esto ~Docker~ es la herramienta ideal y el uso de los
+~Codespaces~ de GitHub ha resultado increíble para una solución dentro de un
+ámbito educativo.
 
-
+#+REVEAL: split
+Para la imagen ~agarbuno/bayesiana~ consideren que: 
 1) El /tag/ ~notas~ basado en una distribución linux en una emulación con un
    procesador ~Intel~, tiene la configuración mínima necesaria para poder
    reproducir el ambiente de cómputo para poder ejecutar el material del curso.
