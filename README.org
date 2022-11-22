@@ -239,6 +239,10 @@ Las imágenes de ~agarbuno/bayesiana~ (puedes ver imágenes en mi hub de Docker
 [[https://hub.docker.com/repository/docker/agarbuno/bayesiana][aqui]], y/o los 
 ~Dockerfiles~ [[https://github.com/agarbuno/dockerfiles][aqui]]) permiten tener un ambiente para trabajar con
 ~Docker~ en nuestro curso.
+
+Mi idea de trabajo computacional 
+
+
 1) El /tag/ ~notas~ basado en una distribución linux en una emulación con un
    procesador ~Intel~, tiene la configuración mínima necesaria para poder
    reproducir el ambiente de cómputo para poder ejecutar el material del curso.
@@ -274,7 +278,7 @@ serie de instrucciones en terminal (también se puede establecer un script de
 ** Configuración de ~Docker~                                          :github:
 
 La imágen de Docker para el ambiente de RStudio está basada en la imagen de
-[[https://hub.docker.com/r/rocker/tidyverse][rocker/tidyverse]] de los desarrolladores en el [[https://www.rocker-project.org/][Proyecto de Rocker]] con las
+[[https://hub.docker.com/r/rocker/tidyverse][rocker/verse]] de los desarrolladores en el [[https://www.rocker-project.org/][Proyecto de Rocker]] con las
 siguientes herramientas agregadas para la materia de modelación bayesiana:
 
 - [[https://cran.r-project.org/web/packages/posterior/index.html][posterior]]
@@ -282,6 +286,8 @@ siguientes herramientas agregadas para la materia de modelación bayesiana:
 - [[https://github.com/mjskay/tidybayes][tidybayes]]
 - [[https://mc-stan.org/users/interfaces/cmdstan][cmdstan]]
 - [[https://mc-stan.org/cmdstanr/][cmdstanr]]
+- [[languageserver]]
+- [[httpgd]]
 
 Para instrucciones de uso, se sugiere seguir la [[https://github.com/rocker-org/rocker/wiki/Using-the-RStudio-image][Documentación de Rocker]]
 
