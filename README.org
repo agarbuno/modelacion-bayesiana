@@ -139,12 +139,12 @@ tree -L 1 -d
 #+RESULTS:
 #+begin_src org
 .
-├── docs       # Handouts con las notas de clase
-├── images     # Material visual de apoyo
-├── modelos    # Directorio con los modelos que usaremos en el curso
-├── notas      # Material fuente de las notas (emacs)
-├── renv       # Archivos de estructura de ambiente (R)
-└── rscripts   # Codigo de R para interactuar con Stan
+├── docs       # Handouts con las notas de clase (pdf).
+├── images     # Material visual de apoyo (png).
+├── modelos    # Directorio con los modelos que usaremos en el curso (stan).
+├── notas      # Material fuente de las notas (emacs).
+├── renv       # Archivos de estructura de ambiente (R).
+└── rscripts   # Codigo de R para interactuar con Stan (R).
 
 6 directories
 #+end_src
