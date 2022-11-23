@@ -178,6 +178,10 @@ queda algún horario podemos agendar por ~correo electrónico~.
 #+attr_html: :width 700 :align center
 [[file:images/20220809-101938_screenshot.png]]
 
+#+REVEAL: split
+~Importante~: les estoy proporcionando la facilidad de agendar con plena libertad las
+sesiones de asesoría. Consideren que al ustedes agendar una reunión están privando ese espacio a 
+alguien mas en mis cursos. Asi que por favor no desperdicien ese espacio. 
 * Evaluación
 
 La evaluación del curso será por medio de:
