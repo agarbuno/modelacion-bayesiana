@@ -253,6 +253,16 @@ Para la imagen ~agarbuno/bayesiana~ consideren que:
    reproducir el ambiente de cómputo para poder ejecutar el material del curso.
 
 #+REVEAL: split
+La idea es que si usamos el combo ~Docker~ + ~Visual Code Studio~, entonces ¡tod@s tenemos la misma computadora para trabajar! 🥲.  
+Y si lo quieren correr en la nube entonces: ~Docker~ + ~Visual Code Studio~ + ~Github Codespaces~ 🥲 $\times 10^{78}$.
+
+#+REVEAL: split
+~Importante~: Si espero que sepan reproducir ustedes la configuración del ambiente de 
+trabajo. Parte del curso contemplará organizar una sesión para discutir esto a profundidad.
+De momento, lo importante es que lo sepan utilizar en su computadora o en un explorador de internet.
+Esto es, que pueden utilizarlo para las prácticas del curso. 
+
+#+REVEAL: split
 Esta imagen provee de un ambiente donde se podrán instalar las paqueterías que
 utilizaremos sin ningún problema$^\dagger$. La idea, adicional, es que utilicemos
 /volumes/ para poder tener permanencia en nuestro trabajo.
