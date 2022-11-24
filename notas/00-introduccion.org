@@ -31,7 +31,7 @@
 
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2023.\\
-*Objetivo*. Repasar notación que utilizaremos a lo largo del curso. Y a la vez, establecer la motivación de los temas que trataremos en la materia.\\
+*Objetivo*: Repasar/Introducir notación que utilizaremos a lo largo del curso. Y a la vez, establecer la motivación de los temas que trataremos en la materia.\\
 *Lecturas recomendas*: Notas del [[https://fundamentos-est-2021.netlify.app/][curso de fundamentos]] (2021) y sección 1 de citep:Gelman2020. 
 #+END_NOTES
 
@@ -50,6 +50,7 @@
   - [[#definición-función-de-densidad][~Definición~ [Función de densidad]:]]
   - [[#teorema-ley-de-los-grandes-números][~Teorema~ [Ley de los Grandes Números]:]]
   - [[#teorema-límite-central][~Teorema~ [Límite Central]:]]
+  - [[#para-pensar][Para pensar]]
 - [[#repaso-inferencia][Repaso Inferencia]]
   - [[#regla-de-bayes][Regla de Bayes]]
   - [[#ejemplos][Ejemplos]]
@@ -59,7 +60,7 @@
   - [[#diferentes-datos-diferentes-posteriores][Diferentes datos, diferentes posteriores]]
   - [[#análisis-secuencial][Análisis secuencial]]
   - [[#tarea][Tarea]]
-- [[#motivación][Motivación]]
+- [[#qué-veremos][¿Qué veremos?]]
   - [[#distinción-importante][Distinción importante]]
   - [[#por-qué-necesitamos-un-flujo-de-trabajo][¿Por qué necesitamos un flujo de trabajo?]]
   - [[#proceso-iterativo][Proceso iterativo]]
@@ -67,6 +68,59 @@
 
 * Motivación
 
+Entonces, la precisión con la que nuestro modelo puede aproximar la realidad,
+esto es la diferencia o ~la discrepancia~ entre modelo y realidad, se debe a la
+~incertidumbre~ inherente en nuestro proceso de modelado. Dicha incertidumbre la
+podemos considerar como consecuencia de dos tipos:
+
+#+REVEAL: split
+1. ~Incertidumbre aleatoria~: también conocida como incertidumbre estadística,
+   estocástica o irreducible. Se refiere a la incertidumbre que es natural para nuestro
+   proceso y que no podemos reducir por medio de un mejor modelo.
+2. ~Incertidumbre epistémica~: se refiere a la incertidumbre derivada de nuestra
+   simplificación del problema, nuestro estado de conocimiento o supuestos. En
+   algunas ocasiones está asociada a los métodos numéricos con los que
+   implementamos nuestros modelos. En otras, está asociada con los supuestos con
+   lo que contamos para resolver un problema.
+
+#+REVEAL: split
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/numerics-epistemic.jpeg :exports results :results output graphics file
+  genera_circulo <- function(n = 10){
+    tibble(angulo = seq(0, 2*pi, length.out = n),
+           x = sin(angulo), y = cos(angulo))
+  }
+
+  tibble(n = 2**c(2.25, 3, 4, 8)) |>
+    mutate(datos = map(n, genera_circulo)) |>
+    unnest(datos) |>
+    ggplot(aes(x, y)) + 
+    geom_path(aes(group = n, lty = factor(n))) +
+    coord_equal() + xlab(expression(x[1])) + ylab(expression(x[2])) + 
+    sin_lineas + sin_leyenda + sin_ejes
+#+end_src
+#+caption: Aproximación a un circulo mediante una trayectoria discretizada. 
+#+RESULTS:
+[[file:../images/numerics-epistemic.jpeg]]
+
+#+REVEAL: split
+Esta distinción nos ayuda a visualizar dos conceptos:
+1. Identificar la necesidad de modelar incertidumbre en nuestros procesos. 
+2. Identificar el origen de dicha incertidumbre.
+
+#+REVEAL: split
+Lamentablemente en la práctica, al momento de generar simulaciones, nos
+olvidamos estas nociones y siempre es importante considerar las limitaciones de
+nuestros modelos para representar correctamente la realidad.
+
+#+REVEAL: split
+Ahora, la pregunta natural es ¿cómo modelamos la incertidumbre? En este curso (y
+en general en cualquier otras aplicaciones) utilizaremos el ~lenguaje de
+probabilidad~ para ~expresar incertidumbre~ (citep:Jaynes2003). En este enfoque, es usual considerar
+incertidumbre aleatoria. Por otro lado, un curso como el de cálculo numérico nos
+permitirá cuantificar la incertidumbre epistémica. Sin embargo, también veremos
+en este curso que con herramientas probabilísticas podemos cuantificar ciertas
+nociones de incertidumbre de ambos tipos.
 
 
 * Notación
@@ -132,8 +186,8 @@ y si  $\theta \neq\theta'$ entonces $\pi_\theta(x) \neq \pi_{\theta'}(x)$ para c
 
 * Repaso de probabilidad
 
-Consideraremos como requisitos el contenido de ~Cálculo de Probabilidades II~ y
-~Álgebra Lineal~ (o equivalentes). En particular lo que requerimos como base es lo siguiente.
+Consideraremos como requisitos el contenido de ~Fundamentos de estadística~ o
+equivalentes. En particular lo que requerimos como base es lo siguiente.
 
 *** *~Definición~ [Espacio de Probabilidad]*:
 Un espacio de probabilidad está definido por la terna $(\Omega, \mathcal{X}, \mathbb{P})$:
@@ -197,6 +251,12 @@ Sea $X_1, \ldots, X_n$ una colección de $n$ variables aleatorias $\mathsf{iid}$
 \bar X_n \sim \mathsf{N}\left( \mu, \frac{\sigma^2}{n} \right)\,,
 \end{align}
 para $n$ suficientemente grande.
+
+*** Para pensar
+:PROPERTIES:
+:reveal_background: #00468b
+:END:
+¿Qué es probabilidad?
 
 * Repaso Inferencia 
 
@@ -494,7 +554,7 @@ Este ejemplo fue tomado de citep:Dogucu2021.
 Echenle un ojo a la sección 5.2 de [[https://www.bayesrulesbook.com/][Bayes rules!]] donde se expone a detalle un modelo más del análisis conjugado. ¿Puedes identificar/derivar la distribución predictiva?
 
 
-* Motivación
+* ¿Qué veremos?
 
 Por medio de metodología Bayesiana podemos cuantificar incertidumbre en:
 #+ATTR_REVEAL: :frag (appear)
@@ -555,7 +615,9 @@ Una posible explicación puede encontrarse en citep:Gelman2021. El argumento es 
 #+DOWNLOADED: screenshot @ 2022-01-21 23:09:51
 #+caption: Tomado de citep:Gelman2020.
 #+attr_html: :width 800 :align center
-[[file:../images/20220121-230951_screenshot.png]]                                  
+[[file:../images/20220121-230951_screenshot.png]]
+
+                                  
 
 bibliographystyle:abbrvnat 
 bibliography:references.bib
