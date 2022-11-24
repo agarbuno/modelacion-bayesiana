@@ -51,6 +51,7 @@
   - [[#teorema-ley-de-los-grandes-números][~Teorema~ [Ley de los Grandes Números]:]]
   - [[#teorema-límite-central][~Teorema~ [Límite Central]:]]
   - [[#para-pensar][Para pensar]]
+- [[#probabilidad-como-extensión-de-lógica][Probabilidad como extensión de lógica]]
 - [[#repaso-inferencia][Repaso Inferencia]]
   - [[#regla-de-bayes][Regla de Bayes]]
   - [[#ejemplos][Ejemplos]]
@@ -68,7 +69,15 @@
 
 * Motivación
 
-Entonces, la precisión con la que nuestro modelo puede aproximar la realidad,
+Cualquier tarea de modelado basado en datos está sujeta a incertidumbre. Como
+científicos de datos, tendrán que tomar o informar decisiones basándose
+en la información disponible. Por lo tanto, es natural que tengan que incorporar
+incertidumbre en sus análisis.
+
+Como científicos aplicados lo que desean hacer es aproximar un proceso físico
+(tangible) por medio de modelos matemáticos. 
+
+La precisión con la que nuestro modelo puede aproximar la realidad,
 esto es la diferencia o ~la discrepancia~ entre modelo y realidad, se debe a la
 ~incertidumbre~ inherente en nuestro proceso de modelado. Dicha incertidumbre la
 podemos considerar como consecuencia de dos tipos:
@@ -111,17 +120,147 @@ Esta distinción nos ayuda a visualizar dos conceptos:
 #+REVEAL: split
 Lamentablemente en la práctica, al momento de generar simulaciones, nos
 olvidamos estas nociones y siempre es importante considerar las limitaciones de
-nuestros modelos para representar correctamente la realidad.
+nuestros modelos para representar correctamente el proceso que nos interesa.
 
 #+REVEAL: split
 Ahora, la pregunta natural es ¿cómo modelamos la incertidumbre? En este curso (y
 en general en cualquier otras aplicaciones) utilizaremos el ~lenguaje de
-probabilidad~ para ~expresar incertidumbre~ (citep:Jaynes2003). En este enfoque, es usual considerar
-incertidumbre aleatoria. Por otro lado, un curso como el de cálculo numérico nos
-permitirá cuantificar la incertidumbre epistémica. Sin embargo, también veremos
-en este curso que con herramientas probabilísticas podemos cuantificar ciertas
-nociones de incertidumbre de ambos tipos.
+probabilidad~ para ~expresar incertidumbre~ (citep:Jaynes2003). En este enfoque, es
+usual considerar bajo nuestros procesos de inferencia incertidumbre aleatoria y epistémica.
 
+#+REVEAL: split
+En un proceso de modelado completo la incertidumbre puede deberse a distintos
+factores. Es usual seguir abstraer este procedimiento por medio del siguiente
+par de ecuaciones
+\begin{gather}
+z = y + \epsilon\,,\\
+y = f(x) + \varepsilon \,.
+\end{gather}
+
+#+REVEAL: split
+El curso busca desmitificar la noción de incorporar incertidumbre en nuestro
+proceso de modelado. Esto es por que:
+1. Hay una falso sentido de seguridad por llamar cualquier modelo ~bayesiano~;
+2. El uso de ~herramientas computacionales automáticas~ nos puede hacer caer en el modelado bajo cajas negras.
+
+#+REVEAL: split
+Consideremos el conjunto de datos siguiente. 
+#+begin_src R :exports both :results org 
+  data(mpg)
+  data <- mpg |> as_tibble()
+  data |> print(n = 5)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+# A tibble: 234 × 11
+  manufacturer model displ  year   cyl trans      drv     cty   hwy fl    class 
+  <chr>        <chr> <dbl> <int> <int> <chr>      <chr> <int> <int> <chr> <chr> 
+1 audi         a4      1.8  1999     4 auto(l5)   f        18    29 p     compa…
+2 audi         a4      1.8  1999     4 manual(m5) f        21    29 p     compa…
+3 audi         a4      2    2008     4 manual(m6) f        20    31 p     compa…
+4 audi         a4      2    2008     4 auto(av)   f        21    30 p     compa…
+5 audi         a4      2.8  1999     6 auto(l5)   f        16    26 p     compa…
+# … with 229 more rows
+# ℹ Use `print(n = ...)` to see more rows
+#+end_src
+
+#+REVEAL: split
+Nos interesa poder relacionar el rendimiento de un auto en carretera y el
+rendimiento del mismo en una ciudad, ver [[fig:mtcars]]. Operativamente lo podemos
+realizar con los siguientes comandos.
+
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/cars-regression.jpeg :exports results :results output graphics file
+  ggplot(data = mpg) + 
+    geom_point(mapping = aes(x = cty, y = hwy)) +
+    sin_lineas
+#+end_src
+#+NAME: fig:mtcars
+#+caption: Rendimiento en carretera y rendimiento en ciudad.
+#+RESULTS:
+[[file:../images/cars-regression.jpeg]]
+
+#+REVEAL: split
+#+begin_src R :exports both :results org 
+  glm(hwy ~ cty, data, family = gaussian()) |>
+    summary()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+
+Call:
+glm(formula = hwy ~ displ, family = gaussian(), data = data)
+
+Deviance Residuals: 
+   Min      1Q  Median      3Q     Max  
+-7.104  -2.165  -0.224   2.059  15.010  
+
+Coefficients:
+            Estimate Std. Error t value Pr(>|t|)    
+(Intercept)   35.698      0.720    49.5   <2e-16 ***
+displ         -3.531      0.195   -18.1   <2e-16 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+(Dispersion parameter for gaussian family taken to be 14.71)
+
+    Null deviance: 8261.7  on 233  degrees of freedom
+Residual deviance: 3413.8  on 232  degrees of freedom
+AIC: 1297
+
+Number of Fisher Scoring iterations: 2
+#+end_src
+
+
+#+REVEAL: split
+#+begin_src R :exports both :results org 
+  library(rstanarm)
+  stan_glm(hwy ~ cty, data = data, refresh = 0) |>
+    summary()
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+
+Model Info:
+ function:     stan_glm
+ family:       gaussian [identity]
+ formula:      hwy ~ displ
+ algorithm:    sampling
+ sample:       4000 (posterior sample size)
+ priors:       see help('prior_summary')
+ observations: 234
+ predictors:   2
+
+Estimates:
+              mean   sd   10%   50%   90%
+(Intercept) 35.7    0.7 34.7  35.7  36.6 
+displ       -3.5    0.2 -3.8  -3.5  -3.3 
+sigma        3.9    0.2  3.6   3.8   4.1 
+
+Fit Diagnostics:
+           mean   sd   10%   50%   90%
+mean_PPD 23.4    0.3 23.0  23.4  23.9 
+
+The mean_ppd is the sample average posterior predictive distribution of the outcome variable (for details see help('summary.stanreg')).
+
+MCMC diagnostics
+              mcse Rhat n_eff
+(Intercept)   0.0  1.0  4080 
+displ         0.0  1.0  4244 
+sigma         0.0  1.0  3730 
+mean_PPD      0.0  1.0  3635 
+log-posterior 0.0  1.0  2059 
+
+For each parameter, mcse is Monte Carlo standard error, n_eff is a crude measure of effective sample size, and Rhat is the potential scale reduction factor on split chains (at convergence Rhat=1).
+#+end_src
+
+#+REVEAL: split
+Los resúmenes de ambos modelos son similares. A simple vista parece que sólo
+cambio la forma de ajustar un modelo en lugar de ~glm~ utilizamos la función
+~rstanarm::stan_glm~. ¿Qué es lo que cambia? 
 
 * Notación
 
@@ -175,7 +314,7 @@ En general, nos interesa, y esperamos que, podamos:
    \begin{align}
    \hat \pi_{N}^{\cdot} (f) \sim \mathsf{N}\left( \pi(f), \frac{\mathbb{V}(f)}{N} \right)\,.
    \end{align}
-\newpage
+
 *** ~Definición~ [Distribución paramétrica]: 
 
 Decimos que una función de distribución es ~paramétrica~ si se puede identificar completamente la distribución con respecto a un ~vector de parámetros~ $\theta \in \mathbb{R}^p$. Esto lo denotamos de la siguiente manera
@@ -257,6 +396,9 @@ para $n$ suficientemente grande.
 :reveal_background: #00468b
 :END:
 ¿Qué es probabilidad?
+
+
+* Probabilidad como extensión de lógica
 
 * Repaso Inferencia 
 
@@ -618,7 +760,6 @@ Una posible explicación puede encontrarse en citep:Gelman2021. El argumento es 
 [[file:../images/20220121-230951_screenshot.png]]
 
                                   
-
 bibliographystyle:abbrvnat 
 bibliography:references.bib
 
