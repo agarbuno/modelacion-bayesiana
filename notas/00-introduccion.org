@@ -53,9 +53,9 @@
   - [[#para-pensar][Para pensar]]
 - [[#probabilidad-como-extensión-de-lógica][Probabilidad como extensión de lógica]]
 - [[#repaso-inferencia][Repaso Inferencia]]
+- [[#repaso-inferencia][Repaso inferencia]]
   - [[#regla-de-bayes][Regla de Bayes]]
   - [[#ejemplos][Ejemplos]]
-- [[#repaso-inferencia][Repaso inferencia]]
   - [[#ejemplo][Ejemplo]]
   - [[#diferentes-previas-diferentes-posteriores][Diferentes previas, diferentes posteriores]]
   - [[#diferentes-datos-diferentes-posteriores][Diferentes datos, diferentes posteriores]]
@@ -400,6 +400,8 @@ para $n$ suficientemente grande.
 
 * Probabilidad como extensión de lógica
 
+
+
 * Repaso Inferencia 
 
 #+BEGIN_NOTES
@@ -408,6 +410,13 @@ Repaso de inferencia bajo un enfoque frecuentista.
 
 
 #+REVEAL: split
+
+* Repaso inferencia
+
+#+BEGIN_NOTES
+Repaso de inferencia bajo un enfoque bayesiano.
+#+END_NOTES
+
 
 #+REVEAL: split
 ** Regla de Bayes
@@ -428,12 +437,6 @@ La ~regla de Bayes~ utiliza la definición de probabilidad condicional para hace
 #+ATTR_REVEAL: :frag (appear)
 - Verosimilitud: $x |\theta \sim \mathsf{Binomial}(n, \theta)$ + Previa: $\theta \sim \mathsf{Beta}(\alpha, \beta)$ = Posterior: ?
 - Verosimilitud: $x |\theta \sim \mathsf{Uniforme}(0, \theta)$ + Previa: $\theta \sim \mathsf{Pareto}(\alpha, \theta_0)$ = Posterior: ?
-
-* Repaso inferencia
-
-#+BEGIN_NOTES
-Repaso de inferencia bajo un enfoque bayesiano.
-#+END_NOTES
 
 ** Ejemplo
 
