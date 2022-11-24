@@ -8,8 +8,13 @@ rsconnect
 .DS_Store
 *.log
 *_cache
-*.pdf
 *.html
+ltximg
+auto
+*.bbl
+*.tex
+*.brf
+compilados
 
 # History files
 .Rhistory
@@ -31,4 +36,5 @@ rsconnect
 .rstudio/
 .local/
 
-
+tarea*
+planetas*
