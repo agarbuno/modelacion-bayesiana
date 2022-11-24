@@ -75,6 +75,11 @@ indeed, a certain amount of innocence in this area may be desirable, because
 there will be less to unlearn. ---Jaynes, 2003.
 #+end_quote
 
+#+REVEAL: split
+#+begin_quote
+Probability theory is nothing but common sense reduced to calculation. ---Laplace, 1819.
+#+end_quote
+
 * Contexto 
 
 Este es el curso ~EST-46115: Temas Selectos de Estadística~. Lo conoceremos como 
