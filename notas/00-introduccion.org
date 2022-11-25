@@ -31,8 +31,8 @@
 
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2023.\\
-*Objetivo*: Repasar/Introducir notación que utilizaremos a lo largo del curso. Y a la vez, establecer la motivación de los temas que trataremos en la materia.\\
-*Lecturas recomendas*: Notas del [[https://fundamentos-est-2021.netlify.app/][curso de fundamentos]] (2021) y sección 1 de citep:Gelman2020. 
+*Objetivo*: Repasar/Introducir notación que utilizaremos a lo largo del curso. Establecer la motivación de los temas que trataremos en la materia. Introducir los principios de concebir el lenguaje de probabilidad como el que un tomador de decisiones tomaría en un ambiente de incertidumbre. \\
+*Lecturas recomendas*: Notas del [[https://fundamentos-est-2021.netlify.app/][curso de fundamentos]] (2021), Sección 1 de citep:Gelman2020. Los capítulos 1 y 2 de citep:Jaynes2003 dan un tratamiento formal de las ideas discutidas en esta introducción. 
 #+END_NOTES
 
 * Contenido                                                             :toc:
@@ -52,7 +52,9 @@
   - [[#teorema-límite-central][~Teorema~ [Límite Central]:]]
   - [[#para-pensar][Para pensar]]
 - [[#probabilidad-como-extensión-de-lógica][Probabilidad como extensión de lógica]]
-- [[#repaso-inferencia][Repaso Inferencia]]
+  - [[#repaso-inferencia-frecuentista][Repaso Inferencia (frecuentista)]]
+  - [[#principios-de-lógica][Principios de lógica]]
+  - [[#axiomas-de-razonamiento][Axiomas de razonamiento]]
 - [[#repaso-inferencia][Repaso inferencia]]
   - [[#regla-de-bayes][Regla de Bayes]]
   - [[#ejemplos][Ejemplos]]
@@ -130,8 +132,8 @@ usual considerar bajo nuestros procesos de inferencia incertidumbre aleatoria y 
 
 #+REVEAL: split
 En un proceso de modelado completo la incertidumbre puede deberse a distintos
-factores. Es usual seguir abstraer este procedimiento por medio del siguiente
-par de ecuaciones
+factores. Es usual abstraer este procedimiento por medio del siguiente par de
+ecuaciones
 \begin{gather}
 z = y + \epsilon\,,\\
 y = f(x) + \varepsilon \,.
@@ -259,7 +261,7 @@ For each parameter, mcse is Monte Carlo standard error, n_eff is a crude measure
 
 #+REVEAL: split
 Los resúmenes de ambos modelos son similares. A simple vista parece que sólo
-cambio la forma de ajustar un modelo en lugar de ~glm~ utilizamos la función
+cambio la forma de ajustar un modelo: en lugar de ~glm~ utilizamos la función
 ~rstanarm::stan_glm~. ¿Qué es lo que cambia? 
 
 * Notación
@@ -315,7 +317,7 @@ En general, nos interesa, y esperamos que, podamos:
    \hat \pi_{N}^{\cdot} (f) \sim \mathsf{N}\left( \pi(f), \frac{\mathbb{V}(f)}{N} \right)\,.
    \end{align}
 
-*** ~Definición~ [Distribución paramétrica]: 
+*** ~Definición~ *[Distribución paramétrica]*: 
 
 Decimos que una función de distribución es ~paramétrica~ si se puede identificar completamente la distribución con respecto a un ~vector de parámetros~ $\theta \in \mathbb{R}^p$. Esto lo denotamos de la siguiente manera
 \begin{align}
@@ -400,16 +402,112 @@ para $n$ suficientemente grande.
 
 * Probabilidad como extensión de lógica
 
+En esta sección no pretendemos dar una tratamiento exhaustivo de la noción de
+probabilidad y cómo puede derivarse formalmente de ciertos principios de teoría
+de decisión. Sólo mencionaremos las ideas generales.
 
+#+REVEAL: split
+Hay dos formalismos que tratan el concepto de probabilidad. El clásico, y que se
+aprendemos prácticamente desde muy jóvenes, es el concepto de probabilidad de un
+evento incierto como la fracción de las veces que somos capaces de observar dicho
+evento incierto.
 
-* Repaso Inferencia 
+#+REVEAL: split
+En algunos procesos de modelado esto tiene sentido: 
+- ¿Cuál es la probabilidad de observar un seis en un lanzamiento de un dado?
+- ¿Cuál es la probabilidad de observar una reina de picas en una mano de poker?
+- ¿Cuál es la probabilidad de que mi intervalo de confianza contenga el verdadero parámetro del cual estoy haciendo inferencia? 
+
+** Repaso Inferencia (frecuentista)
 
 #+BEGIN_NOTES
 Repaso de inferencia bajo un enfoque frecuentista. 
 #+END_NOTES
 
+#+REVEAL: split
+
+** Principios de lógica
+
+Dado un enunciado ($A$), ¿qué podemos decir sobre la veracidad de dicho
+enunciado? Necesariamente sólo podemos decir que es verdadero o falso, pero no
+ambas al mismo tiempo.
 
 #+REVEAL: split
+Dados dos enunciados $A, B$ podemos esperar cualquier combinación de resultados
+binarios. Si existe alguna relación entre ambos, por ejemplo, podríamos esperar
+que un enunciado es verdadero si y sólo si el otro es verdadero. 
+
+#+REVEAL: split
+Desde el punto de vista de lógica si ambos son verdaderos al mismo tiempo
+entonces esperaríamos que la evidencia de la veracidad de un enunciado tiene
+implicaciones sobre la veracidad del otro. Entonces, tenemos el ~primer axioma~ de
+razonamiento factible:
+
+Dos enunciados con la misma veracidad son igualmente factibles.
+
+#+REVEAL: split
+Esto no debería de ser sorprendente en situaciones como
+#+begin_quote
+Si $A$ es verdadero entonces $B$ es verdadero. 
+#+end_quote
+
+Pues bien sabemos que podemos evaluar la implicación directa. O la implicación inversa:
+#+begin_quote
+Si $B$ es falso entonces $A$ es falso. 
+#+end_quote
+
+#+REVEAL: split
+Sin embargo en muchas situaciones no tenemos la información para poder efectuar
+este tipo de razonamiento y tenemos que caer en la silogismos débiles del estilo
+#+begin_quote
+1. Si $B$ es verdadero, entonces $A$ parece ser más factible.
+2. Si $A$ es falso, entonces $B$ parece ser menos factible. 
+#+end_quote
+
+** Axiomas de razonamiento
+
+Bajo este enfoque, un tomador de decisión, tendrá que asignar un grado de
+creencia en la realización de un evento incierto dada la información que tiene
+disponible. Además, cuando éste reciba nueva evidencia entonces tendrá que tomar
+dicha evidencia en consideración.
+
+#+REVEAL: split
+De esta manera el tomador de decisión tendrá que seguir los siguientes principios en su proceso:
+1. La asignación de grados de creencia debe ser representada de manera numérica. 
+2. Existe una correspondencia con el sentido común.
+3. El razonamiento es ~consistente~.
+   1. Si una conclusión se puede razonar de distintas maneras, entonces cada
+      forma de haber razonar tiene que llevar a la misma conclusión.
+   2. El tomador de decisión /siempre/ considera toda la información posible para
+      asignar sus grados de creencia.
+   3. El tomador de decisión representa estados de conocimiento equivalentes por
+      medio de los mismos grados de creencia.
+
+
+#+REVEAL: split
+Nota que los puntos (1), (2), y (3.a) son requerimientos estructurales de cómo
+asignar grados de creencia. Mientras que los requerimientos (3.b) y (3,c) son
+condiciones de interacción con el ambiente en donde el tomador de decisión
+interactúa.
+
+#+REVEAL: split
+Siguiendo estos requisitos se tiene que las reglas cuantitativas para realizar
+inferencia tienen que satisfacer los axiomas de probabilidad de Kolmogorov.
+
+#+REVEAL: split
+Lo que hemos hecho es motivar el uso de probabilidad como un lenguaje que
+expresa grados de creencia en la realización de eventos inciertos. Es decir, con
+distribuciones de probabilidad representamos matemáticamente el estado de
+conocimiento de un tomador de decisiones ~consistente~. Ver capítulos 1 y 2 de
+citep:Jaynes2003.
+
+#+REVEAL: split
+Vale la pena mencionar que esta representación no es la única que se puede
+utilizar. La escuela de de Finetti utiliza una noción distinta. Es decir,
+utiliza el principio de ~coherencia~ para caracterizar a un tomador de decisión
+racional. Y se basa en nociones de apuestas en eventos inciertos, donde el
+tomador de decisiones representa por su función de probabilidad sus grados de
+creencia en la realización de dicho evento.
 
 * Repaso inferencia
 
