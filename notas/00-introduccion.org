@@ -1,0 +1,762 @@
+#+TITLE: EST-46115: Modelación Bayesiana
+#+AUTHOR: Prof. Alfredo Garbuno Iñigo
+#+EMAIL:  agarbuno@itam.mx
+#+DATE: ~Introducción~
+:LATEX_PROPERTIES:
+#+OPTIONS: toc:nil date:nil author:nil tasks:nil
+#+LANGUAGE: sp
+#+LATEX_CLASS: handout
+#+LATEX_HEADER: \usepackage[spanish]{babel}
+#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
+#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
+#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
+#+LATEX_HEADER: \decimalpoint
+#+LATEX_HEADER:\usepackage{framed}
+#+LaTeX_HEADER: \usepackage{listings}
+#+LATEX_HEADER: \usepackage{fancyvrb}
+#+LATEX_HEADER: \usepackage{xcolor}
+#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
+#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
+#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
+#+LaTeX_HEADER: {}
+#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
+#+LaTeX_HEADER: {}
+#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
+#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
+#+EXPORT_FILE_NAME: ../docs/00-introduccion.pdf
+:END:
+#+PROPERTY: header-args:R :session intro :exports both :results output org :tangle ../rscripts/00-intro.R :mkdirp yes :dir ../
+#+STARTUP: showall
+#+EXCLUDE_TAGS: toc
+
+#+BEGIN_NOTES
+*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2023 | Introducción .\\
+*Objetivo*: Repasar/Introducir notación que utilizaremos a lo largo del curso. Establecer la motivación de los temas que trataremos en la materia. Introducir los principios de concebir el lenguaje de probabilidad como el que un tomador de decisiones tomaría en un ambiente de incertidumbre. \\
+*Lecturas recomendas*: Notas del [[https://fundamentos-est-2021.netlify.app/][curso de fundamentos]] (2021).
+#+END_NOTES
+
+
+#+begin_src R :exports none :results none
+  ## Setup --------------------------------------------
+  library(tidyverse)
+  library(patchwork)
+  library(scales)
+
+  ## Cambia el default del tamaño de fuente 
+  theme_set(theme_linedraw(base_size = 25))
+
+  ## Cambia el número de decimales para mostrar
+  options(digits = 4)
+  ## Problemas con mi consola en Emacs
+  options(pillar.subtle = FALSE)
+  options(rlang_backtrace_on_error = "none")
+  options(crayon.enabled = FALSE)
+
+  ## Para el tema de ggplot
+  sin_lineas <- theme(panel.grid.major = element_blank(),
+                      panel.grid.minor = element_blank())
+  color.itam  <- c("#00362b","#004a3b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f", NA)
+
+  sin_leyenda <- theme(legend.position = "none")
+  sin_ejes <- theme(axis.ticks = element_blank(), axis.text = element_blank())
+#+end_src
+
+
+* Contenido                                                             :toc:
+:PROPERTIES:
+:TOC:      :include all  :ignore this :depth 3
+:END:
+:CONTENTS:
+- [[#motivación][Motivación]]
+- [[#notación][Notación]]
+  - [[#definición-distribución-paramétrica][Definición [Distribución paramétrica]:]]
+- [[#repaso-de-probabilidad][Repaso de probabilidad]]
+  - [[#definición-espacio-de-probabilidad][~Definición~ [Espacio de Probabilidad]:]]
+  - [[#definición-variable-aleatoria][~Definición~ [Variable aleatoria]:]]
+  - [[#definición-función-de-acumulación][~Definición~ [Función de acumulación]:]]
+  - [[#definición-función-de-densidad][~Definición~ [Función de densidad]:]]
+  - [[#teorema-ley-de-los-grandes-números][~Teorema~ [Ley de los Grandes Números]:]]
+  - [[#teorema-límite-central][~Teorema~ [Límite Central]:]]
+  - [[#para-pensar][Para pensar]]
+- [[#probabilidad-como-extensión-de-lógica][Probabilidad como extensión de lógica]]
+  - [[#repaso-inferencia-frecuentista][Repaso Inferencia (frecuentista)]]
+  - [[#principios-de-lógica][Principios de lógica]]
+  - [[#axiomas-de-razonamiento][Axiomas de razonamiento]]
+- [[#repaso-inferencia][Repaso inferencia]]
+  - [[#regla-de-bayes][Regla de Bayes]]
+  - [[#ejemplos][Ejemplos]]
+  - [[#ejemplo][Ejemplo]]
+  - [[#diferentes-previas-diferentes-posteriores][Diferentes previas, diferentes posteriores]]
+:END:
+
+
+* Motivación
+
+Cualquier tarea de modelado basado en datos está sujeta a incertidumbre. Como
+científicos de datos, tendrán que tomar o informar decisiones basándose
+en la información disponible. Por lo tanto, es natural que tengan que incorporar
+incertidumbre en sus análisis.
+
+Como científicos aplicados lo que desean hacer es aproximar un proceso físico
+(tangible) por medio de modelos matemáticos. 
+
+La precisión con la que nuestro modelo puede aproximar la realidad,
+esto es la diferencia o ~la discrepancia~ entre modelo y realidad, se debe a la
+~incertidumbre~ inherente en nuestro proceso de modelado. Dicha incertidumbre la
+podemos considerar como consecuencia de dos tipos:
+
+#+REVEAL: split
+1. ~Incertidumbre aleatoria~: también conocida como incertidumbre estadística,
+   estocástica o irreducible. Se refiere a la incertidumbre que es natural para nuestro
+   proceso y que no podemos reducir por medio de un mejor modelo.
+2. ~Incertidumbre epistémica~: se refiere a la incertidumbre derivada de nuestra
+   simplificación del problema, nuestro estado de conocimiento o supuestos. En
+   algunas ocasiones está asociada a los métodos numéricos con los que
+   implementamos nuestros modelos. En otras, está asociada con los supuestos con
+   lo que contamos para resolver un problema.
+
+#+REVEAL: split
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/numerics-epistemic.jpeg :exports results :results output graphics file
+  genera_circulo <- function(n = 10){
+    tibble(angulo = seq(0, 2*pi, length.out = n),
+           x = sin(angulo), y = cos(angulo))
+  }
+
+  tibble(n = 2**c(2.25, 3, 4, 8)) |>
+    mutate(datos = map(n, genera_circulo)) |>
+    unnest(datos) |>
+    ggplot(aes(x, y)) + 
+    geom_path(aes(group = n, lty = factor(n))) +
+    coord_equal() + xlab(expression(x[1])) + ylab(expression(x[2])) + 
+    sin_lineas + sin_leyenda + sin_ejes
+#+end_src
+#+caption: Aproximación a un círculo mediante una trayectoria discretizada. 
+#+RESULTS:
+[[file:../images/numerics-epistemic.jpeg]]
+
+#+REVEAL: split
+Esta distinción nos ayuda a visualizar dos conceptos:
+1. Identificar la necesidad de modelar incertidumbre en nuestros procesos. 
+2. Identificar el origen de dicha incertidumbre.
+
+#+REVEAL: split
+Lamentablemente en la práctica, al momento de generar simulaciones, nos
+olvidamos estas nociones y siempre es importante considerar las limitaciones de
+nuestros modelos para representar correctamente el proceso que nos interesa.
+
+#+REVEAL: split
+Ahora, la pregunta natural es ¿cómo modelamos la incertidumbre? En este curso (y
+en general en cualquier otras aplicaciones) utilizaremos el ~lenguaje de
+probabilidad~ para ~expresar incertidumbre~ citep:Jaynes2003. En este enfoque, es
+usual considerar bajo nuestros procesos de inferencia incertidumbre aleatoria y
+epistémica.
+
+#+REVEAL: split
+En un proceso de modelado completo la incertidumbre puede deberse a distintos
+factores. Es usual abstraer este procedimiento por medio del siguiente par de
+ecuaciones
+\begin{gather}
+z = y + \epsilon\,,\\
+y = f(x) + \varepsilon \,.
+\end{gather}
+
+#+REVEAL: split
+El curso busca desmitificar la noción de incorporar incertidumbre en nuestro
+proceso de modelado. Esto es por que:
+1. Hay una falso sentido de seguridad por llamar cualquier modelo ~bayesiano~;
+2. El uso de ~herramientas computacionales automáticas~ nos puede hacer caer en el modelado bajo cajas negras.
+
+#+REVEAL: split
+Consideremos el conjunto de datos siguiente. 
+#+begin_src R :exports both :results org 
+  data(mpg)
+  data <- mpg |> as_tibble()
+  data |> print(n = 5)
+#+end_src
+
+#+REVEAL: split
+Nos interesa poder relacionar el rendimiento de un auto en carretera y el
+rendimiento del mismo en una ciudad, ver la siguiente figura. Operativamente
+este análisis lo podemos realizar con los siguientes comandos.
+
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/cars-regression.jpeg :exports results :results output graphics file
+  ggplot(data = mpg) + 
+    geom_point(mapping = aes(x = cty, y = hwy)) +
+    sin_lineas
+#+end_src
+#+NAME: fig:mtcars
+#+caption: Rendimiento en carretera y rendimiento en ciudad.
+#+RESULTS:
+[[file:../images/cars-regression.jpeg]]
+
+#+REVEAL: split
+#+begin_src R :exports both :results org 
+  glm(hwy ~ cty, data, family = gaussian()) |>
+    summary()
+#+end_src
+
+#+REVEAL: split
+#+begin_src R :exports both :results org 
+  library(rstanarm)
+  stan_glm(hwy ~ cty, data = data, refresh = 0) |>
+    summary()
+#+end_src
+
+#+REVEAL: split
+Los resúmenes de ambos modelos son similares. A simple vista parece que sólo
+cambio la forma de ajustar un modelo: en lugar de ~glm~ utilizamos la función
+~rstanarm::stan_glm~. ¿Qué es lo que cambia? 
+
+* Notación
+
+Denotamos por $x$ una ~variable aleatoria~ y por $\mathbb{P}(\cdot)$ una ~función
+de distribución~. Escribimos $x \sim \mathbb{P}$ para denotar que la variable
+aleatoria $x$ tiene distribución $\mathbb{P}(\cdot)$. Denotamos por
+$\mathbb{E}[\cdot]$ el ~valor esperado~ del argumento con respecto a la
+distribución que estamos considerando. Durante el curso seremos explícitos en la
+variable aleatoria y usaremos
+\begin{align}
+\mathbb{E}_x[\cdot] = \int_\mathcal{X} \cdot \, \pi(x) \, \text{d}x\,,
+\end{align}
+o bien, haremos énfasis en la distribución por medio de lo siguiente
+\begin{align}
+\mathbb{E}_\pi[\cdot] = \int_\mathcal{X} \cdot \, \pi(x) \, \text{d}x\,,
+\end{align}
+de acuerdo al contexto. 
+
+\medskip
+
+#+BEGIN_NOTES
+Nota que en las ecuaciones anteriores estamos considerando el término
+$\pi(\cdot)$ como la ~función de densidad~ de la ~función de probabilidad~
+$\mathbb{P}(\cdot)$.
+#+END_NOTES
+
+#+REVEAL: split
+Nos será útil la siguiente notación para evaluar valores esperados
+\begin{align}
+\pi(f)  := \mathbb{E}_\pi[f(x)] = \int_\mathcal{X} f(x) \, \pi(x) \, \text{d}x\,,
+\end{align}
+pues será el ~objetivo general~ para los métodos que estudiaremos en el curso. 
+
+#+REVEAL: split
+Por ejemplo, utilizaremos la noción de ~aproximar integrales~ por medio de algún
+procedimiento de muestreo de tal forma que esperaremos construir un estimación
+$\hat \pi (f)$ con cierto grado de refinamiento. Por ejemplo, veremos el ~método
+Monte Carlo~ que utiliza una colección de $N$ simulaciones para aproximar la
+integral anterior. Esto lo denotaremos por
+\begin{align}
+\hat \pi_{N}^{\cdot} (f) \approx \pi(f)\,. 
+\end{align}
+
+#+REVEAL: split
+En general, nos interesa, y esperamos que, podamos: 
+1. Mejorar nuestra estimación con mas simulaciones
+   \begin{align}
+   \lim_{N \rightarrow \infty} \hat \pi_{N}^{\cdot} (f) = \pi(f)\,
+   \end{align}
+2. Cuantificar la incertidumbre en nuestra aproximación por medio de alguna distribución de probabilidad. Por ejemplo,
+   \begin{align}
+   \hat \pi_{N}^{\cdot} (f) \sim \mathsf{N}\left( \pi(f), \frac{\mathbb{V}(f)}{N} \right)\,.
+   \end{align}
+
+*** ~Definición~ *[Distribución paramétrica]*: 
+
+Decimos que una función de distribución es ~paramétrica~ si se puede identificar completamente la distribución con respecto a un ~vector de parámetros~ $\theta \in \mathbb{R}^p$. Esto lo denotamos de la siguiente manera
+\begin{align}
+\pi_\theta(x) \qquad \text{ ó } \qquad \pi(x ; \theta)\,,
+\end{align}
+y si  $\theta \neq\theta'$ entonces $\pi_\theta(x) \neq \pi_{\theta'}(x)$ para cualquier $x$ en el ~soporte~.
+* Repaso de probabilidad
+
+Consideraremos como requisitos el contenido de ~Fundamentos de estadística~ o
+equivalentes. En particular lo que requerimos como base es lo siguiente.
+
+*** *~Definición~ [Espacio de Probabilidad]*:
+Un espacio de probabilidad está definido por la terna $(\Omega, \mathcal{X}, \mathbb{P})$:
+1. El espacio muestral, $\Omega$ (elementos). 
+2. El espacio de eventos medibles, $\mathcal{X}$ (subconjuntos). 
+3. La medida de probabilidad, $\mathbb{P}: \mathcal{X} \rightarrow [0, 1]$. 
+
+*** *~Definición~ [Variable aleatoria]*:
+Una variable aleatoria es una función $X:
+\mathcal{X} \rightarrow \mathbb{R}$ con la propiedad de que las pre-imágenes
+bajo $X$ son eventos medibles. Es decir,
+\begin{align}
+\{w \in \mathcal{X} : X(w) \leq x \} \in \mathcal{X} \qquad \forall x \in \mathbb{R}. 
+\end{align}
+   
+*** *~Definición~ [Función de acumulación]*:
+Para toda variable aleatoria $X$ tenemos una función de acumulación
+$\mathbb{P}_{_X}: \mathbb{R} \rightarrow [0, 1]$ dada por
+\begin{align}
+\mathbb{P}_{_X}(x) = \mathbb{P} \big( \{w \in \mathcal{X} : X(w) \leq x\} \big)\,.
+\end{align}
+Esto usualmente lo escribimos como $\mathbb{P}_{_X}(x) = \mathbb{P}\{X \leq x\}$. 
+
+*** *~Definición~ [Función de densidad]*:
+Una variable aleatoria es continua si su función de acumulación es ~absolutamente
+continua~ y puede ser expresada por medio de
+\begin{align}
+\mathbb{P}_{_X} (x) = \int_{- \infty}^x \pi (s) \, \text{d}s\,, 
+\end{align}
+donde la anti-derivada $\pi:\mathbb{R} \rightarrow [0, \infty)$ se llama la ~función de
+densidad~ de la variable aleatoria $X$. 
+
+#+REVEAL: split
+Las propiedades generales de las distribuciones de probabilidad se pueden
+especificar por medio de su centralidad (localización), su dispersión, su rango
+de valores, su simetría y el comportamiento de valores extremos.
+
+#+REVEAL: split
+En general esto lo podemos extraer de los momentos
+\begin{align}
+\mathbb{E}(X^p) = \int_{\mathbb{R}}^{} x^p \, \pi(x) \, \text{d}x\,,
+\end{align}
+o los momentos centrales. Por ejemplo: media y varianza. 
+
+#+REVEAL: split
+Uno de los resultados que espero recuerden bien de sus cursos anteriores es el
+de la ~Ley de los Grandes Números~. La cual podemos enunciar como:
+
+*** *~Teorema~ [Ley de los Grandes Números]*:
+Sea $X_1, X_2, \ldots$ una colección de variables aleatorias independientes e
+idénticamente distribuidas ($\mathsf{iid}$) y sea $\bar X_n$ el promedio de un
+subconjunto de $n$.  Si denotamos por $\mu$ el valor promedio de $X_i$
+dentro de esa colección, entonces tenemos que
+\begin{align}
+\bar X_n  \rightarrow \mu \quad (\text{casi seguramente})\,.
+\end{align}
+
+*** *~Teorema~ [Límite Central]*:
+Sea $X_1, \ldots, X_n$ una colección de $n$ variables aleatorias $\mathsf{iid}$ con $\mathbb{E}[X_i] = \mu$ y $\mathbb{V}[X_i] = \sigma^2 < \infty$. Entonces
+\begin{align}
+\bar X_n \sim \mathsf{N}\left( \mu, \frac{\sigma^2}{n} \right)\,,
+\end{align}
+para $n$ suficientemente grande.
+
+*** Para pensar
+:PROPERTIES:
+:reveal_background: #00468b
+:END:
+¿Qué es probabilidad?
+
+
+* Probabilidad como extensión de lógica
+
+En esta sección no pretendemos dar una tratamiento exhaustivo de la noción de
+probabilidad y cómo puede derivarse formalmente de ciertos principios de teoría
+de decisión. Sólo mencionaremos las ideas generales.
+
+#+REVEAL: split
+Hay dos formalismos que tratan el concepto de probabilidad. El clásico, y que se
+aprendemos prácticamente desde muy jóvenes, es el concepto de probabilidad de un
+evento incierto como la fracción de las veces que somos capaces de observar dicho
+evento incierto.
+
+#+REVEAL: split
+En algunos procesos de modelado esto tiene sentido: 
+- ¿Cuál es la probabilidad de observar un seis en un lanzamiento de un dado?
+- ¿Cuál es la probabilidad de observar una reina de picas en una mano de poker?
+- ¿Cuál es la probabilidad de que mi intervalo de confianza contenga el verdadero parámetro del cual estoy haciendo inferencia? 
+
+** Repaso Inferencia (frecuentista)
+
+#+BEGIN_NOTES
+Repaso de inferencia bajo un enfoque frecuentista. 
+#+END_NOTES
+
+#+REVEAL: split
+
+** Principios de lógica
+
+Dado un enunciado ($A$), ¿qué podemos decir sobre la veracidad de dicho
+enunciado? Necesariamente sólo podemos decir que es verdadero o falso, pero no
+ambas al mismo tiempo.
+
+#+REVEAL: split
+Dados dos enunciados $A, B$ podemos esperar cualquier combinación de resultados
+binarios. Si existe alguna relación entre ambos, por ejemplo, podríamos esperar
+que un enunciado es verdadero si y sólo si el otro es verdadero. 
+
+#+REVEAL: split
+Desde el punto de vista de lógica si ambos son verdaderos al mismo tiempo
+entonces esperaríamos que la evidencia de la veracidad de un enunciado tiene
+implicaciones sobre la veracidad del otro. Entonces, tenemos el ~primer axioma~ de
+razonamiento factible:
+
+Dos enunciados con la misma veracidad son igualmente factibles.
+
+#+REVEAL: split
+Esto no debería de ser sorprendente en situaciones como
+#+begin_quote
+Si $A$ es verdadero entonces $B$ es verdadero. 
+#+end_quote
+
+Pues bien sabemos que podemos evaluar la implicación directa. O la implicación inversa:
+#+begin_quote
+Si $B$ es falso entonces $A$ es falso. 
+#+end_quote
+
+#+REVEAL: split
+Sin embargo en muchas situaciones no tenemos la información para poder efectuar
+este tipo de razonamiento y tenemos que caer en la silogismos débiles del estilo
+#+begin_quote
+1. Si $B$ es verdadero, entonces $A$ parece ser más factible.
+2. Si $A$ es falso, entonces $B$ parece ser menos factible. 
+#+end_quote
+
+** Axiomas de razonamiento
+
+Bajo este enfoque, un tomador de decisión, tendrá que asignar un grado de
+creencia en la realización de un evento incierto dada la información que tiene
+disponible. Además, cuando éste reciba nueva evidencia entonces tendrá que tomar
+dicha evidencia en consideración.
+
+#+REVEAL: split
+De esta manera el tomador de decisión tendrá que seguir los siguientes principios en su proceso:
+1. La asignación de grados de creencia debe ser representada de manera numérica. 
+2. Existe una correspondencia con el sentido común.
+3. El razonamiento es ~consistente~.
+   1. Si una conclusión se puede razonar de distintas maneras, entonces cada
+      forma de haber razonar tiene que llevar a la misma conclusión.
+   2. El tomador de decisión /siempre/ considera toda la información posible para
+      asignar sus grados de creencia.
+   3. El tomador de decisión representa estados de conocimiento equivalentes por
+      medio de los mismos grados de creencia.
+
+
+#+REVEAL: split
+Nota que los puntos (1), (2), y (3.a) son requerimientos estructurales de cómo
+asignar grados de creencia. Mientras que los requerimientos (3.b) y (3,c) son
+condiciones de interacción con el ambiente en donde el tomador de decisión
+interactúa.
+
+#+REVEAL: split
+Siguiendo estos requisitos se tiene que las reglas cuantitativas para realizar
+inferencia tienen que satisfacer los axiomas de probabilidad de Kolmogorov.
+
+#+REVEAL: split
+Lo que hemos hecho es motivar el uso de probabilidad como un lenguaje que
+expresa grados de creencia en la realización de eventos inciertos. Es decir, con
+distribuciones de probabilidad representamos matemáticamente el estado de
+conocimiento de un tomador de decisiones ~consistente~. Ver capítulos 1 y 2 de
+citep:Jaynes2003.
+
+#+REVEAL: split
+Vale la pena mencionar que esta representación no es la única que se puede
+utilizar. La escuela de de Finetti utiliza una noción distinta. Es decir,
+utiliza el principio de ~coherencia~ para caracterizar a un tomador de decisión
+racional. Y se basa en nociones de apuestas en eventos inciertos, donde el
+tomador de decisiones representa por su función de probabilidad sus grados de
+creencia en la realización de dicho evento.
+
+* Repaso inferencia
+
+#+BEGIN_NOTES
+Repaso de inferencia bajo un enfoque bayesiano.
+#+END_NOTES
+
+
+#+REVEAL: split
+** Regla de Bayes
+
+La ~regla de Bayes~ utiliza la definición de probabilidad condicional para hacer inferencia a través de 
+\begin{align}
+\pi(A|B) = \frac{\pi(B|A) \pi(A)}{\pi(B)}\,.
+\end{align}
+#+REVEAL: split
+
+#+DOWNLOADED: screenshot @ 2022-01-21 20:44:26
+#+caption: Tomado de citep:Kruschke2014 .
+#+attr_html: :width 1200 :align center
+[[file:images/20220121-204426_screenshot.png]]
+
+** Ejemplos
+
+- Verosimilitud: $x |\theta \sim \mathsf{Binomial}(n, \theta)$ + Previa: $\theta \sim \mathsf{Beta}(\alpha, \beta)$ = Posterior: ?
+- Verosimilitud: $x |\theta \sim \mathsf{Uniforme}(0, \theta)$ + Previa: $\theta \sim \mathsf{Pareto}(\alpha, \theta_0)$ = Posterior: ?
+
+** Ejemplo
+
+Este ejemplo fue tomado de citep:Dogucu2021.
+
+** Diferentes previas, diferentes posteriores
+
+#+begin_src R :exports none :results none
+  ## Diferentes previas, diferentes posteriores --------------------
+#+end_src
+
+#+begin_src R :exports code 
+  modelo_beta <- function(params, n = 5000){
+    rbeta(n, params$alpha, params$beta)
+  }
+#+end_src
+
+#+REVEAL: split
+#+begin_src R :exports code 
+    escenarios <-
+      tibble(analista = fct_inorder(c("Ignorante", "Indiferente",
+                                      "Feminista", "Ingenuo")),
+             alpha = c(1, .5, 5, 14),
+             beta  = c(1, .5, 11, 1)) |>
+      nest(params.previa = c(alpha, beta)) |>
+      mutate(muestras.previa = map(params.previa, modelo_beta))
+#+end_src
+
+#+HEADER: :width 1200 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/peliculas.jpeg :exports results :results output graphics file
+  escenarios |>
+    unnest(muestras.previa) |>
+    ggplot(aes(muestras.previa)) +
+    geom_histogram(binwidth = .05) +
+    facet_wrap(.~analista, scales = "free_y", ncol = 4) +
+    xlab("Proporción de películas") + sin_lineas
+#+end_src
+#+caption: Muestras de $\theta \sim \mathsf{Previa}$ . 
+#+RESULTS:
+[[file:../images/peliculas.jpeg]]
+
+
+#+REVEAL: split
+#+HEADER: :width 1200 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/peliculas_predictiva.jpeg :exports results :results output graphics file
+  escenarios |>
+    unnest(muestras.previa) |>
+    mutate(peliculas = map_dbl(muestras.previa,
+                           function(theta) rbinom(1, 33, theta))) |>
+    ggplot(aes(peliculas)) +
+    geom_histogram(binwidth = 3) +
+    facet_wrap(.~analista, scales = "free_y", ncol = 4) + sin_lineas
+#+end_src
+#+caption: Distribución predictiva previa
+#+RESULTS:
+[[file:../images/peliculas_predictiva.jpeg]]
+
+#+REVEAL: split
+#+begin_src R  :exports none :results none
+  library(bayesrules)
+  set.seed(108727)
+  data <- bechdel |>
+    sample_n(20)
+#+end_src
+
+#+begin_src R :exports none :results none
+  data <- data |>
+    group_by(binary) |>
+    tally() |>
+    pivot_wider(names_from = binary,
+                values_from = n) 
+#+end_src
+
+#+begin_src R :exports code
+  update_rule <- function(params){
+    tibble(alpha = params$alpha + data$PASS,
+           beta  = params$beta  + data$FAIL)
+  }
+  escenarios <- escenarios |>
+    mutate(params.posterior = map(params.previa, update_rule),
+           muestras.posterior = map(params.posterior, modelo_beta))
+#+end_src
+
+#+HEADER: :width 1400 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/peliculas_posterior.jpeg :exports results :results output graphics file
+  escenarios |>
+    pivot_longer(cols = c(muestras.previa, muestras.posterior)) |>
+    unnest(value) |>
+    ggplot(aes(value, group = name, fill = name)) +
+    geom_histogram(position = "identity", alpha = .7) +
+    facet_wrap(.~analista, ncol = 4, scales = "free_y") +
+    geom_vline(xintercept = data$PASS / 20, lty = 2) +
+    xlab("Proporción de películas") + sin_lineas
+#+end_src
+
+#+RESULTS:
+[[file:../images/peliculas_posterior.jpeg]]
+
+#+REVEAL: split
+#+HEADER: :width 1200 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/peliculas-predictiva-posterior.jpeg :exports results :results output graphics file
+  escenarios |>
+   unnest(muestras.posterior) |>
+      mutate(peliculas = map_dbl(muestras.posterior,
+                             function(theta) rbinom(1, 33, theta))) |>
+      ggplot(aes(peliculas)) +
+      geom_histogram(binwidth = 3) +
+      facet_wrap(.~analista, scales = "free_y", ncol = 4) + sin_lineas
+#+end_src
+#+caption: Predictiva posterior. 
+#+RESULTS:
+[[file:../images/peliculas-predictiva-posterior.jpeg]]
+
+** Diferentes datos, diferentes posteriores
+
+
+#+begin_src R :exports none :results none
+  ## Diferentes datos, diferentes posteriores -------------------
+#+end_src
+
+#+begin_src R  :exports none :results none
+  extrae_datos <- function(n){
+    bechdel |>
+      sample_n(n) |>
+      group_by(binary) |>
+      tally() |>
+      pivot_wider(names_from = binary,
+                  values_from = n)
+  }
+
+  update_rule <- function(data){
+      tibble(alpha = params.fem$alpha + data$PASS,
+             beta  = params.fem$beta  + data$FAIL)
+  }
+
+  params.fem <- list(alpha = 5, beta = 11)
+
+  escenarios <- tibble(id = seq(1, 4),
+         n = c(5, 20, 100, 500),
+         datos = map(n, extrae_datos))
+
+  escenarios <- escenarios |>
+    mutate(params.posterior = map(datos, update_rule),
+           muestras.posterior = map(params.posterior, modelo_beta),
+           muestras.previa    = list(modelo_beta(params.fem)))
+
+#+end_src
+
+#+HEADER: :width 1200 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/peliculas_datos.jpeg :exports results :results output graphics file
+  escenarios |>
+     pivot_longer(cols = c(muestras.previa, muestras.posterior)) |>
+     unnest(value) |>
+     ggplot(aes(value, group = name, fill = name)) +
+     geom_histogram(aes(y = ..density..), position = "identity", alpha = .7) +
+     facet_wrap(.~n, ncol = 4) +
+    xlab("Proporción de películas") + sin_lineas
+#+end_src
+
+#+RESULTS:
+[[file:../images/peliculas_datos.jpeg]]
+
+** Análisis secuencial 
+
+#+HEADER: :width 1200 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/peliculas_historico.jpeg :exports results :results output graphics file
+  bechdel |>
+    group_by(year, binary) |>
+    tally() |>
+    pivot_wider(values_from = n,
+                names_from = binary,
+                values_fill = 0) |>
+    mutate(rate = PASS/(PASS+FAIL)) |>
+    ggplot(aes(year, rate)) +
+    geom_line() + geom_point() + sin_lineas
+#+end_src
+#+caption: Histórico de la proporción de peliculas que pasan la prueba de Bechdel por año. 
+#+RESULTS:
+[[file:../images/peliculas_historico.jpeg]]
+
+#+REVEAL: split
+#+HEADER: :width 700 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/peliculas_secuencial.jpeg :exports results :results output graphics file
+  ## Analisis secuencial ------------------------------
+  library(ggridges)
+
+  tibble(period = "previa", FAIL = 0, PASS = 0) |>
+    rbind(bechdel |>
+          mutate(period = cut(year, breaks = 5)) |>
+          group_by(period) |>
+          sample_frac(.3) |>
+          ungroup() |>
+          group_by(period, binary) |>
+          tally() |>
+          ungroup() |>
+          pivot_wider(values_from = n,
+                      names_from = binary,
+                      values_fill = 0)) |>
+    summarise(period = fct_inorder(period),
+              pass = cumsum(PASS),
+              fail = cumsum(FAIL),
+              rate = pass/(pass + fail),
+              alpha = 5 + pass,
+              beta  = 11 + fail) |>
+    nest(params = c(alpha, beta)) |>
+    mutate(muestras = map(params, modelo_beta)) |>
+    unnest(muestras, params) |>
+    ggplot(aes(muestras, period)) +
+    geom_density_ridges(stat = "binline", bins = 40) +
+    geom_point(aes(x = pass/(pass + fail), y = period), fill = 'lightblue', shape = 23, size = 5) +
+    ## geom_point(aes(x = alpha/(alpha + beta), y = period), fill = 'red', shape = 23, size = 5) + 
+    xlim(0,1) + xlab("Tasa de éxito") + sin_lineas
+#+end_src
+#+caption: La posterior de hoy puede ser la previa de mañana. 
+#+RESULTS:
+[[file:../images/peliculas_secuencial.jpeg]]
+
+** Tarea
+
+Echenle un ojo a la sección 5.2 de [[https://www.bayesrulesbook.com/][Bayes rules!]] donde se expone a detalle un modelo más del análisis conjugado. ¿Puedes identificar/derivar la distribución predictiva?
+
+
+* ¿Qué veremos?
+
+Por medio de metodología Bayesiana podemos cuantificar incertidumbre en:
+#+ATTR_REVEAL: :frag (appear)
+- Observaciones. 
+- Parámetros. 
+- Estructura. 
+
+#+REVEAL: split
+  Es fácil especificar y ajustar modelos. Pero hay preguntas cuyas respuestas no han quedado claras:
+#+ATTR_REVEAL: :frag (appear)
+  1. Construcción. 
+  2. Evaluación. 
+  3. Uso.
+
+  #+BEGIN_NOTES
+  Programación probabilística. 
+  #+END_NOTES
+
+
+#+REVEAL: split
+Los aspectos del flujo de trabajo Bayesiano consideran (citep:Gelman2020):
+#+ATTR_REVEAL: :frag (appear)
+1. Construcción iterativa de modelos. 
+2. Validación de modelo (computacional).
+3. Entendimiento de modelo. 
+4. Evaluación de modelo.   
+
+** Distinción importante
+
+~Inferencia~ no es lo mismo que ~análisis de datos~ o que un ~flujo de trabajo~. 
+
+#+BEGIN_NOTES
+Inferencia (en el contexto bayesiano) es formular y calcular con probabilidades
+condicionales.
+#+END_NOTES
+
+** ¿Por qué necesitamos un flujo de trabajo?
+- El cómputo puede ser complejo.
+- Expandir nuestro entendimiento en aplicaciones.
+- Entender la relación entre modelos.
+- Distintos modelos pueden llegar a distintas conclusiones.
+
+** Proceso iterativo
+
+- La gente de ML sabe que el proceso de construcción de un modelo es iterativo, ¿por qué no utilizarlo?
+
+
+#+BEGIN_NOTES
+Una posible explicación puede encontrarse en citep:Gelman2021. El argumento es formal en cuanto a actualizar nuestras creencias como bayesianos. Sin embargo, con cuidado y un procedimiento científico puede resolver el asunto. 
+#+END_NOTES
+
+
+#+DOWNLOADED: screenshot @ 2022-01-21 23:09:51
+#+caption: Tomado de citep:Gelman2020.
+#+attr_html: :width 800 :align center
+[[file:../images/20220121-230951_screenshot.png]]
+
+bibliographystyle:abbrvnat
+bibliography:references.bib
