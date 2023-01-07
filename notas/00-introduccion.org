@@ -30,7 +30,7 @@
 #+EXCLUDE_TAGS: toc
 
 #+BEGIN_NOTES
-*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2023.\\
+*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2023 | Introducción .\\
 *Objetivo*: Repasar/Introducir notación que utilizaremos a lo largo del curso. Establecer la motivación de los temas que trataremos en la materia. Introducir los principios de concebir el lenguaje de probabilidad como el que un tomador de decisiones tomaría en un ambiente de incertidumbre. \\
 *Lecturas recomendas*: Notas del [[https://fundamentos-est-2021.netlify.app/][curso de fundamentos]] (2021).
 #+END_NOTES
@@ -87,13 +87,6 @@
   - [[#ejemplos][Ejemplos]]
   - [[#ejemplo][Ejemplo]]
   - [[#diferentes-previas-diferentes-posteriores][Diferentes previas, diferentes posteriores]]
-  - [[#diferentes-datos-diferentes-posteriores][Diferentes datos, diferentes posteriores]]
-  - [[#análisis-secuencial][Análisis secuencial]]
-  - [[#tarea][Tarea]]
-- [[#qué-veremos][¿Qué veremos?]]
-  - [[#distinción-importante][Distinción importante]]
-  - [[#por-qué-necesitamos-un-flujo-de-trabajo][¿Por qué necesitamos un flujo de trabajo?]]
-  - [[#proceso-iterativo][Proceso iterativo]]
 :END:
 
 
@@ -138,7 +131,7 @@ podemos considerar como consecuencia de dos tipos:
     coord_equal() + xlab(expression(x[1])) + ylab(expression(x[2])) + 
     sin_lineas + sin_leyenda + sin_ejes
 #+end_src
-#+caption: Aproximación a un circulo mediante una trayectoria discretizada. 
+#+caption: Aproximación a un círculo mediante una trayectoria discretizada. 
 #+RESULTS:
 [[file:../images/numerics-epistemic.jpeg]]
 
@@ -155,8 +148,9 @@ nuestros modelos para representar correctamente el proceso que nos interesa.
 #+REVEAL: split
 Ahora, la pregunta natural es ¿cómo modelamos la incertidumbre? En este curso (y
 en general en cualquier otras aplicaciones) utilizaremos el ~lenguaje de
-probabilidad~ para ~expresar incertidumbre~ (citep:Jaynes2003). En este enfoque, es
-usual considerar bajo nuestros procesos de inferencia incertidumbre aleatoria y epistémica.
+probabilidad~ para ~expresar incertidumbre~ citep:Jaynes2003. En este enfoque, es
+usual considerar bajo nuestros procesos de inferencia incertidumbre aleatoria y
+epistémica.
 
 #+REVEAL: split
 En un proceso de modelado completo la incertidumbre puede deberse a distintos
@@ -181,24 +175,10 @@ Consideremos el conjunto de datos siguiente.
   data |> print(n = 5)
 #+end_src
 
-#+RESULTS:
-#+begin_src org
-# A tibble: 234 × 11
-  manufacturer model displ  year   cyl trans      drv     cty   hwy fl    class 
-  <chr>        <chr> <dbl> <int> <int> <chr>      <chr> <int> <int> <chr> <chr> 
-1 audi         a4      1.8  1999     4 auto(l5)   f        18    29 p     compa…
-2 audi         a4      1.8  1999     4 manual(m5) f        21    29 p     compa…
-3 audi         a4      2    2008     4 manual(m6) f        20    31 p     compa…
-4 audi         a4      2    2008     4 auto(av)   f        21    30 p     compa…
-5 audi         a4      2.8  1999     6 auto(l5)   f        16    26 p     compa…
-# … with 229 more rows
-# ℹ Use `print(n = ...)` to see more rows
-#+end_src
-
 #+REVEAL: split
 Nos interesa poder relacionar el rendimiento de un auto en carretera y el
-rendimiento del mismo en una ciudad, ver [[fig:mtcars]]. Operativamente lo podemos
-realizar con los siguientes comandos.
+rendimiento del mismo en una ciudad, ver la siguiente figura. Operativamente
+este análisis lo podemos realizar con los siguientes comandos.
 
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/cars-regression.jpeg :exports results :results output graphics file
@@ -217,74 +197,11 @@ realizar con los siguientes comandos.
     summary()
 #+end_src
 
-#+RESULTS:
-#+begin_src org
-
-Call:
-glm(formula = hwy ~ displ, family = gaussian(), data = data)
-
-Deviance Residuals: 
-   Min      1Q  Median      3Q     Max  
--7.104  -2.165  -0.224   2.059  15.010  
-
-Coefficients:
-            Estimate Std. Error t value Pr(>|t|)    
-(Intercept)   35.698      0.720    49.5   <2e-16 ***
-displ         -3.531      0.195   -18.1   <2e-16 ***
----
-Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-(Dispersion parameter for gaussian family taken to be 14.71)
-
-    Null deviance: 8261.7  on 233  degrees of freedom
-Residual deviance: 3413.8  on 232  degrees of freedom
-AIC: 1297
-
-Number of Fisher Scoring iterations: 2
-#+end_src
-
-
 #+REVEAL: split
 #+begin_src R :exports both :results org 
   library(rstanarm)
   stan_glm(hwy ~ cty, data = data, refresh = 0) |>
     summary()
-#+end_src
-
-#+RESULTS:
-#+begin_src org
-
-Model Info:
- function:     stan_glm
- family:       gaussian [identity]
- formula:      hwy ~ displ
- algorithm:    sampling
- sample:       4000 (posterior sample size)
- priors:       see help('prior_summary')
- observations: 234
- predictors:   2
-
-Estimates:
-              mean   sd   10%   50%   90%
-(Intercept) 35.7    0.7 34.7  35.7  36.6 
-displ       -3.5    0.2 -3.8  -3.5  -3.3 
-sigma        3.9    0.2  3.6   3.8   4.1 
-
-Fit Diagnostics:
-           mean   sd   10%   50%   90%
-mean_PPD 23.4    0.3 23.0  23.4  23.9 
-
-The mean_ppd is the sample average posterior predictive distribution of the outcome variable (for details see help('summary.stanreg')).
-
-MCMC diagnostics
-              mcse Rhat n_eff
-(Intercept)   0.0  1.0  4080 
-displ         0.0  1.0  4244 
-sigma         0.0  1.0  3730 
-mean_PPD      0.0  1.0  3635 
-log-posterior 0.0  1.0  2059 
-
-For each parameter, mcse is Monte Carlo standard error, n_eff is a crude measure of effective sample size, and Rhat is the potential scale reduction factor on split chains (at convergence Rhat=1).
 #+end_src
 
 #+REVEAL: split
@@ -309,7 +226,7 @@ o bien, haremos énfasis en la distribución por medio de lo siguiente
 \end{align}
 de acuerdo al contexto. 
 
-# \medskip
+\medskip
 
 #+BEGIN_NOTES
 Nota que en las ecuaciones anteriores estamos considerando el término
@@ -352,7 +269,6 @@ Decimos que una función de distribución es ~paramétrica~ si se puede identifi
 \pi_\theta(x) \qquad \text{ ó } \qquad \pi(x ; \theta)\,,
 \end{align}
 y si  $\theta \neq\theta'$ entonces $\pi_\theta(x) \neq \pi_{\theta'}(x)$ para cualquier $x$ en el ~soporte~.
-
 * Repaso de probabilidad
 
 Consideraremos como requisitos el contenido de ~Fundamentos de estadística~ o
@@ -579,7 +495,6 @@ Este ejemplo fue tomado de citep:Dogucu2021.
   }
 #+end_src
 
-
 #+REVEAL: split
 #+begin_src R :exports code 
     escenarios <-
@@ -589,10 +504,6 @@ Este ejemplo fue tomado de citep:Dogucu2021.
              beta  = c(1, .5, 11, 1)) |>
       nest(params.previa = c(alpha, beta)) |>
       mutate(muestras.previa = map(params.previa, modelo_beta))
-#+end_src
-
-#+RESULTS:
-#+begin_src org
 #+end_src
 
 #+HEADER: :width 1200 :height 300 :R-dev-args bg="transparent"
@@ -648,10 +559,6 @@ Este ejemplo fue tomado de citep:Dogucu2021.
   escenarios <- escenarios |>
     mutate(params.posterior = map(params.previa, update_rule),
            muestras.posterior = map(params.posterior, modelo_beta))
-#+end_src
-
-#+RESULTS:
-#+begin_src org
 #+end_src
 
 #+HEADER: :width 1400 :height 300 :R-dev-args bg="transparent"
@@ -717,10 +624,6 @@ Este ejemplo fue tomado de citep:Dogucu2021.
            muestras.posterior = map(params.posterior, modelo_beta),
            muestras.previa    = list(modelo_beta(params.fem)))
 
-#+end_src
-
-#+RESULTS:
-#+begin_src org
 #+end_src
 
 #+HEADER: :width 1200 :height 300 :R-dev-args bg="transparent"
@@ -857,4 +760,3 @@ Una posible explicación puede encontrarse en citep:Gelman2021. El argumento es 
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
-
