@@ -25,15 +25,42 @@
 #+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
 #+EXPORT_FILE_NAME: ../docs/00-introduccion.pdf
 :END:
+#+PROPERTY: header-args:R :session intro :exports both :results output org :tangle ../rscripts/00-intro.R :mkdirp yes :dir ../
 #+STARTUP: showall
-#+PROPERTY: header-args:R :session intro :exports both :results output org :tangle ../rscripts/00-introduccion.R :mkdirp yes :dir ../
-#+EXCLUDE_TAGS: toc latex
+#+EXCLUDE_TAGS: toc
 
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2023.\\
 *Objetivo*: Repasar/Introducir notación que utilizaremos a lo largo del curso. Establecer la motivación de los temas que trataremos en la materia. Introducir los principios de concebir el lenguaje de probabilidad como el que un tomador de decisiones tomaría en un ambiente de incertidumbre. \\
-*Lecturas recomendas*: Notas del [[https://fundamentos-est-2021.netlify.app/][curso de fundamentos]] (2021), Sección 1 de citep:Gelman2020. Los capítulos 1 y 2 de citep:Jaynes2003 dan un tratamiento formal de las ideas discutidas en esta introducción. 
+*Lecturas recomendas*: Notas del [[https://fundamentos-est-2021.netlify.app/][curso de fundamentos]] (2021).
 #+END_NOTES
+
+
+#+begin_src R :exports none :results none
+  ## Setup --------------------------------------------
+  library(tidyverse)
+  library(patchwork)
+  library(scales)
+
+  ## Cambia el default del tamaño de fuente 
+  theme_set(theme_linedraw(base_size = 25))
+
+  ## Cambia el número de decimales para mostrar
+  options(digits = 4)
+  ## Problemas con mi consola en Emacs
+  options(pillar.subtle = FALSE)
+  options(rlang_backtrace_on_error = "none")
+  options(crayon.enabled = FALSE)
+
+  ## Para el tema de ggplot
+  sin_lineas <- theme(panel.grid.major = element_blank(),
+                      panel.grid.minor = element_blank())
+  color.itam  <- c("#00362b","#004a3b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f", NA)
+
+  sin_leyenda <- theme(legend.position = "none")
+  sin_ejes <- theme(axis.ticks = element_blank(), axis.text = element_blank())
+#+end_src
+
 
 * Contenido                                                             :toc:
 :PROPERTIES:
@@ -68,6 +95,7 @@
   - [[#por-qué-necesitamos-un-flujo-de-trabajo][¿Por qué necesitamos un flujo de trabajo?]]
   - [[#proceso-iterativo][Proceso iterativo]]
 :END:
+
 
 * Motivación
 
@@ -526,46 +554,18 @@ La ~regla de Bayes~ utiliza la definición de probabilidad condicional para hace
 #+REVEAL: split
 
 #+DOWNLOADED: screenshot @ 2022-01-21 20:44:26
-#+caption: Tomado de cite:Kruschke2014 .
+#+caption: Tomado de citep:Kruschke2014 .
 #+attr_html: :width 1200 :align center
 [[file:images/20220121-204426_screenshot.png]]
 
 ** Ejemplos
 
-#+ATTR_REVEAL: :frag (appear)
 - Verosimilitud: $x |\theta \sim \mathsf{Binomial}(n, \theta)$ + Previa: $\theta \sim \mathsf{Beta}(\alpha, \beta)$ = Posterior: ?
 - Verosimilitud: $x |\theta \sim \mathsf{Uniforme}(0, \theta)$ + Previa: $\theta \sim \mathsf{Pareto}(\alpha, \theta_0)$ = Posterior: ?
 
 ** Ejemplo
 
 Este ejemplo fue tomado de citep:Dogucu2021.
-
-#+begin_src R :exports none :results none
-  ## Setup --------------------------------------------
-  library(tidyverse)
-  library(patchwork)
-  library(scales)
-  set.seed(108727)
-  
-  ## Cambia el default del tamaño de fuente 
-  theme_set(theme_linedraw(base_size = 25))
-
-  ## Cambia el número de decimales para mostrar
-  options(digits = 4)
-  ## Problemas con mi consola en Emacs
-  options(pillar.subtle = FALSE)
-  options(rlang_backtrace_on_error = "none")
-  options(crayon.enabled = FALSE)
-
-  ## Para el tema de ggplot
-  sin_lineas <- theme(panel.grid.major = element_blank(),
-                      panel.grid.minor = element_blank())
-  color.itam  <- c("#00362b","#004a3b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f", NA)
-
-  sin_leyenda <- theme(legend.position = "none")
-  sin_ejes <- theme(axis.ticks = element_blank(), axis.text = element_blank())
-#+end_src
-
 
 ** Diferentes previas, diferentes posteriores
 
@@ -830,15 +830,11 @@ Los aspectos del flujo de trabajo Bayesiano consideran (citep:Gelman2020):
 ~Inferencia~ no es lo mismo que ~análisis de datos~ o que un ~flujo de trabajo~. 
 
 #+BEGIN_NOTES
-
 Inferencia (en el contexto bayesiano) es formular y calcular con probabilidades
 condicionales.
-
 #+END_NOTES
 
 ** ¿Por qué necesitamos un flujo de trabajo?
-
-#+ATTR_REVEAL: :frag (appear)
 - El cómputo puede ser complejo.
 - Expandir nuestro entendimiento en aplicaciones.
 - Entender la relación entre modelos.
@@ -848,10 +844,9 @@ condicionales.
 
 - La gente de ML sabe que el proceso de construcción de un modelo es iterativo, ¿por qué no utilizarlo?
 
+
 #+BEGIN_NOTES
-
 Una posible explicación puede encontrarse en citep:Gelman2021. El argumento es formal en cuanto a actualizar nuestras creencias como bayesianos. Sin embargo, con cuidado y un procedimiento científico puede resolver el asunto. 
-
 #+END_NOTES
 
 
@@ -860,8 +855,6 @@ Una posible explicación puede encontrarse en citep:Gelman2021. El argumento es 
 #+attr_html: :width 800 :align center
 [[file:../images/20220121-230951_screenshot.png]]
 
-                                  
-bibliographystyle:abbrvnat 
+bibliographystyle:abbrvnat
 bibliography:references.bib
-
 
