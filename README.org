@@ -130,10 +130,9 @@ El curso está planeado alrededor de tres temas centrales:
 
 * Recursos
 
-El contenido actual del curso se encuentra en la rama: 
-[[https://github.com/agarbuno/modelacion-bayesiana/tree/spring-2023][spring-2023]]. La
-estructura del repositorio se muestra a continuación donde a grandes
-razgos tenemos:
+El contenido actual del curso se encuentra en la rama: [[https://github.com/agarbuno/modelacion-bayesiana/tree/spring-2023][spring-2023]]. La
+estructura del repositorio se muestra a continuación donde a grandes razgos
+tenemos:
 
 #+begin_src bash :exports results :results org :eval never
 
@@ -156,7 +155,7 @@ tree -L 1 -d
 
 * Horarios
 
-El curso será los días Martes y Jueves en el horario
+El curso será los días Lunes y Miércoles en el horario de 17:30 a 19:00 horas. 
 
 ** Formato
 
@@ -171,12 +170,17 @@ necesiten a lo largo del semestre.
 
 ** Fechas importantes
 
-#+ATTR_REVEAL: :frag (appear)
+- 6 de Febrero *no* hay clase.
+- 20 de Marzo *no* hay clase.
+- 3 y 5 de Abril *no* hay clase.
+- 26 de Abril *último* día de bajas. 
+- 1 de Mayo *no* hay clase.
+- 10 de Mayo *última* clase. 
 
 ** Atención de alumnos
 
-El horario de atención a alumnos será Lunes y Miércoles en un horario de 11:00am
-a 1:00pm. Recomiendo utilizar el sitio de [[https://calendly.com/alfredo-garbuno/entrevistas][calendly]]. Por supuesto, si no les
+El horario de atención a alumnos será Lunes y Miércoles en un horario de 12:00am
+a 2:00pm. Recomiendo utilizar el sitio de [[https://calendly.com/alfredo-garbuno/entrevistas][calendly]]. Por supuesto, si no les
 queda algún horario podemos agendar por ~correo electrónico~.
 
 #+DOWNLOADED: screenshot @ 2022-08-09 10:19:38
@@ -186,7 +190,9 @@ queda algún horario podemos agendar por ~correo electrónico~.
 #+REVEAL: split
 ~Importante~: les estoy proporcionando la facilidad de agendar con plena libertad las
 sesiones de asesoría. Consideren que al ustedes agendar una reunión están privando ese espacio a 
-alguien mas en mis cursos. Asi que por favor no desperdicien ese espacio. 
+alguien mas en mis cursos. Asi que por favor no desperdicien ese espacio.
+
+
 * Evaluación
 
 La evaluación del curso será por medio de:
