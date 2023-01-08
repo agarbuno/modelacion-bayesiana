@@ -241,7 +241,7 @@ en los ejercicios de tarea que vayamos utilizando en el curso.
 ** Configuración ~renv~
 
 Si utilizas ~MacOS~ o alguna distribución ~Linux~ se recomienda escribir en el
-archivo ~~/.Renviron~ la siguiente línea lo cual mantendrá el cache de ~renv~ en un
+archivo =~/.Renviron= la siguiente línea lo cual mantendrá el cache de ~renv~ en un
 lugar centralizado y de fácil acceso:
 
 #+begin_src conf :tangle ~/.Renviron :mkdirp yes
