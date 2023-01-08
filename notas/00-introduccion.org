@@ -87,6 +87,13 @@
   - [[#ejemplos][Ejemplos]]
   - [[#ejemplo][Ejemplo]]
   - [[#diferentes-previas-diferentes-posteriores][Diferentes previas, diferentes posteriores]]
+  - [[#diferentes-datos-diferentes-posteriores][Diferentes datos, diferentes posteriores]]
+  - [[#análisis-secuencial][Análisis secuencial]]
+  - [[#tarea][Tarea]]
+- [[#qué-veremos][¿Qué veremos?]]
+  - [[#distinción-importante][Distinción importante]]
+  - [[#por-qué-necesitamos-un-flujo-de-trabajo][¿Por qué necesitamos un flujo de trabajo?]]
+  - [[#proceso-iterativo][Proceso iterativo]]
 :END:
 
 
@@ -168,6 +175,10 @@ proceso de modelado. Esto es por que:
 2. El uso de ~herramientas computacionales automáticas~ nos puede hacer caer en el modelado bajo cajas negras.
 
 #+REVEAL: split
+#+begin_src R :exports none :results none
+  ## Ejemplo regresion ---------------------------------------------------------
+#+end_src
+
 Consideremos el conjunto de datos siguiente. 
 #+begin_src R :exports both :results org 
   data(mpg)
@@ -192,12 +203,20 @@ este análisis lo podemos realizar con los siguientes comandos.
 [[file:../images/cars-regression.jpeg]]
 
 #+REVEAL: split
+#+begin_src R :exports none :results none
+  ## Modelo de regresion -------------------------------------------------------
+#+end_src
+
 #+begin_src R :exports both :results org 
   glm(hwy ~ cty, data, family = gaussian()) |>
     summary()
 #+end_src
 
 #+REVEAL: split
+#+begin_src R :exports none :results none
+  ## Modelo de regresion (bayesiano) -------------------------------------------
+#+end_src
+
 #+begin_src R :exports both :results org 
   library(rstanarm)
   stan_glm(hwy ~ cty, data = data, refresh = 0) |>
@@ -486,7 +505,7 @@ Este ejemplo fue tomado de citep:Dogucu2021.
 ** Diferentes previas, diferentes posteriores
 
 #+begin_src R :exports none :results none
-  ## Diferentes previas, diferentes posteriores --------------------
+  ## Diferentes previas, diferentes posteriores --------------------------------
 #+end_src
 
 #+begin_src R :exports code 
@@ -642,6 +661,10 @@ Este ejemplo fue tomado de citep:Dogucu2021.
 
 ** Análisis secuencial 
 
+#+begin_src R :exports none :results none
+  ## La posterior de hoy es la previa de mañana --------------------------------
+#+end_src
+
 #+HEADER: :width 1200 :height 300 :R-dev-args bg="transparent"
 #+begin_src R :file images/peliculas_historico.jpeg :exports results :results output graphics file
   bechdel |>
@@ -661,7 +684,7 @@ Este ejemplo fue tomado de citep:Dogucu2021.
 #+REVEAL: split
 #+HEADER: :width 700 :height 300 :R-dev-args bg="transparent"
 #+begin_src R :file images/peliculas_secuencial.jpeg :exports results :results output graphics file
-  ## Analisis secuencial ------------------------------
+  ## Analisis secuencial -------------------------------------------------------
   library(ggridges)
 
   tibble(period = "previa", FAIL = 0, PASS = 0) |>
