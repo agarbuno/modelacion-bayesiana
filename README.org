@@ -122,6 +122,14 @@ El curso está planeado alrededor de tres temas centrales:
 2. Flujo de trabajo Bayesiano.
 3. Modelación predictiva probabilística. 
 
+
+#+REVEAL: split
+
+#+DOWNLOADED: screenshot @ 2023-01-08 17:39:42
+#+attr_html: :width 400 :align center
+[[file:images/20230108-173942_screenshot.png]]
+
+
 ** ¿Existe un libro de texto?
 
 #+DOWNLOADED: screenshot @ 2022-01-23 01:11:36
@@ -216,6 +224,11 @@ El curso puede ser seguido en Python, Julia, etc (básicamente cualquier lenguaj
 asintóticamente correctos, como aproximados). En particular utilizaré la
 interfase de [[https://www.r-project.org/][R]] por medio de ~cmdstanr~ pero de igual manera son bienvenidos en
 utilizar la interfase de [[https://www.python.org/][python]] o la que les acomode$^\dagger$.
+
+#+DOWNLOADED: screenshot @ 2023-01-08 17:38:42
+#+attr_html: :width 700 :align center
+[[file:images/20230108-173842_screenshot.png]]
+
 
 #+REVEAL: split
 
