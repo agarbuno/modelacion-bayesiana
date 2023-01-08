@@ -377,43 +377,35 @@ tareas que tendrán mecanismos de calificación automatizada.
 bibliographystyle:abbrvnat
 bibliography:references.bib
 
-* COMMENT Plan de trabajo [10/15][66%]                             :noexport:
+* COMMENT Plan de trabajo [2/16][12%]                              :noexport:
 :PROPERTIES:
 :UNNUMBERED: notoc
 :END:
-** DONE Repaso 
-CLOSED: [2022-03-04 Fri 19:42]
-** DONE Integración numerica
-CLOSED: [2022-03-04 Fri 19:43]
-** DONE MCMC (Parte 1)
-CLOSED: [2022-03-04 Fri 19:43]
-** DONE MCMC (Parte 2)
-CLOSED: [2022-03-04 Fri 19:43]
-** DONE HMC
-CLOSED: [2022-03-04 Fri 19:43]
-** DONE Diagnosticos
-CLOSED: [2022-03-15 Tue 20:19]
-** DONE Posterior Predictive Sampling
-CLOSED: [2022-04-07 Thu 16:51]
-** DONE Posterior and prior predictive checks
-CLOSED: [2022-04-07 Thu 16:51]
-** DONE Simulation Based calibration
-CLOSED: [2022-05-02 Mon 16:26]
-** DONE Evaluation and cross validation
-CLOSED: [2022-05-02 Mon 16:26]
+** TODO Repaso 
+** TODO Integración numerica
+** TODO MCMC (Parte 1)
+** TODO MCMC (Parte 2)
+** TODO HMC
+** TODO Diagnosticos
+** TODO Posterior Predictive Sampling
+** TODO Posterior and prior predictive checks
+** TODO Simulation Based calibration
+** TODO Evaluation and cross validation
 ** TODO Decision Analysis
-** TODO Poststratification
-** TODO Clustering
-** TODO Item response theory 
+** TODO Multi-Armed Bandits
+Tomar el caso en [[https://www.smartly.io/blog/tutorial-how-we-productized-bayesian-revenue-estimation-with-stan][Smartly.io]] o también [[https://www.linkedin.com/pulse/tutorial-how-we-productized-bayesian-revenue-estimation-markus-ojala/][aqui]]. Comentarios por [[https://statmodeling.stat.columbia.edu/2018/01/21/smartly-io-productized-bayesian-revenue-estimation-stan/][Andrew Gelman]]. 
 ** TODO Variational inference
-
+** TODO Poststratification
+** CANCEL Clustering
+CLOSED: [2023-01-08 Sun 17:43]
+** CANCEL Item response theory 
+CLOSED: [2023-01-08 Sun 17:43]
 
 * COMMENT Posibles temas                                           :noexport:
 :PROPERTIES:
 :UNNUMBERED: notoc
 :END:
-** TODO Multi-Armed Bandits
-Tomar el caso en [[https://www.smartly.io/blog/tutorial-how-we-productized-bayesian-revenue-estimation-with-stan][Smartly.io]] o también [[https://www.linkedin.com/pulse/tutorial-how-we-productized-bayesian-revenue-estimation-markus-ojala/][aqui]]. Comentarios por [[https://statmodeling.stat.columbia.edu/2018/01/21/smartly-io-productized-bayesian-revenue-estimation-stan/][Andrew Gelman]]. 
+
 ** TODO SIR modeling 
 Tomar el caso en [Grenable, Stan tutorial]. 
 
