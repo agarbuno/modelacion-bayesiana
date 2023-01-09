@@ -187,7 +187,7 @@ necesiten a lo largo del semestre.
 
 ** Atención de alumnos
 
-El horario de atención a alumnos será Lunes y Miércoles en un horario de 12:00am
+El horario de atención a alumnos será Lunes y Miércoles en un horario de 12:00pm
 a 2:00pm. Recomiendo utilizar el sitio de [[https://calendly.com/alfredo-garbuno/entrevistas][calendly]]. Por supuesto, si no les
 queda algún horario podemos agendar por ~correo electrónico~.
 
@@ -207,7 +207,7 @@ La evaluación del curso será por medio de:
 #+ATTR_REVEAL: :frag (appear)
 - Participación y tareas (30%)
 - Evaluaciones parciales (30%)
-- Proyecto final (40%)
+- Evaluación final (40%)
 
 ** Proyecto final
 
