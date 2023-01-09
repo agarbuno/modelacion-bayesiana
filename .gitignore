@@ -340,3 +340,5 @@ ltximg*
 .DS_Store
 *.html
 /modelos/compilados/
+
+bayesiana.pdf
