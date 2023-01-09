@@ -207,7 +207,7 @@ La evaluación del curso será por medio de:
 #+ATTR_REVEAL: :frag (appear)
 - Participación y tareas (30%)
 - Evaluaciones parciales (30%)
-- Proyecto final (40%)
+- Evaluación final (40%)
 
 ** Proyecto final
 
