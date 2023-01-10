@@ -49,7 +49,7 @@
 - [[#bibliografía][Bibliografía]]
 :END:
 
-* Introducción                                                       :github:
+* Introducción                                                      
 
 Este es el repositorio con el contenido del curso en *Modelación Bayesiana* de la
 *maestría en ciencia de datos*. También puede ser ofrecida de manera simultánea para alumnos
