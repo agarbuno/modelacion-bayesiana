@@ -6,6 +6,7 @@ on:
       - spring-2023
     paths:
       - Dockerfile
+      - renv.lock
   workflow_dispatch:
 
 permissions:
