@@ -300,6 +300,11 @@ El contenedor se podrá levantar sin ningún problema por medio de la siguiente
 serie de instrucciones en terminal (también se puede establecer un script de
 /shell/).
 
+#+BEGIN_NOTES
+El siguiente bloque de código sirve por si quieres levantar la imagen del =Docker= y trabajar en este por medio de ~ssh~. 
+#+END_NOTES
+
+
 #+begin_src shell
   # Ruta del cache de renv en el contenedor
   RENV_PATHS_CACHE_CONTAINER=/home/rstudio/.renv
