@@ -70,7 +70,6 @@
 * Introducción
 
 En inferencia bayesiana lo que queremos es poder resolver
-
 \begin{align}
 \mathbb{E}[f] = \int_{\Theta}^{} f(\theta) \, \pi(\theta | y ) \,  \text{d}\theta\,. 
 \end{align}
@@ -104,7 +103,7 @@ contenida en un hiper-cubo unitario conforme aumenta la dimensión del problema.
 #+end_src
 
 #+REVEAL: split
-#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/curse-dimensionality.jpeg :exports results :results output graphics file
   tibble(dims = 1:10) |>
     mutate(prob = map_dbl(dims, experimento)) |>
@@ -169,7 +168,7 @@ como el promedio de nuestra distirbución, /aka/ el individuo promedio no es tan
 común.
 
 #+REVEAL: split
-#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/typical-sets.jpeg :exports results :results output graphics file
   tibble(dim = 2**seq(0, 8)) |>
     mutate(.centro = sqrt(qchisq(.50, dim)),
@@ -192,7 +191,7 @@ puntos de más alta densidad no corresponden a los puntos de mayor volumen
 (probabilidad).
 
 #+REVEAL: split
-#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/concentracion-medida.jpeg :exports results :results output graphics file
     tibble(dim = 2**seq(0, 8)) |>
       mutate(.resultados  = map(dim, function(ndim){
@@ -228,7 +227,6 @@ Esto explica por qué no queremos realizar la aproximación
 * Integración numérica
 
 Recordemos la definición de integrales Riemann:
-
 $$\int_a^b f(x) \text{d} x\,.$$
 
 #+BEGIN_NOTES
@@ -448,7 +446,6 @@ integral.
 
 Por el momento hemos escogido aproximar las integrales por medio de una aproximación con una ~malla uniforme~.
 Sin embargo, se pueden utilizar aproximaciones 
-
 $$\int_a^b f(x) \text{d} x \approx \sum_{n=1}^N f(\xi_n)\, \omega_n\,.$$
 
 Estas aproximaciones usualmente se realizan para integrales en intervalos cerrados $[a,b]$. La regla de cuadratura determina los pesos $\omega_n$ y los centros $\xi_n$ pues se escogen de acuerdo a ~ciertos criterios de convergencia~.
@@ -458,7 +455,6 @@ Por ejemplo, se consideran polinomios que aproximen con cierto grado de precisi�
 #+END_NOTES
 
 * Integración Monte Carlo
-
 \begin{gather*}
 \pi(f) = \mathbb{E}_\pi[f] = \int f(x) \pi(x) \text{d}x\,,\\
 \hat{\pi}_N^{\textsf{MC}}(f) = \frac1N \sum_{n = 1}^N f( x^{(n)}), \qquad \text{ donde }  x^{(n)} \overset{\mathsf{iid}}{\sim} \pi, \qquad \text{ con } n = 1, \ldots, N \,, \\
@@ -676,7 +672,6 @@ simulaciones.
 
 #+REVEAL: split
 En particular, la varianza del estimador (*error estándar*) satisface la igualdad
-
 $$ \textsf{ee}^2\left(\hat \pi_N^{\textsf{MC}}(f)\right) = \frac{\mathbb{V}_\pi( f )}{N}.$$
 
 #+BEGIN_NOTES
@@ -823,7 +818,6 @@ cortesía en la calificación de sabores, y no es tan probable tener valores muy
 bajos) para todos los sabores, es decir $p(\theta_i)$ es la funcion de densidad
 de una $\mathsf{Beta}(2, 1)$. La inicial conjunta la definimos entonces, usando
 ~independencia inicial~, como
-
 $$p(\theta_1,\theta_2, \theta_3,\theta_4) = p(\theta_1)p(\theta_2)p(\theta_3)p(\theta_4)\,.$$
 
 #+REVEAL: split
@@ -831,7 +825,6 @@ Pues inicialmente establecemos que ningún parámetro da información sobre otro
 saber que mango es muy gustado no nos dice nada acerca del gusto por fresa. Bajo
 este supuesto, y el supuesto adicional de que las muestras de cada sabor son
 independientes, podemos mostrar que las ~posteriores son independientes~:
-
 $$p(\theta_1,\theta_2,\theta_3, \theta_4|k_1,k_2,k_3,k_4) = p(\theta_4|k_1)p(\theta_4|k_2)p(\theta_4|k_3)p(\theta_4|k_4)$$
 
 #+REVEAL: split
@@ -873,7 +866,7 @@ simulación y responder por medio de un procedimiento Monte Carlo.
     select(sabor, muestras.posterior)
 #+end_src
 
-#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/paletas-hist.jpeg :exports results :results output graphics file
   paletas |>
     unnest(muestras.posterior) |>
@@ -938,7 +931,7 @@ por medio de una aproximación
 #+REVEAL: split
 Al estimador le llamamos el estimador por importancia y lo denotamos por
 \begin{align}
-\omega{\pi}_N^{\mathsf{IS}}(f) = \sum_{n = 1}^{N} \bar{\omega}^{(n)} f(x^{(n)}), \qquad \bar{\omega}^{(n)} = \frac{\omega(x^{(n)})}{\sum_{m= 1}^{N}\omega(x^{(m)})}\,.
+\hat{\pi}_N^{\mathsf{IS}}(f) = \sum_{n = 1}^{N} \bar{\omega}^{(n)} f(x^{(n)}), \qquad \bar{\omega}^{(n)} = \frac{\omega(x^{(n)})}{\sum_{m= 1}^{N}\omega(x^{(m)})}\,.
 \end{align}
 
 ** Propiedades: muestreo por importancia
@@ -1039,7 +1032,7 @@ citet:Sanz-Alonso2019.
   g0 + g1 + g2
 
 #+end_src
-#+caption: Muestreo por importancia utilizando distintas distribuciones instrumentales. Distribución /bootstrap/ de $\pi^{\mathsf{IS}}_N$ con $B = 10,000$ y $n = 100$. 
+#+caption: Muestreo por importancia utilizando distintas distribuciones instrumentales. Distribución de muestreo $\pi^{\mathsf{IS}}_N$ con $B = 10,000$ y $n = 100$. 
 #+RESULTS:
 [[file:../images/muestreo-importancia-mezcla.jpeg]]
 
