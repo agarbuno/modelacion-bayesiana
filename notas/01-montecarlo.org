@@ -1048,5 +1048,7 @@ citet:Sanz-Alonso2019.
 El análisis  del error en la sección anterior habla en del error cuadrático medio en el peor escenario posible bajo una familia de funciones de prueba (resumen). El ejemplo anterior muestra el error Monte Carlo cometido con respecto a una función resumen $f(\theta) = \theta$ con la cual, vemos, se reduce la varianza. Esto no contradice lo anterior pues para esta función resumen nuestra distribución instrumental satisface el criterio de reducción de varianza. En general, lo complicado es encontrar dicha distribución que podamos usar en la estimación Monte Carlo. 
 #+END_NOTES
 
+
 bibliographystyle:abbrvnat
-bibliography:./references.bib
+bibliography:references.bib
+
