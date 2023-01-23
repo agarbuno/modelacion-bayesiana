@@ -46,6 +46,7 @@
 :END:
 :CONTENTS:
 - [[#introducción][Introducción]]
+- [[#por-qué-integrar][¿Por qué integrar?]]
 - [[#integración-numérica][Integración numérica]]
   - [[#ejemplo-proporción][Ejemplo: Proporción]]
   - [[#más-de-un-parámetro][Más de un parámetro]]
@@ -84,7 +85,145 @@ Lo que necesitamos es resolver integrales con respecto a la distribución de int
 #+ATTR_REVEAL: :frag (appear)
 - La pregunta clave (I) es: ¿qué distribución?
 - La pregunta clave (II) es: ¿con qué método numérico resuelvo la integral?
-- La pregunta clave (III) es: ¿y si no hay método numérico? 
+- La pregunta clave (III) es: ¿y si no hay método numérico?
+
+
+* ¿Por qué integrar?
+
+Consideremos de interés estimar la proporción de volumen de la hiper-esfera
+contenida en un hiper-cubo unitario conforme aumenta la dimensión del problema.
+
+#+begin_src R :exports code :results none
+  distancia_euclideana <- function(u) sqrt(sum(u * u));
+
+  experimento <- function(ndim){
+    nsamples <- 1e5; 
+    y <- matrix(runif(nsamples * ndim, -0.5, 0.5), nsamples, ndim);
+    mean(apply(y, 1, distancia_euclideana) < 0.5)
+  }
+#+end_src
+
+#+REVEAL: split
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/curse-dimensionality.jpeg :exports results :results output graphics file
+  tibble(dims = 1:10) |>
+    mutate(prob = map_dbl(dims, experimento)) |>
+    ggplot(aes(dims, prob)) +
+    geom_point() +
+    geom_line() +
+    sin_lineas +
+    scale_x_continuous(breaks=c(1, 3, 5, 7, 9)) +
+  xlab("Número de dimensiones") +
+  ylab("Volumen relativo")
+#+end_src
+#+caption: Evolución del volumen relativo de la hiper-esfera circunscrita dentro del hiper-cubo unitario.
+#+RESULTS:
+[[file:../images/curse-dimensionality.jpeg]]
+
+#+REVEAL: split
+#+begin_src R :exports none :results none
+  chi.pdf <- function(x, d) {
+    x^(d - 1) * exp(-x^2/2) / (2^(d/2 - 1) * gamma(d/2))
+  }
+#+end_src
+
+#+begin_src R :exports code :results none
+  puntos.grafica <- tibble(dims = c(1, 5, 10, 25, 50, 100)) |>
+    mutate(points = map(dims, function(dim){
+      tibble(x = seq(0, 15, length.out = 1000)) |>
+        mutate(y = chi.pdf(x, dim))
+    }), dimensions = factor(dims)) 
+#+end_src
+
+#+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/densidad-esfera.jpeg :exports results :results output graphics file
+  puntos.grafica |>
+    unnest(points) |>
+    ggplot(aes(x, y, group = dimensions, color = dimensions)) +
+    geom_line() + sin_leyenda + 
+    sin_lineas + xlab("Número de dimensiones") +
+    ylab("Densidad")
+#+end_src
+#+caption: Densidad de los vecinos de la moda para una Normal multivariada estándar $\mathsf{N}(0, I_p)$.
+#+RESULTS:
+[[file:../images/densidad-esfera.jpeg]]
+
+
+#+REVEAL: split
+Otro detalle interesante de altas dimensiones es la poca intuición
+probabilística que tenemos de estos espacios y de lo que es una muestra típica
+de una distribución.
+
+Por ejemplo, para $X \sim \mathsf{N}(0,1)$ estamos acostumbrados a asociar la
+moda como el valor de mas alta densidad. Lo cual es un error terrible en varias
+dimensiones.
+
+#+REVEAL: split
+Consideremos un análisis analítico. Por ejemplo, sabemos que si $X \sim \mathsf{N}(0, I_p)$, entonces tenemos que
+\begin{align}
+\sum_{i = 1}^{p}X_i^2 \sim \chi^2_{p}\,.
+\end{align}
+Gráfiquemos el valor central de estas variables aleatorias y sus percentiles del
+$2.5\%$ y $97.5\%$. Lo que observamos es que una ~muestra típica~ no se comporta
+como el promedio de nuestra distirbución, /aka/ el individuo promedio no es tan
+común.
+
+#+REVEAL: split
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/typical-sets.jpeg :exports results :results output graphics file
+  tibble(dim = 2**seq(0, 8)) |>
+    mutate(.centro = sqrt(qchisq(.50, dim)),
+           .lower = sqrt(qchisq(.025, dim)),
+           .upper = sqrt(qchisq(.975, dim))) |>
+  ggplot(aes(dim, .centro)) +
+  geom_ribbon(aes(ymin = .lower, ymax = .upper), alpha = .3, fill = "gray") + 
+  geom_line() + geom_point() + sin_lineas +
+  scale_x_log10() +
+  ylab("Distancia euclideana al centro") +
+  xlab("Número de dimensiones")
+#+end_src
+#+caption: Distancia euclideana de puntos aleatorios de una Gaussiana multivariada al centro de la distribución. Esto ilustra que aunque el centro es el comportamiento promedio, los puntos típicos de una Gaussiana se encuentran lejos. 
+#+RESULTS:
+[[file:../images/typical-sets.jpeg]]
+
+#+REVEAL: split
+Lo que sucede se conoce como el fenómeno de ~concentración de medida~ donde los
+puntos de más alta densidad no corresponden a los puntos de mayor volumen
+(probabilidad).
+
+#+REVEAL: split
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/concentracion-medida.jpeg :exports results :results output graphics file
+    tibble(dim = 2**seq(0, 8)) |>
+      mutate(.resultados  = map(dim, function(ndim){
+               x <- unlist(purrr::rerun(10000, sum(dnorm(rnorm(ndim),log = TRUE))))
+               tibble(x = x) |>
+                 summarise(.densidad_tip = mean(x),
+                           .lower_densidad = quantile(x, .025),
+                           .upper_densidad = quantile(x, .975),
+                           .densidad_moda = sum(dnorm(rep(0, ndim), log = TRUE)))
+             })) |>
+      unnest(.resultados) |>
+      ggplot(aes(dim, .densidad_tip)) +
+      geom_line(aes(y = .densidad_moda), col = 'red') +
+      geom_point(aes(y = .densidad_moda), col = 'red') + 
+      geom_ribbon(aes(ymin = .lower_densidad, ymax = .upper_densidad), alpha = .3, fill = "gray") + 
+      geom_line() + geom_point() + sin_lineas +
+      scale_x_log10() +
+      ylab("log-Densidad") +
+      xlab("Número de dimensiones")
+
+#+end_src
+#+caption: En rojo la log-densidad de la moda de una Gaussiana multivariada. En negro la log-densidad de muestras aleatorias de una Gaussiana multivariada. Esto muestra que los elementos con mayor densidad no corresponden a vecindades de mayor volumen. 
+#+RESULTS:
+[[file:../images/concentracion-medida.jpeg]]
+
+#+REVEAL: split
+Esto explica por qué no queremos realizar la aproximación
+\begin{align}
+\pi(f) \approx f(\theta^\star)\,, \quad \text{ donde }  \quad \theta^\star = \underset{\theta \in \Theta}{\arg \max} \, \pi(\theta)\,. 
+\end{align}
+
 
 * Integración numérica
 
