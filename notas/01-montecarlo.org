@@ -930,16 +930,16 @@ donde $\rho$ es una densidad de una variable aleatoria ~adecuada~.
 #+REVEAL: split
 Esto nos permite utilizar lo que sabemos de las propiedades del método Monte Carlo para resolver la integral
 \begin{align*}
-\pi(f) =  \int f(x) \pi(x) \text{d} x = \int f(x) w(x) \, \rho(x) \, \text{d}x =: \rho(fw)\,,
+\pi(f) =  \int f(x) \pi(x) \text{d} x = \int f(x) \omega(x) \, \rho(x) \, \text{d}x =: \rho(f\omega)\,,
 \end{align*}
 por medio de una aproximación
 \begin{align}
-\pi(f) \approx \sum_{n = 1}^{N} \bar w^{(n)} f(x^{(n)}), \qquad x^{(n)} \overset{\mathsf{iid}}{\sim} \rho\,.
+\pi(f) \approx \sum_{n = 1}^{N} \bar{\omega}^{(n)} f(x^{(n)}), \qquad x^{(n)} \overset{\mathsf{iid}}{\sim} \rho\,.
 \end{align}
 #+REVEAL: split
 Al estimador le llamamos el estimador por importancia y lo denotamos por
 \begin{align}
-\pi_N^{\mathsf{IS}}(f) = \sum_{n = 1}^{N} \bar w^{(n)} f(x^{(n)}), \qquad \bar w^{(n)} = \frac{w(x^{(n)})}{\sum_{m= 1}^{N}w(x^{(m)})}\,.
+\omega{\pi}_N^{\mathsf{IS}}(f) = \sum_{n = 1}^{N} \bar{\omega}^{(n)} f(x^{(n)}), \qquad \bar{\omega}^{(n)} = \frac{\omega(x^{(n)})}{\sum_{m= 1}^{N}\omega(x^{(m)})}\,.
 \end{align}
 
 ** Propiedades: muestreo por importancia
