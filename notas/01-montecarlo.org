@@ -30,8 +30,8 @@
 #+EXCLUDE_TAGS: toc latex
 
 #+BEGIN_NOTES
-*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022.\\
-*Objetivo*. Estudiar integración numérica en el contexto probabilistico. Estudiar,
+*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Integración Monte Carlo.\\
+*Objetivo*: Estudiar integración numérica en el contexto probabilistico. Estudiar,
  en particular, el método Monte Carlo y entender sus bondades y limitaciones en
  el contexto de inferencia Bayesiana. \\
 *Lectura recomendada*: Sección 6.1 de citet:Dogucu2021. Una lectura mas técnica
@@ -39,7 +39,6 @@
  citet:Reich2015. Y una buena referencia (técnica) sobre el método Monte Carlo
  lo encuentran en citet:Sanz-Alonso2019.
 #+END_NOTES
-
 
 * Contenido                                                             :toc:
 :PROPERTIES:
@@ -54,6 +53,11 @@
 - [[#integración-monte-carlo][Integración Monte Carlo]]
   - [[#ejemplo-dardos][Ejemplo: Dardos]]
   - [[#propiedades][Propiedades]]
+    - [[#teorema-error-monte-carlo][Teorema [Error Monte Carlo]​]]
+    - [[#teorema-tlc-para-estimadores-monte-carlo][Teorema [TLC para estimadores Monte Carlo]​]]
+    - [[#nota][Nota:]]
+    - [[#nota][Nota:]]
+    - [[#nota][Nota:]]
   - [[#ejemplo-proporciones][Ejemplo: Proporciones]]
   - [[#ejemplo-sabores-de-helados][Ejemplo: Sabores de helados]]
   - [[#tarea-sabores-de-helados][Tarea: Sabores de helados]]
@@ -136,28 +140,29 @@ El método útil cuando las integrales se realizan cuando tenemos pocos parámet
 
 #+end_src
 
-#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+REVEAL: split
+#+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/quadrature.jpeg :exports results :results output graphics file
   norm.cuadrature |>
     ggplot(aes(x=x + grid.size/2, y=y)) + 
     geom_area(data = norm.density, aes(x = x, y = y), fill = 'lightblue') + 
     geom_bar(stat="identity", alpha = .3) + 
     geom_bar(aes(x = x + grid.size/2, y = -0.01), fill = 'black', stat="identity") + 
-    sin_lineas + xlab('x') + ylab("density") + 
+    sin_lineas + xlab('') + ylab("") + 
     annotate('text', label = expression(Delta~u[n]),
              x = .01 + 5 * grid.size/2, y = -.02, size = 12) + 
     annotate('text', label = expression(f(u[n]) ),
              x = .01 + 9 * grid.size/2, y = dnorm(.01 + 4 * grid.size/2), size = 12) + 
     annotate('text', label = expression(f(u[n]) * Delta~u[n]), 
              x = .01 + 5 * grid.size/2, y = dnorm(.01 + 4 * grid.size/2)/2, 
-             angle = -90, alpha = .7, size = 12)
+             angle = -90, alpha = .7, size = 12) + sin_ejes
 #+end_src
-#+caption: Integral por medio de discretización.
+#+caption: Integral por medio de discretización con $N = 11$.
 #+RESULTS:
 [[file:../images/quadrature.jpeg]]
 
 #+REVEAL: split
-#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/quadrature-hi.jpeg :exports results :results output graphics file
   grid.n          <- 101                 # Número de celdas 
   grid.size       <- 6/(grid.n+1)       # Tamaño de celdas en el intervalo [-3, 3]
@@ -168,18 +173,19 @@ El método útil cuando las integrales se realizan cuando tenemos pocos parámet
       geom_area(data = norm.density, aes(x = x, y = y), fill = 'lightblue') + 
       geom_bar(stat="identity", alpha = .3) + 
       geom_bar(aes(x = x + grid.size/2, y = -0.01), fill = 'black', stat="identity") + 
-      sin_lineas + xlab('x') + ylab("density") + 
+      sin_lineas + xlab('') + ylab("") + 
       annotate('text', label = expression(Delta~u[n]),
                x = .01 + 5 * grid.size/2, y = -.02, size = 12) + 
       annotate('text', label = expression(f(u[n]) ),
                x = .01 + 9 * grid.size/2, y = dnorm(.01 + 4 * grid.size/2), size = 12) + 
       annotate('text', label = expression(f(u[n]) * Delta~u[n]), 
                x = .01 + 5 * grid.size/2, y = dnorm(.01 + 4 * grid.size/2)/2, 
-               angle = -90, alpha = .7, size = 12)
+               angle = -90, alpha = .7, size = 12) + sin_ejes
 #+end_src
-#+caption: Integral por medio de una malla fina. 
+#+caption: Integral por medio de una malla fina, $N = 101$. 
 #+RESULTS:
 [[file:../images/quadrature-hi.jpeg]]
+
 
 ** Ejemplo: Proporción
 
@@ -200,10 +206,10 @@ inicial es $p(\theta) = 2\theta$ (~checa que es una densidad~).
 
 #+REVEAL: split
 #+begin_src R
-  # observamos 3 éxitos en 4 pruebas:
+  # observamos 3 exitos en 4 pruebas:
   log_post <- crear_log_post(4, 3)
   prob_post <- function(x) { exp(log_post(x))}
-  # integramos numéricamente
+  # integramos numericamente
   p_x <- integrate(prob_post, lower = 0, upper = 1, subdivisions = 100L)
   p_x
 #+end_src
@@ -216,7 +222,7 @@ inicial es $p(\theta) = 2\theta$ (~checa que es una densidad~).
 #+REVEAL: split
 Y ahora podemos calcular la media posterior:
 \begin{align}
-\mathbb{E}[\theta | S_n] = \int \theta \, \pi(\theta | S_n)\, \text{d}\theta\,.
+\mathbb{E}[\theta | S_n] = \int_{\Theta} \theta \, \pi(\theta | S_n)\, \text{d}\theta\,.
 \end{align}
 
 #+begin_src R
@@ -366,10 +372,13 @@ tamaño 2, el cual contiene un circulo de radio 1.
 #+end_src
 
 #+REVEAL: split
-#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+Si escogemos $N$ suficientemente grande entonces nuestro promedio converge a la
+integral. En [[fig-mc-rolling]] se muestra para cada $n$ en el eje horizontal cómo
+cambia nuestra estimación $\hat \pi_n^{\mathsf{MC}}(f)$ .
+
+#+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/dardos-consistencia.jpeg :exports results :results output graphics file
   set.seed(1087)
-
   genera_dardos(n = 2**16) %>% 
     mutate(n = seq(1, 2**16), 
            approx = cummean(resultado) * 4) %>% 
@@ -378,40 +387,222 @@ tamaño 2, el cual contiene un circulo de radio 1.
       geom_hline(yintercept = pi, linetype = 'dashed') + 
       scale_x_continuous(trans='log10', 
                          labels = trans_format("log10", math_format(10^.x))) + 
-    ylab('Aproximación') + xlab("Muestras") + sin_lineas
+    ylab('Aproximación') + xlab("Número de muestras") + sin_lineas
 
 #+end_src
-#+caption: Estimación $\pi_N^{\textsf{MC}}(f)$ con $N \rightarrow \infty$. 
+#+caption: Estimación $\hat{\pi}_N^{\textsf{MC}}(f)$ con $N \rightarrow \infty$.
+#+name: fig-mc-rolling
 #+RESULTS:
 [[file:../images/dardos-consistencia.jpeg]]
 
+#+REVEAL: split
+También podemos en replicar el experimento unas $M$ veces y observar cómo
+cambiaría nuestra estimación con distintas semillas. Por ejemplo, podemos
+replicar el experimento 10 veces. En ~R~ y ~python~ lo usual es utilizar ~arreglos
+multidimensionales~ para poder guardar muestras bajo distintas replicas.
+
+#+begin_src R :exports both :results org
+  set.seed(108)
+  nsamples <- 10**4; nexp <- 100
+  U <- runif(nexp * 2 * nsamples)
+  U <- array(U, dim = c(nexp, 2, nsamples))
+  apply(U[1:5,,], 1, str)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+ num [1:2, 1:10000] 0.4551 0.7159 0.164 0.0627 0.5291 ...
+ num [1:2, 1:10000] 0.404 0.2313 0.9282 0.0426 0.0883 ...
+ num [1:2, 1:10000] 0.351 0.739 0.449 0.658 0.369 ...
+ num [1:2, 1:10000] 0.664 0.984 0.627 0.762 0.185 ...
+ num [1:2, 1:10000] 0.4635 0.6107 0.0115 0.7251 0.0117 ...
+NULL
+#+end_src
+
+#+REVEAL: split
+#+begin_src R :exports code :results none
+  resultados <- apply(U, 1, function(x){
+    dardos <- apply(x**2, 2, sum)
+    exitos <- ifelse(dardos <= 1, 1, 0)
+    prop   <- cummean(exitos)
+    4 * prop
+  })
+#+end_src
+
+#+REVEAL: split
+Lo cual nos permite realizar distintos escenarios posibles. 
+#+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/dardos-trayectorias.jpeg :exports results :results output graphics file
+  resultados |>
+    as_data_frame() |>
+    mutate(n = 1:nsamples) |>
+    pivot_longer(cols = 1:10) |>
+    ggplot(aes(n, value)) +
+    geom_line(aes(group = name, color = name)) +
+    geom_hline(yintercept = pi, linetype = 'dashed') + 
+    scale_x_continuous(trans='log10', 
+                       labels = trans_format("log10", math_format(10^.x))) + 
+    ylab('Aproximación') + xlab("Número de muestras") + sin_lineas + sin_leyenda +
+    ylim(0, 7)
+#+end_src
+#+caption: Réplica de las trayectorias de diversas realizaciones de la aproximación de la integral.
+#+RESULTS:
+[[file:../images/dardos-trayectorias.jpeg]]
+
+#+REVEAL: split
+Bajo ciertas consideraciones teóricas podemos esperar un buen comportamiento de
+nuestro estimador de la integral. E incluso podríamos (si el número de
+simulaciones lo permite) aproximar dicho comportamiento utilizando
+distribuciones asintóticas, ($\mathsf{TLC}$).
+
+#+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/dardos-normalidad.jpeg :exports results :results output graphics file
+      resultados |>
+        as_data_frame() |>
+        mutate(n = 1:nsamples) |>
+        pivot_longer(cols = 1:nexp) |>
+        group_by(n) |>
+        summarise(promedio = mean(value),
+                  desv.est = sd(value),
+                  y.lo = promedio - 2 * desv.est,
+                  y.hi = promedio + 2 * desv.est) |>
+        ggplot(aes(n , promedio)) +
+        geom_ribbon(aes(ymin = y.lo, ymax = y.hi), fill = "gray", alpha = .3) +
+        geom_ribbon(aes(ymin = promedio - 2 * sqrt(pi * (4 - pi)/(n)),
+                        ymax = promedio + 2 * sqrt(pi * (4 - pi)/(n))),
+                    fill = "salmon", alpha = .1) +
+        geom_hline(yintercept = pi, linetype = 'dashed') + 
+        geom_line() +
+        scale_x_continuous(trans='log10', 
+                           labels = trans_format("log10", math_format(10^.x))) + 
+        ylab('Aproximación') + xlab("Número de muestras") + sin_lineas + sin_leyenda +
+      ylim(0, 7)
+#+end_src
+#+caption: Comportamiento promedio e intervalos de confianza. 
+#+RESULTS:
+[[file:../images/dardos-normalidad.jpeg]]
+
+#+REVEAL: split
+Podemos explicar la reducción de los intervalos de confianza por medio de la
+varianza de la estimación de la integral en las distintas réplicas que
+tenemos. Mas adelante explicaremos de dónde viene la línea punteada. Vemos cómo,
+aunque captura bien la reducción en varianza, puede sub- o sobre-estimarla.
+#+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/dardos-cota-cramerrao.jpeg :exports results :results output graphics file
+  resultados |>
+    as_data_frame() |>
+    mutate(n = 1:nsamples) |>
+    pivot_longer(cols = 1:nexp) |>
+    group_by(n) |>
+    summarise(varianza = var(value/4)) |>
+    mutate(cramer.rao = pi * (4 - pi)/(16 * n)) |>
+    ggplot(aes(n , varianza)) +
+    geom_line() +
+    geom_line(aes(n, cramer.rao), lty = 2, color = 'red') +
+    scale_y_continuous(trans='log10') +
+    scale_x_continuous(trans='log10', 
+                       labels = trans_format("log10", math_format(10^.x))) + 
+    ylab('Varianza') + xlab("Número de muestras") + sin_lineas + sin_leyenda
+#+end_src
+#+caption: Comportamiento promedio e intervalos de confianza. 
+#+RESULTS:
+[[file:../images/dardos-cota-cramerrao.jpeg]]
+
 ** Propiedades
 
-*Teorema (~Error Monte Carlo~).* Sea $f : \mathbb{R}^p \rightarrow \mathbb{R}$
-cualquier función bien comportada$^\dagger$.  Entonces, el estimador Monte Carlo es
-*insesgado*. Es decir, se satisface 
+A continuación enunciaremos algunas propiedades clave del método Monte
+Carlo. Poco a poco las iremos explicando y en particular discutiremos algunas de
+ellas.
+
+*** ~Teorema~ [Error Monte Carlo]
+Sea $f : \mathbb{R}^p \rightarrow \mathbb{R}$ cualquier función bien
+comportada$^\dagger$.  Entonces, el estimador Monte Carlo es *insesgado*. Es
+decir, se satisface
 
 \begin{align}
-\mathbb{E}\left[ \hat{\pi}_N^{\textsf{MC}}(f) - \pi(f)\right] = 0\,,
+\mathbb{E}\left[\hat  \pi_N^{\textsf{MC}}(f) - \pi(f)\right] = 0,
 \end{align}
 para cualquier $N$. Usualmente estudiamos el error en un escenario pesimista
 donde medimos el *error cuadrático medio* en el peor escenario
 
 \begin{align*}
-\sup_{f \in \mathcal{F}} \, \,  \mathbb{E}\left[ \left(\hat{\pi}_N^{\textsf{MC}}(f) - \pi(f) \right)^2 \right] \leq \frac1N\,.
+\sup_{f \in \mathcal{F}} \, \,  \mathbb{E}\left[ \left(\hat \pi_N^{\textsf{MC}}(f) - \pi(f) \right)^2 \right] \leq \frac1N.
 \end{align*}
+
+#+BEGIN_NOTES
+Esta desigualdad nos muestra una de las propiedades que usualmente se celebran
+de los métodos Monte Carlo. La integral y nuestra aproximación de ella por medio
+de simulaciones tiene un error acotado proporcionalmente por el número de
+simulaciones.
+#+END_NOTES
 
 #+REVEAL: split
 En particular, la varianza del estimador (*error estándar*) satisface la igualdad
 
-$$ \textsf{ee}^2\left(\hat{\pi}_N^{\textsf{MC}}(f)\right) = \frac{\mathbb{V}_\pi( f )}{N}\,.$$
+$$ \textsf{ee}^2\left(\hat \pi_N^{\textsf{MC}}(f)\right) = \frac{\mathbb{V}_\pi( f )}{N}.$$
+
+#+BEGIN_NOTES
+Esta igualdad, aunque consistente con nuestra desigualdad anterior, nos dice
+algo mas. El error de nuestra aproximación *depende* de la varianza de $f$ bajo la
+distribución $\pi$.
+#+END_NOTES
+
+*** ~Teorema~ [TLC para estimadores Monte Carlo]
+Sea $f$ una función *bien comportada* $^{\dagger\dagger}$, entonces bajo una $N$
+suficientemente grande tenemos
+\begin{align}
+\sqrt{N} \left(\hat \pi_N^{\textsf{MC}} (f) - \pi(f) \right) \sim \mathsf{N}\left(0, \mathbb{V}_\pi(f)\right)\,.
+\end{align}
+
+*** ~Nota~:
+El estimador Monte Carlo del que hablamos, $\hat \pi_{N}^{\mathsf{MC}}(f)$, es una estimación con una ~muestra finita de simulaciones~. En ese sentido podemos pensar que tenemos un /mapeo/ de muestras a estimador
+\begin{align}
+(x^{(1)}, \ldots, x^{(N)}) \mapsto  \hat \pi_N^{\mathsf{MC}}(f)\,,
+\end{align}
+con $x^{(i)} \overset{\mathsf{iid}}{\sim} \pi$ . 
 
 #+REVEAL: split
-*Teorema (~TLC para estimadores Monte Carlo~).* Sea $f$ una función *bien comportada*
-$^{\dagger\dagger}$, entonces bajo una $N$ suficientemente grande tenemos
+De lo cual es natural pensar: ¿y si hubiéramos observado otro conjunto de
+simulaciones? Nuestro proceso de estimación es el mismo pero la muestra puede
+cambiar.
+
+#+REVEAL: split
+En este sentido nos preguntamos por el ~comportamiento promedio~ bajo distintas
+muestras observadas
 \begin{align}
-\sqrt{N} \left(\hat{\pi}_N^{\textsf{MC}} (f) - \pi(f) \right) \sim \mathsf{N}\left(0, \mathbb{V}_\pi(f)\right)\,.
+\mathbb{E}[\hat \pi_N^{\mathsf{MC}}(f)] = \mathbb{E}_{x_{1}, \ldots, x_{N}}[\hat \pi_N^{\mathsf{MC}}(f)]\,.
 \end{align}
+De la misma manera nos podemos preguntar sobre la ~dispersión alrededor de dicho
+promedio~ (varianza)
+\begin{align}
+\mathbb{V}[\hat \pi_N^{\mathsf{MC}}(f)] = \mathbb{V}_{x_{1}, \ldots, x_{N}}[\hat \pi_N^{\mathsf{MC}}(f)]\,.
+\end{align}
+
+#+REVEAL: split
+Al ser un ejercicio de ~estimación~ la desviación estándar del estimador recibe el
+nombre de ~error estándar~. Lo cual denotamos por
+\begin{align}
+\mathsf{ee}[\hat \pi_N^{\mathsf{MC}}(f)] = \left( \mathbb{V}[\hat \pi_N^{\mathsf{MC}}(f)]  \right)^{1/2}= \left(  \frac{\mathbb{V}_\pi( f )}{N} \right)^{1/2}\,.
+\end{align}
+
+*** ~Nota~:
+Para algunos estimadores la fórmula del error estándar se puede obtener de
+manera analítica. Para otro tipo, tenemos que
+utilizar propiedades asintóticas (p.e. cota de Cramer-Rao).
+
+#+REVEAL: split
+Hay casos en los que no existe una fórmula asintótica o resultado analítico, pero
+podemos usar simulación [ ~8)~ ] para cuantificar dicha dispersión.
+
+*** ~Nota~:
+Hay situaciones en las que la distribución normal asintótica no tiene
+sentido. Para este tipo de situaciones también veremos cómo podemos utilizar
+simulación para cuantificar dicha dispersión.
+
+#+DOWNLOADED: screenshot @ 2022-08-29 19:52:47
+#+attr_html: :width 700 :align center
+#+caption: Comportamiento promedio e intervalos de confianza con aproximación asintótica.
+[[file:../images/dardos-normalidad.jpeg]]
 
 ** Ejemplo: Proporciones
 
@@ -421,9 +612,8 @@ $p(\theta) \propto \theta$, que es una $\mathsf{Beta}(2,1)$. Si observamos 3
 \theta^4(1-\theta)$, que es una $\mathsf{Beta}(5, 2)$. Si queremos calcular la
 media y el segundo momento posterior para $\theta$, en teoría necesitamos
 calcular
-
 \begin{align}
-\mu_1 = \int_0^1 \theta \,\, p(\theta|X = 3)\, \text{d}\theta,\qquad  \mu_2=\int_0^1 \theta^2 \,\, p(\theta|X = 3)\, \text{d}\theta.
+\mu_1 = \int_0^1 \theta \,\, p(\theta|X = 3)\, \text{d}\theta,\qquad  \mu_2=\int_0^1 \theta^2 \,\, p(\theta|X = 3)\, \text{d}\theta\,.
 \end{align}
 
 #+REVEAL: split

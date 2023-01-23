@@ -38,14 +38,14 @@ norm.cuadrature |>
   geom_area(data = norm.density, aes(x = x, y = y), fill = 'lightblue') + 
   geom_bar(stat="identity", alpha = .3) + 
   geom_bar(aes(x = x + grid.size/2, y = -0.01), fill = 'black', stat="identity") + 
-  sin_lineas + xlab('x') + ylab("density") + 
+  sin_lineas + xlab('') + ylab("") + 
   annotate('text', label = expression(Delta~u[n]),
            x = .01 + 5 * grid.size/2, y = -.02, size = 12) + 
   annotate('text', label = expression(f(u[n]) ),
            x = .01 + 9 * grid.size/2, y = dnorm(.01 + 4 * grid.size/2), size = 12) + 
   annotate('text', label = expression(f(u[n]) * Delta~u[n]), 
            x = .01 + 5 * grid.size/2, y = dnorm(.01 + 4 * grid.size/2)/2, 
-           angle = -90, alpha = .7, size = 12)
+           angle = -90, alpha = .7, size = 12) + sin_ejes
 
 grid.n          <- 101                 # Número de celdas 
 grid.size       <- 6/(grid.n+1)       # Tamaño de celdas en el intervalo [-3, 3]
@@ -56,14 +56,14 @@ norm.cuadrature |>
     geom_area(data = norm.density, aes(x = x, y = y), fill = 'lightblue') + 
     geom_bar(stat="identity", alpha = .3) + 
     geom_bar(aes(x = x + grid.size/2, y = -0.01), fill = 'black', stat="identity") + 
-    sin_lineas + xlab('x') + ylab("density") + 
+    sin_lineas + xlab('') + ylab("") + 
     annotate('text', label = expression(Delta~u[n]),
              x = .01 + 5 * grid.size/2, y = -.02, size = 12) + 
     annotate('text', label = expression(f(u[n]) ),
              x = .01 + 9 * grid.size/2, y = dnorm(.01 + 4 * grid.size/2), size = 12) + 
     annotate('text', label = expression(f(u[n]) * Delta~u[n]), 
              x = .01 + 5 * grid.size/2, y = dnorm(.01 + 4 * grid.size/2)/2, 
-             angle = -90, alpha = .7, size = 12)
+             angle = -90, alpha = .7, size = 12) + sin_ejes
 
 crear_log_post <- function(n, k){
   function(theta){
@@ -73,10 +73,10 @@ crear_log_post <- function(n, k){
   }
 }
 
-# observamos 3 éxitos en 4 pruebas:
+# observamos 3 exitos en 4 pruebas:
 log_post <- crear_log_post(4, 3)
 prob_post <- function(x) { exp(log_post(x))}
-# integramos numéricamente
+# integramos numericamente
 p_x <- integrate(prob_post, lower = 0, upper = 1, subdivisions = 100L)
 p_x
 
@@ -158,7 +158,6 @@ dardos |>
   summarise(aprox = 4 * mean(resultado))
 
 set.seed(1087)
-
 genera_dardos(n = 2**16) %>% 
   mutate(n = seq(1, 2**16), 
          approx = cummean(resultado) * 4) %>% 
@@ -167,7 +166,68 @@ genera_dardos(n = 2**16) %>%
     geom_hline(yintercept = pi, linetype = 'dashed') + 
     scale_x_continuous(trans='log10', 
                        labels = trans_format("log10", math_format(10^.x))) + 
-  ylab('Aproximación') + xlab("Muestras") + sin_lineas
+  ylab('Aproximación') + xlab("Número de muestras") + sin_lineas
+
+set.seed(108)
+nsamples <- 10**4; nexp <- 100
+U <- runif(nexp * 2 * nsamples)
+U <- array(U, dim = c(nexp, 2, nsamples))
+apply(U[1:5,,], 1, str)
+
+resultados <- apply(U, 1, function(x){
+  dardos <- apply(x**2, 2, sum)
+  exitos <- ifelse(dardos <= 1, 1, 0)
+  prop   <- cummean(exitos)
+  4 * prop
+})
+
+resultados |>
+  as_data_frame() |>
+  mutate(n = 1:nsamples) |>
+  pivot_longer(cols = 1:10) |>
+  ggplot(aes(n, value)) +
+  geom_line(aes(group = name, color = name)) +
+  geom_hline(yintercept = pi, linetype = 'dashed') + 
+  scale_x_continuous(trans='log10', 
+                     labels = trans_format("log10", math_format(10^.x))) + 
+  ylab('Aproximación') + xlab("Número de muestras") + sin_lineas + sin_leyenda +
+  ylim(0, 7)
+
+resultados |>
+  as_data_frame() |>
+  mutate(n = 1:nsamples) |>
+  pivot_longer(cols = 1:nexp) |>
+  group_by(n) |>
+  summarise(promedio = mean(value),
+            desv.est = sd(value),
+            y.lo = promedio - 2 * desv.est,
+            y.hi = promedio + 2 * desv.est) |>
+  ggplot(aes(n , promedio)) +
+  geom_ribbon(aes(ymin = y.lo, ymax = y.hi), fill = "gray", alpha = .3) +
+  geom_ribbon(aes(ymin = promedio - 2 * sqrt(pi * (4 - pi)/(n)),
+                  ymax = promedio + 2 * sqrt(pi * (4 - pi)/(n))),
+              fill = "salmon", alpha = .1) +
+  geom_hline(yintercept = pi, linetype = 'dashed') + 
+  geom_line() +
+  scale_x_continuous(trans='log10', 
+                     labels = trans_format("log10", math_format(10^.x))) + 
+  ylab('Aproximación') + xlab("Número de muestras") + sin_lineas + sin_leyenda +
+ylim(0, 7)
+
+resultados |>
+  as_data_frame() |>
+  mutate(n = 1:nsamples) |>
+  pivot_longer(cols = 1:nexp) |>
+  group_by(n) |>
+  summarise(varianza = var(value/4)) |>
+  mutate(cramer.rao = pi * (4 - pi)/(16 * n)) |>
+  ggplot(aes(n , varianza)) +
+  geom_line() +
+  geom_line(aes(n, cramer.rao), lty = 2, color = 'red') +
+  scale_y_continuous(trans='log10') +
+  scale_x_continuous(trans='log10', 
+                     labels = trans_format("log10", math_format(10^.x))) + 
+  ylab('Varianza') + xlab("Número de muestras") + sin_lineas + sin_leyenda
 
 ### Ejemplo proporciones ------------------
 
