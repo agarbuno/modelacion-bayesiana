@@ -244,7 +244,6 @@ El método útil cuando las integrales se realizan cuando tenemos pocos parámet
 #+end_src
 
 #+begin_src R :exports none :results none
-  ## Setup --------------------------------------------
   library(tidyverse)
   library(patchwork)
   library(scales)

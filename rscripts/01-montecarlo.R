@@ -1,3 +1,68 @@
+distancia_euclideana <- function(u) sqrt(sum(u * u));
+
+experimento <- function(ndim){
+  nsamples <- 1e5; 
+  y <- matrix(runif(nsamples * ndim, -0.5, 0.5), nsamples, ndim);
+  mean(apply(y, 1, distancia_euclideana) < 0.5)
+}
+
+tibble(dims = 1:10) |>
+  mutate(prob = map_dbl(dims, experimento)) |>
+  ggplot(aes(dims, prob)) +
+  geom_point() +
+  geom_line() +
+  sin_lineas +
+  scale_x_continuous(breaks=c(1, 3, 5, 7, 9)) +
+xlab("Número de dimensiones") +
+ylab("Volumen relativo")
+
+chi.pdf <- function(x, d) {
+  x^(d - 1) * exp(-x^2/2) / (2^(d/2 - 1) * gamma(d/2))
+}
+
+puntos.grafica <- tibble(dims = c(1, 5, 10, 25, 50, 100)) |>
+  mutate(points = map(dims, function(dim){
+    tibble(x = seq(0, 15, length.out = 1000)) |>
+      mutate(y = chi.pdf(x, dim))
+  }), dimensions = factor(dims))
+
+puntos.grafica |>
+  unnest(points) |>
+  ggplot(aes(x, y, group = dimensions, color = dimensions)) +
+  geom_line() + sin_leyenda + 
+  sin_lineas + xlab("Número de dimensiones") +
+  ylab("Densidad")
+
+tibble(dim = 2**seq(0, 8)) |>
+  mutate(.centro = sqrt(qchisq(.50, dim)),
+         .lower = sqrt(qchisq(.025, dim)),
+         .upper = sqrt(qchisq(.975, dim))) |>
+ggplot(aes(dim, .centro)) +
+geom_ribbon(aes(ymin = .lower, ymax = .upper), alpha = .3, fill = "gray") + 
+geom_line() + geom_point() + sin_lineas +
+scale_x_log10() +
+ylab("Distancia euclideana al centro") +
+xlab("Número de dimensiones")
+
+tibble(dim = 2**seq(0, 8)) |>
+  mutate(.resultados  = map(dim, function(ndim){
+           x <- unlist(purrr::rerun(10000, sum(dnorm(rnorm(ndim),log = TRUE))))
+           tibble(x = x) |>
+             summarise(.densidad_tip = mean(x),
+                       .lower_densidad = quantile(x, .025),
+                       .upper_densidad = quantile(x, .975),
+                       .densidad_moda = sum(dnorm(rep(0, ndim), log = TRUE)))
+         })) |>
+  unnest(.resultados) |>
+  ggplot(aes(dim, .densidad_tip)) +
+  geom_line(aes(y = .densidad_moda), col = 'red') +
+  geom_point(aes(y = .densidad_moda), col = 'red') + 
+  geom_ribbon(aes(ymin = .lower_densidad, ymax = .upper_densidad), alpha = .3, fill = "gray") + 
+  geom_line() + geom_point() + sin_lineas +
+  scale_x_log10() +
+  ylab("log-Densidad") +
+  xlab("Número de dimensiones")
+
 ## Setup --------------------------------------------------
 
 ## Setup --------------------------------------------
