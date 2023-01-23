@@ -2,6 +2,7 @@
 #+AUTHOR: Prof. Alfredo Garbuno Iñigo
 #+EMAIL:  agarbuno@itam.mx
 #+DATE: ~Introducción~
+#+STARTUP: showall
 :REVEAL_PROPERTIES:
 # Template uses org export with export option <R B>
 # Alternatives: use with citeproc
@@ -16,7 +17,6 @@
 #+REVEAL_PLUGINS: (notes)
 :END:
 #+PROPERTY: header-args:R :session intro :exports both :results output org :tangle ../rscripts/00-intro.R :mkdirp yes :dir ../
-#+STARTUP: showall
 #+EXCLUDE_TAGS: toc
 
 #+BEGIN_NOTES
