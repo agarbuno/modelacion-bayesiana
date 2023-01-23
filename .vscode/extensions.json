@@ -1,0 +1,10 @@
+{
+    "recommendations": [
+        "REditorSupport.r",
+        "tomoki1207.pdf",
+        "christian-kohler.path-intellisense",
+        "ms-vscode-remote.remote-containers",
+        "ms-azuretools.vscode-docker",
+        "ivan-bocharov.stan-vscode"
+    ]
+}
