@@ -44,7 +44,7 @@ COPY renv.lock renv.lock
 COPY .Rprofile .Rprofile
 COPY renv/activate.R renv/activate.R
 COPY renv/settings.dcf renv/settings.dcf
-RUN install2.r --error rmarkdown httpgd languageserver
+RUN install2.r --error rmarkdown languageserver
 
 WORKDIR /home/.cmdstan
 
