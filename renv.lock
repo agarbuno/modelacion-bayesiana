@@ -1033,15 +1033,20 @@
     },
     "httpgd": {
       "Package": "httpgd",
-      "Version": "1.3.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "81bb9c5c74fbe3ded849845e9a31bfd3",
+      "Version": "2.0.0.9000",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "nx10",
+      "RemoteRepo": "httpgd",
+      "RemoteRef": "master",
+      "RemoteSha": "d8869ac7fe48616caa4e58a7828b380be5434e3a",
+      "Remotes": "github::nx10/unigd",
+      "Hash": "85c91ff49c26e1d35a43fafc81e1ceae",
       "Requirements": [
         "BH",
         "cpp11",
-        "later",
-        "systemfonts"
+        "unigd"
       ]
     },
     "httpuv": {
@@ -2316,6 +2321,22 @@
       "Hash": "b2e1cbce7c903eaf23ec05c58e59fb5e",
       "Requirements": [
         "cpp11"
+      ]
+    },
+    "unigd": {
+      "Package": "unigd",
+      "Version": "0.1.0.9000",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "nx10",
+      "RemoteRepo": "unigd",
+      "RemoteRef": "master",
+      "RemoteSha": "491cd471564f55627386d849d81e408aa03c00de",
+      "Hash": "4d8b07053681e86df9062e553a0fb9f4",
+      "Requirements": [
+        "cpp11",
+        "systemfonts"
       ]
     },
     "utf8": {
