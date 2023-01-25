@@ -9,6 +9,7 @@
 #+LANGUAGE: es
 #+OPTIONS: num:nil toc:nil timestamp:nil
 #+REVEAL_REVEAL_JS_VERSION: 4
+#+REVEAL_MATHJAX_URL: https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 #+REVEAL_THEME: night
 #+REVEAL_SLIDE_NUMBER: t
 #+REVEAL_HEAD_PREAMBLE: <meta name="description" content="Modelación Bayesiana">

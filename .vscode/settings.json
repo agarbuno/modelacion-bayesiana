@@ -12,5 +12,5 @@
     "editor.renderWhitespace": "none",
     "diffEditor.ignoreTrimWhitespace": false,
     "editor.minimap.enabled": false,
-    "r.plot.useHttpgd": false,
+    "r.plot.useHttpgd": true,
 }
