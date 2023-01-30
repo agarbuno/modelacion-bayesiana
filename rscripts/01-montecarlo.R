@@ -1,3 +1,27 @@
+## Setup --------------------------------------------------
+
+library(tidyverse)
+library(patchwork)
+library(scales)
+
+## Cambia el default del tamaño de fuente 
+theme_set(theme_linedraw(base_size = 25))
+
+## Cambia el número de decimales para mostrar
+options(digits = 4)
+## Problemas con mi consola en Emacs
+options(pillar.subtle = FALSE)
+options(rlang_backtrace_on_error = "none")
+options(crayon.enabled = FALSE)
+
+## Para el tema de ggplot
+sin_lineas <- theme(panel.grid.major = element_blank(),
+                    panel.grid.minor = element_blank())
+color.itam  <- c("#00362b","#004a3b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f", NA)
+
+sin_leyenda <- theme(legend.position = "none")
+sin_ejes <- theme(axis.ticks = element_blank(), axis.text = element_blank())
+
 distancia_euclideana <- function(u) sqrt(sum(u * u));
 
 experimento <- function(ndim){
@@ -62,31 +86,6 @@ tibble(dim = 2**seq(0, 8)) |>
   scale_x_log10() +
   ylab("log-Densidad") +
   xlab("Número de dimensiones")
-
-## Setup --------------------------------------------------
-
-## Setup --------------------------------------------
-library(tidyverse)
-library(patchwork)
-library(scales)
-
-## Cambia el default del tamaño de fuente 
-theme_set(theme_linedraw(base_size = 25))
-
-## Cambia el número de decimales para mostrar
-options(digits = 4)
-## Problemas con mi consola en Emacs
-options(pillar.subtle = FALSE)
-options(rlang_backtrace_on_error = "none")
-options(crayon.enabled = FALSE)
-
-## Para el tema de ggplot
-sin_lineas <- theme(panel.grid.major = element_blank(),
-                    panel.grid.minor = element_blank())
-color.itam  <- c("#00362b","#004a3b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f", NA)
-
-sin_leyenda <- theme(legend.position = "none")
-sin_ejes <- theme(axis.ticks = element_blank(), axis.text = element_blank())
 
 ## Ejemplo de integracion numerica -----------------------
 
@@ -204,15 +203,15 @@ g1 + g2 + g3
 ## Integración Monte Carlo ----------------------------------- 
 genera_dardos <- function(n = 100){
     tibble(x1 = runif(n, min = -1, max = 1), 
-           x2 = runif(n, min = -1, max = 1)) %>% 
+           x2 = runif(n, min = -1, max = 1)) |> 
       mutate(resultado = ifelse(x1**2 + x2**2 <= 1., 1., 0.))
   }
 
-  dardos <- tibble(n = seq(2,5)) %>% 
-    mutate(datos = map(10**n, genera_dardos)) %>% 
+  dardos <- tibble(n = seq(2,5)) |> 
+    mutate(datos = map(10**n, genera_dardos)) |> 
     unnest() 
 
-  dardos %>% 
+  dardos |> 
     ggplot(aes(x = x1, y = x2)) + 
       geom_point(aes(color = factor(resultado))) + 
       facet_wrap(~n, nrow = 1) +  
@@ -223,9 +222,9 @@ dardos |>
   summarise(aprox = 4 * mean(resultado))
 
 set.seed(1087)
-genera_dardos(n = 2**16) %>% 
+genera_dardos(n = 2**16) |> 
   mutate(n = seq(1, 2**16), 
-         approx = cummean(resultado) * 4) %>% 
+         approx = cummean(resultado) * 4) |> 
   ggplot(aes(x = n, y = approx)) + 
     geom_line() + 
     geom_hline(yintercept = pi, linetype = 'dashed') + 
@@ -307,7 +306,7 @@ mean(exp(theta) > 2)
 
 datos <- tibble(
   sabor = c("fresa", "limon", "mango", "guanabana"),
-  n = c(50, 45, 51, 50), gusto = c(36, 35, 42, 29)) %>% 
+  n = c(50, 45, 51, 50), gusto = c(36, 35, 42, 29)) |> 
   mutate(prop_gust = gusto / n)
 
 datos

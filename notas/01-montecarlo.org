@@ -2,7 +2,6 @@
 #+AUTHOR: Prof. Alfredo Garbuno Iñigo
 #+EMAIL:  agarbuno@itam.mx
 #+DATE: ~Integración Monte Carlo~
-#+STARTUP: showall
 :REVEAL_PROPERTIES:
 # Template uses org export with export option <R B>
 # Alternatives: use with citeproc
@@ -30,6 +29,35 @@
  citet:Reich2015. Y una buena referencia (técnica) sobre el método Monte Carlo
  lo encuentran en citet:Sanz-Alonso2019.
 #+END_NOTES
+
+#+begin_src R :exports none :results none
+  ## Setup --------------------------------------------------
+#+end_src
+
+#+begin_src R :exports none :results none
+  library(tidyverse)
+  library(patchwork)
+  library(scales)
+
+  ## Cambia el default del tamaño de fuente 
+  theme_set(theme_linedraw(base_size = 25))
+
+  ## Cambia el número de decimales para mostrar
+  options(digits = 4)
+  ## Problemas con mi consola en Emacs
+  options(pillar.subtle = FALSE)
+  options(rlang_backtrace_on_error = "none")
+  options(crayon.enabled = FALSE)
+
+  ## Para el tema de ggplot
+  sin_lineas <- theme(panel.grid.major = element_blank(),
+                      panel.grid.minor = element_blank())
+  color.itam  <- c("#00362b","#004a3b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f", NA)
+
+  sin_leyenda <- theme(legend.position = "none")
+  sin_ejes <- theme(axis.ticks = element_blank(), axis.text = element_blank())
+#+end_src
+
 
 * Contenido                                                             :toc:
 :PROPERTIES:
@@ -227,34 +255,7 @@ $$\sum_{n=1}^N f(u_n) \Delta u_n.$$
 El método útil cuando las integrales se realizan cuando tenemos pocos parámetros. Es decir, $\theta \in \mathbb{R}^p$ con $p$ pequeña. 
 #+END_NOTES
 
-
 #+begin_src R :exports none :results none
-  ## Setup --------------------------------------------------
-#+end_src
-
-#+begin_src R :exports none :results none
-  library(tidyverse)
-  library(patchwork)
-  library(scales)
-
-  ## Cambia el default del tamaño de fuente 
-  theme_set(theme_linedraw(base_size = 25))
-
-  ## Cambia el número de decimales para mostrar
-  options(digits = 4)
-  ## Problemas con mi consola en Emacs
-  options(pillar.subtle = FALSE)
-  options(rlang_backtrace_on_error = "none")
-  options(crayon.enabled = FALSE)
-
-  ## Para el tema de ggplot
-  sin_lineas <- theme(panel.grid.major = element_blank(),
-                      panel.grid.minor = element_blank())
-  color.itam  <- c("#00362b","#004a3b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f", NA)
-
-  sin_leyenda <- theme(legend.position = "none")
-  sin_ejes <- theme(axis.ticks = element_blank(), axis.text = element_blank())
-
   ## Ejemplo de integracion numerica -----------------------
 
   grid.n          <- 11                 # Número de celdas 
@@ -463,15 +464,15 @@ tamaño 2, el cual contiene un circulo de radio 1.
   ## Integración Monte Carlo ----------------------------------- 
   genera_dardos <- function(n = 100){
       tibble(x1 = runif(n, min = -1, max = 1), 
-             x2 = runif(n, min = -1, max = 1)) %>% 
+             x2 = runif(n, min = -1, max = 1)) |> 
         mutate(resultado = ifelse(x1**2 + x2**2 <= 1., 1., 0.))
     }
 
-    dardos <- tibble(n = seq(2,5)) %>% 
-      mutate(datos = map(10**n, genera_dardos)) %>% 
+    dardos <- tibble(n = seq(2,5)) |> 
+      mutate(datos = map(10**n, genera_dardos)) |> 
       unnest() 
 
-    dardos %>% 
+    dardos |> 
       ggplot(aes(x = x1, y = x2)) + 
         geom_point(aes(color = factor(resultado))) + 
         facet_wrap(~n, nrow = 1) +  
@@ -504,9 +505,9 @@ cambia nuestra estimación $\hat \pi_n^{\mathsf{MC}}(f)$ .
 #+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/dardos-consistencia.jpeg :exports results :results output graphics file
   set.seed(1087)
-  genera_dardos(n = 2**16) %>% 
+  genera_dardos(n = 2**16) |> 
     mutate(n = seq(1, 2**16), 
-           approx = cummean(resultado) * 4) %>% 
+           approx = cummean(resultado) * 4) |> 
     ggplot(aes(x = n, y = approx)) + 
       geom_line() + 
       geom_hline(yintercept = pi, linetype = 'dashed') + 
@@ -787,7 +788,7 @@ resultados:
 #+begin_src R :exports results
   datos <- tibble(
     sabor = c("fresa", "limon", "mango", "guanabana"),
-    n = c(50, 45, 51, 50), gusto = c(36, 35, 42, 29)) %>% 
+    n = c(50, 45, 51, 50), gusto = c(36, 35, 42, 29)) |> 
     mutate(prop_gust = gusto / n)
 
   datos 
