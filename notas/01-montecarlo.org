@@ -111,6 +111,10 @@ Lo que necesitamos es resolver integrales con respecto a la distribución de int
 Consideremos de interés estimar la proporción de volumen de la hiper-esfera
 contenida en un hiper-cubo unitario conforme aumenta la dimensión del problema.
 
+#+begin_src R :exports none :results none
+  ## Maldición de la dimensionalidad -------------------------------------------
+#+end_src
+
 #+begin_src R :exports code :results none
   distancia_euclideana <- function(u) sqrt(sum(u * u));
 
@@ -256,7 +260,7 @@ El método útil cuando las integrales se realizan cuando tenemos pocos parámet
 #+END_NOTES
 
 #+begin_src R :exports none :results none
-  ## Ejemplo de integracion numerica -----------------------
+  ## Ejemplo de integracion numerica -------------------------------------------
 
   grid.n          <- 11                 # Número de celdas 
   grid.size       <- 6/(grid.n+1)       # Tamaño de celdas en el intervalo [-3, 3]
@@ -461,7 +465,7 @@ tamaño 2, el cual contiene un circulo de radio 1.
 
 #+HEADER: :width 1100 :height 300 :R-dev-args bg="transparent"
 #+begin_src R :file images/dardos-montecarlo.jpeg :exports results :results output graphics file
-  ## Integración Monte Carlo ----------------------------------- 
+  ## Integración Monte Carlo ---------------------------------------------------
   genera_dardos <- function(n = 100){
       tibble(x1 = runif(n, min = -1, max = 1), 
              x2 = runif(n, min = -1, max = 1)) |> 
@@ -743,7 +747,7 @@ calcular
 
 #+REVEAL: split
 #+begin_src R :exports none :results none
-  ### Ejemplo proporciones ------------------ 
+  ### Ejemplo proporciones -----------------------------------------------------
 #+end_src
 
 Utilizando el ~método Monte Carlo~: 
@@ -782,7 +786,7 @@ paleta. Usamos 4 muestras de aproximadamente 50 personas diferentes para cada
 sabor, y cada uno evalúa si le gustó mucho o no. Obtenemos los siguientes
 resultados:
 #+begin_src R :exports none :results none
-  ### Ejemplo helados ------------------------- 
+  ### Ejemplo helados ---------------------------------------------------------- 
 #+end_src
 
 #+begin_src R :exports results

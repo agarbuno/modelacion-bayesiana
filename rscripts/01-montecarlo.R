@@ -22,6 +22,8 @@ color.itam  <- c("#00362b","#004a3b", "#00503f", "#006953", "#008367", "#009c7b"
 sin_leyenda <- theme(legend.position = "none")
 sin_ejes <- theme(axis.ticks = element_blank(), axis.text = element_blank())
 
+## Maldición de la dimensionalidad -------------------------------------------
+
 distancia_euclideana <- function(u) sqrt(sum(u * u));
 
 experimento <- function(ndim){
@@ -87,7 +89,7 @@ tibble(dim = 2**seq(0, 8)) |>
   ylab("log-Densidad") +
   xlab("Número de dimensiones")
 
-## Ejemplo de integracion numerica -----------------------
+## Ejemplo de integracion numerica -------------------------------------------
 
 grid.n          <- 11                 # Número de celdas 
 grid.size       <- 6/(grid.n+1)       # Tamaño de celdas en el intervalo [-3, 3]
@@ -200,7 +202,7 @@ g3 <- canvas +
 
 g1 + g2 + g3
 
-## Integración Monte Carlo ----------------------------------- 
+## Integración Monte Carlo ---------------------------------------------------
 genera_dardos <- function(n = 100){
     tibble(x1 = runif(n, min = -1, max = 1), 
            x2 = runif(n, min = -1, max = 1)) |> 
@@ -293,7 +295,7 @@ resultados |>
                      labels = trans_format("log10", math_format(10^.x))) + 
   ylab('Varianza') + xlab("Número de muestras") + sin_lineas + sin_leyenda
 
-### Ejemplo proporciones ------------------
+### Ejemplo proporciones -----------------------------------------------------
 
 theta <- rbeta(10000, 5, 2)
 media_post <- mean(theta)
@@ -302,7 +304,7 @@ c(mu_1 = media_post, mu_2 = momento_2_post)
 
 mean(exp(theta) > 2)
 
-### Ejemplo helados -------------------------
+### Ejemplo helados ----------------------------------------------------------
 
 datos <- tibble(
   sabor = c("fresa", "limon", "mango", "guanabana"),
