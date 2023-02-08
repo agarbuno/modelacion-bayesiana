@@ -44,7 +44,7 @@
 - [[#introducción][Introducción]]
 - [[#muestreo-por-aceptación-rechazo][Muestreo por aceptación rechazo]]
   - [[#implementación][Implementación]]
-    - [[#disclaimer][Disclaimer]]
+    - [[#disclaimer][Disclaimer:]]
     - [[#implementación-de-una-distribución-de-muestreo][Implementación de una distribución de muestreo.]]
     - [[#ejercicio][Ejercicio:]]
   - [[#propiedades][Propiedades]]
@@ -160,7 +160,7 @@ muestreo.
   M        <- 3.3
 #+end_src
 
-*** /Disclaimer/
+*** /Disclaimer/:
 :PROPERTIES:
 :reveal_background: #00468b
 :END:
@@ -793,17 +793,17 @@ $\mathsf{N}(\theta_t, \sigma^2)$.
               tasa.aceptacion = mean(accept)) |>
     rbind(tibble(configuracion = "Teorica",
                  media = objetivo$shape/objetivo$rate,
-                 tasa.aceptacion = NA)) |>
-    as.data.frame()
+                 tasa.aceptacion = NA))
 #+end_src
 
 #+RESULTS:
 #+begin_src org
-  configuracion media tasa.aceptacion
-1    Paso chico 0.086          0.9440
-2   Paso grande 0.309          0.0067
-3    Paso justo 0.197          0.4633
-4       Teorica 0.200              NA
+# A tibble: 3 × 3
+  configuracion  media tasa.aceptacion
+  <chr>          <dbl>           <dbl>
+1 Paso chico    0.0863         0.944  
+2 Paso grande   0.309          0.00667
+3 Paso justo    0.197          0.463
 #+end_src
 
 #+REVEAL: split
