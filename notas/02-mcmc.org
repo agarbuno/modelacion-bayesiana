@@ -3,25 +3,36 @@
 #+EMAIL:  agarbuno@itam.mx
 #+DATE: ~MCMC~  
 #+STARTUP: showall
-:REVEAL_PROPERTIES:
-#+LANGUAGE: es
-#+OPTIONS: num:nil toc:nil timestamp:nil
-#+REVEAL_REVEAL_JS_VERSION: 4
-#+REVEAL_THEME: night
-#+REVEAL_SLIDE_NUMBER: t
-#+REVEAL_HEAD_PREAMBLE: <meta name="description" content="Modelación Bayesiana">
-#+REVEAL_INIT_OPTIONS: width:1600, height:900, margin:.2
-#+REVEAL_EXTRA_CSS: ./mods.css
-#+REVEAL_PLUGINS: (notes)
+:LATEX_PROPERTIES:
+#+OPTIONS: toc:nil date:nil author:nil tasks:nil
+#+LANGUAGE: sp
+#+LATEX_CLASS: handout
+#+LATEX_HEADER: \usepackage[spanish]{babel}
+#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
+#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
+#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
+#+LATEX_HEADER: \decimalpoint
+#+LATEX_HEADER:\usepackage{framed}
+#+LaTeX_HEADER: \usepackage{listings}
+#+LATEX_HEADER: \usepackage{fancyvrb}
+#+LATEX_HEADER: \usepackage{xcolor}
+#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
+#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
+#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
+#+LaTeX_HEADER: {}
+#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
+#+LaTeX_HEADER: {}
+#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
+#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
+#+EXPORT_FILE_NAME: ../docs/02-mcmc.pdf
 :END:
 #+PROPERTY: header-args:R :session mcmc :exports both :results output org :tangle ../rscripts/02-mcmc.R :mkdirp yes :dir ../
 #+EXCLUDE_TAGS: toc latex
 
-
 #+BEGIN_NOTES
-*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | MCMC.\\
+*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2023 | MCMC.\\
 *Objetivo*. Estudiar el método general de integración Monte Carlo vía cadenas de Markov (MCMC). La estrategia será construir poco a poco utilizando los principios básicos que lo componen. \\
-*Lectura recomendada*: Capítulo 7 de citep:Dogucu2021. Sección 6 de [[citep:Sanz-Alonso2019]] y Capítulo 3 de citep:Reich2015 (avanzado). Si te interesa saber mas sobre programación orientada a objetos dentro del contexto de ~R~ puedes consultar citep:Wickham2019. 
+*Lectura recomendada*: Capítulo 7 de citep:Dogucu2021. Sección 6 de citep:Sanz-Alonso2019 y Capítulo 3 de citep:Reich2015 (avanzado). Si te interesa saber mas sobre programación orientada a objetos dentro del contexto de ~R~ puedes consultar citep:Wickham2019. 
 #+END_NOTES
 
 
@@ -30,7 +41,7 @@
 :TOC:      :include all  :ignore this :depth 3
 :END:
 :CONTENTS:
-- [[#introduccion][Introduccion]]
+- [[#introducción][Introducción]]
 - [[#muestreo-por-aceptación-rechazo][Muestreo por aceptación rechazo]]
   - [[#implementación][Implementación]]
     - [[#disclaimer][Disclaimer]]
@@ -54,35 +65,34 @@
   - [[#distribución-propuesta][Distribución propuesta]]
 - [[#en-más-dimensiones][En más dimensiones]]
 - [[#por-qué-funciona][¿Por qué funciona?]]
-- [[#referencias][Referencias]]
 :END:
 
-
-
-* Introduccion
+* Introducción
 
 #+begin_src R :exports none :results none
-
   ## Setup --------------------------------------------
   library(tidyverse)
   library(patchwork)
   library(scales)
+
   ## Cambia el default del tamaño de fuente 
-  theme_set(theme_linedraw(base_size = 15))
+  theme_set(theme_linedraw(base_size = 25))
 
   ## Cambia el número de decimales para mostrar
-  options(digits = 2)
+  options(digits = 4)
+  ## Problemas con mi consola en Emacs
+  options(pillar.subtle = FALSE)
+  options(rlang_backtrace_on_error = "none")
+  options(crayon.enabled = FALSE)
 
+  ## Para el tema de ggplot
   sin_lineas <- theme(panel.grid.major = element_blank(),
                       panel.grid.minor = element_blank())
   color.itam  <- c("#00362b","#004a3b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f", NA)
 
-  sin_lineas <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
   sin_leyenda <- theme(legend.position = "none")
   sin_ejes <- theme(axis.ticks = element_blank(), axis.text = element_blank())
-
-  #+end_src
-
+#+end_src
 
 El interés es poder resolver
 \begin{align}
@@ -94,7 +104,6 @@ Sin embargo, ~no podemos generar~ $\theta^{(i)} \overset{\mathsf{iid}}{\sim} \pi
 * Muestreo por aceptación rechazo
 
 Podemos utilizar una versión estocástica de muestreo por importancia.
-
 
 #+BEGIN_NOTES
 Para muestrear de $\pi$ necesitamos utilizar una distribución sustituto (lo
@@ -294,7 +303,7 @@ se llama una *cadena de Markov* en tiempo discreto.
 #+DOWNLOADED: screenshot @ 2022-02-03 12:21:07
 #+caption: Problema del café. 
 #+attr_html: :width 700 :align center
-[[file:images/20220203-122107_screenshot.png]]
+[[file:images/20221031-163123_screenshot.png]]
 
 #+REVEAL: split
 El vendedor de galletas quiere satisfacer la demanda para acompañar un café. El vendedor:
@@ -688,7 +697,7 @@ $\mathsf{N}(\theta_t, \sigma^2)$.
 
 
 #+REVEAL: split
-#+HEADER: :width 700 :height 300 :R-dev-args bg="transparent"
+#+HEADER: :width 1200 :height 300 :R-dev-args bg="transparent"
 #+begin_src R :file images/mh-pasochico.jpeg :exports results :results output graphics file
   set.seed(108727)
   objetivo <- ModeloGamma$new(a = 20, b = 100)
@@ -715,7 +724,7 @@ $\mathsf{N}(\theta_t, \sigma^2)$.
 [[file:../images/mh-pasochico.jpeg]]
 
 #+REVEAL: split
-#+HEADER: :width 700 :height 300 :R-dev-args bg="transparent"
+#+HEADER: :width 1200 :height 300 :R-dev-args bg="transparent"
 #+begin_src R :file images/mh-pasogrande.jpeg :exports results :results output graphics file
   set.seed(108727)
   muestreo <- ModeloNormal$new(sd = 20)
@@ -741,7 +750,7 @@ $\mathsf{N}(\theta_t, \sigma^2)$.
 [[file:../images/mh-pasogrande.jpeg]]
 
 #+REVEAL: split
-#+HEADER: :width 700 :height 300 :R-dev-args bg="transparent"
+#+HEADER: :width 1200 :height 300 :R-dev-args bg="transparent"
 #+begin_src R :file images/mh-pasojusto.jpeg :exports results :results output graphics file
   set.seed(108727)
   muestreo <- ModeloNormal$new(sd = 0.1)
@@ -795,7 +804,7 @@ $\mathsf{N}(\theta_t, \sigma^2)$.
 #+end_src
 
 #+REVEAL: split
-#+HEADER: :width 700 :height 300 :R-dev-args bg="transparent"
+#+HEADER: :width 1200 :height 300 :R-dev-args bg="transparent"
 #+begin_src R :file images/mh-largoplazo.jpeg :exports results :results output graphics file :eval never
   set.seed(108727)
 
@@ -1083,11 +1092,7 @@ busca las zonas de alta densidad. Tal como el vendedor ambulante prefería de
 manera consistente las islas mas grandes.
 #+END_NOTES
 
-* Referencias                                                         :latex:
-
 bibliographystyle:abbrvnat
 bibliography:references.bib
 
-
- 
 
