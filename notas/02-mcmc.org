@@ -46,25 +46,25 @@
   - [[#implementación][Implementación]]
     - [[#disclaimer][Disclaimer]]
     - [[#implementación-de-una-distribución-de-muestreo][Implementación de una distribución de muestreo.]]
-  - [[#ejercicio-0][Ejercicio (0)]]
+    - [[#ejercicio][Ejercicio:]]
   - [[#propiedades][Propiedades]]
 - [[#qué-hemos-visto][¿Qué hemos visto?]]
 - [[#muestreo-por-cadenas-de-markov][Muestreo por cadenas de Markov]]
-  - [[#ejemplo][Ejemplo:]]
-  - [[#pregunta][Pregunta]]
-  - [[#modelación-del-tour-de-ventas][Modelación del tour de ventas]]
-  - [[#conclusiones][Conclusiones]]
+  - [[#definición-cadena-de-markov][Definición [Cadena de Markov]:]]
 - [[#generalizando][Generalizando...]]
   - [[#pseudo-código][Pseudo-código]]
   - [[#desentrañando][Desentrañando]]
   - [[#implementación][Implementación]]
-  - [[#ejercicio-1][Ejercicio (1)]]
-  - [[#ejercicio-2][Ejercicio (2)]]
+    - [[#ejercicio][Ejercicio:]]
+    - [[#ejercicio][Ejercicio:]]
+    - [[#tarea][Tarea:]]
 - [[#el-método-metropolis-hastings][El método Metropolis-Hastings]]
   - [[#ejercicio-3][Ejercicio (3)]]
   - [[#distribución-propuesta][Distribución propuesta]]
 - [[#en-más-dimensiones][En más dimensiones]]
 - [[#por-qué-funciona][¿Por qué funciona?]]
+  - [[#definición-invarianza][Definición [Invarianza]:]]
+  - [[#lema-comportamiento-asintótico-de-metropolis-hastings][Lema [Comportamiento asintótico de Metropolis-Hastings]:]]
 :END:
 
 * Introducción
@@ -259,7 +259,7 @@ distribución objetivo.
 #+RESULTS:
 [[file:../images/muestreo-aceptacion.jpeg]]
 
-** Ejercicio (0)
+*** Ejercicio:
 :PROPERTIES:
 :reveal_background: #00468b
 :END:
@@ -289,10 +289,10 @@ distribución objetivo.
 Vamos a ~relajar~ el supuesto de ~independencia~. Es decir, vamos a generar una
 secuencia de números aleatorios con cierta correlación.
 
-#+REVEAL: split
-*Definición (~Cadena de Markov~)*. Un *proceso estócastico* en tiempo discreto --una
- colección de variables aleatorias $X_1, X_2, \ldots$ -- que satisface la
- propiedad de dependencia condicional
+*** ~Definición~ [Cadena de Markov]:
+Un *proceso estócastico* en tiempo discreto --una colección de variables
+ aleatorias $X_1, X_2, \ldots$ -- que satisface la propiedad de dependencia
+ condicional
 \begin{align}
 \mathbb{P}\left( X_{n+1}  = x | X_1 = x_1, \ldots, X_n = x_n \right) = \mathbb{P}\left( X_{n+1}  = x | X_n = x_n \right)\,,
 \end{align}
@@ -521,10 +521,10 @@ Veamos cómo implementarlo. Vamos a suponer una distribución de muestreo con un
       muestras <- matrix(nrow = niter, ncol = 2)
       ## Empezamos en algun lugar
       estado   <- muestreo$sample()
-      muestras[1,2] <- estado
       muestras[1,1] <- 1
+      muestras[1,2] <- estado
       for (ii in 2:niter){
-        ## Generamos un candidato
+        ## Generamos un candidato (caminata aleatoria)
         propuesta   <- estado + muestreo$sample()
         p_propuesta <- objetivo$density(propuesta, log = FALSE)
         p_estado    <- objetivo$density(estado, log = FALSE)
@@ -560,7 +560,7 @@ Veamos cómo implementarlo. Vamos a suponer una distribución de muestreo con un
     mutate(iter = 1:n()) |>
     ggplot(aes(iter, value)) +
     geom_line() + sin_lineas + 
-    ggtitle(paste("Trayectoria, eficiencia: ", mean(muestras[,2])))
+    ggtitle(paste("Trayectoria, eficiencia: ", mean(muestras[,1])))
 
   g2 <- muestras |>
     as.tibble() |>
@@ -578,7 +578,7 @@ Veamos cómo implementarlo. Vamos a suponer una distribución de muestreo con un
 #+RESULTS:
 [[file:../images/primer-mcmc.jpeg]]
 
-** Ejercicio (1)
+*** Ejercicio:
 :PROPERTIES:
 :reveal_background: #00468b
 :END:
@@ -587,7 +587,7 @@ Sin modificar el número de iteraciones, considera cambiar la dispersión de la 
 - ¿Qué observas si $\omega = 0.01$?
 - ¿Qué observas si $\omega = 100$?
 
-** Ejercicio (2)
+*** Ejercicio:
 :PROPERTIES:
 :reveal_background: #00468b
 :END:
@@ -608,7 +608,10 @@ Para este caso tenemos un ligero inconveniente. El soporte para $\theta$ es el i
   \end{align}
   donde $g$ denota la densidad de la distribución de muestreo definida arriba.
 
-#+REVEAL: split
+*** Tarea:
+:PROPERTIES:
+:reveal_background: #00468b
+:END:
 Modifica el código de clase para implementar este muestreador. Utiliza distintas configuraciones de $a,b$ para la distribución de propuesta. Compara con muestras exactas del modelo posterior bajo la observación $Y = 1$.
 
 * El método Metropolis-Hastings 
@@ -1057,15 +1060,12 @@ pasos: 1) generar la propuesta y 2) aceptar o rechazar la propuesta. Por lo tant
 \mathbb{P}\left(  \theta_{t + 1} = \theta_\star | \theta_t = \theta\right) = q(\theta_\star | \theta ) \cdot   \alpha(\theta, \theta_\star) =  q(\theta_\star | \theta ) \cdot \min \left\lbrace 1,  \frac{\pi(\theta_\star)}{\pi(\theta)} \cdot \frac{q(\theta|\theta_\star)}{q(\theta_\star|\theta)}\right\rbrace\,. 
 \end{align}
 
-#+REVEAL: split
-*Definición (~Invarianza~)* Decimos que la distribución $\pi$ es ~invariante~ ante un
+*** ~Definición~ [Invarianza]:
+Decimos que la distribución $\pi$ es ~invariante~ ante un
 mecanismo de transición Markoviana ($p(u, v)$) si satisface que
 \begin{align}
 \int \pi(u)\, p(u, v) \text{d}u = \pi(v) \,.
 \end{align}
-
-
-
 
 #+BEGIN_NOTES
 Lo que aprendemos de esto es que si tenemos un mecanismo de transición
@@ -1074,12 +1074,9 @@ comportamiento aleatorio de la distribución objetivo. Lo importante es que la
 transición preserva la distribución objetivo.
 #+END_NOTES
 
+*** ~Lema~ [Comportamiento asintótico de Metropolis-Hastings]:
 
-#+REVEAL: split
-*Lema (~Comportamiento asintótico de Metropolis-Hastings~)*. El mecanismo de MH
-descrito anteriormente tiene como distribución límite $\pi(\cdot)$.\\
-
-
+El mecanismo de MH descrito anteriormente tiene como distribución límite $\pi(\cdot)$.
 
 #+BEGIN_NOTES
 Lo que aprendemos de esto es que en particular MH preserva las ecuaciones de
