@@ -290,7 +290,7 @@ Vamos a ~relajar~ el supuesto de ~independencia~. Es decir, vamos a generar una
 secuencia de números aleatorios con cierta correlación.
 
 *** ~Definición~ [Cadena de Markov]:
-Un *proceso estócastico* en tiempo discreto --una colección de variables
+Un *proceso estocástico* en tiempo discreto --una colección de variables
  aleatorias $X_1, X_2, \ldots$ -- que satisface la propiedad de dependencia
  condicional
 \begin{align}
