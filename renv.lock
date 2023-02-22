@@ -810,6 +810,27 @@
       "Hash": "15e9634c0fcd294799e9b2e929ed1b86",
       "Requirements": []
     },
+    "gganimate": {
+      "Package": "gganimate",
+      "Version": "1.0.8.9000",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "thomasp85",
+      "RemoteRepo": "gganimate",
+      "RemoteRef": "main",
+      "RemoteSha": "7cd46dc2bc8cf18c1c81f6ef7fc4d00a1d57a385",
+      "Hash": "1e725a4fdcd4db3f86a0ca8c99f051a0",
+      "Requirements": [
+        "ggplot2",
+        "glue",
+        "progress",
+        "rlang",
+        "scales",
+        "stringi",
+        "tweenr"
+      ]
+    },
     "ggdist": {
       "Package": "ggdist",
       "Version": "3.2.0",
@@ -2319,6 +2340,20 @@
       "Hash": "7629c6c1540835d5248e6e7df265fa74",
       "Requirements": [
         "xfun"
+      ]
+    },
+    "tweenr": {
+      "Package": "tweenr",
+      "Version": "2.0.2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "c16efcef4c72d3bff5e65031f3f1f841",
+      "Requirements": [
+        "cpp11",
+        "farver",
+        "magrittr",
+        "rlang",
+        "vctrs"
       ]
     },
     "tzdb": {
