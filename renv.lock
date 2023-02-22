@@ -1786,6 +1786,25 @@
         "stringr"
       ]
     },
+    "rethinking": {
+      "Package": "rethinking",
+      "Version": "2.13.2",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "rmcelreath",
+      "RemoteRepo": "rethinking",
+      "RemoteRef": "slim",
+      "RemoteSha": "6a66f84af6d23d50a7b5a4a32ef1226ae402990a",
+      "Hash": "d777fe93bc5e4bcba7b1a728e177a830",
+      "Requirements": [
+        "MASS",
+        "coda",
+        "loo",
+        "mvtnorm",
+        "shape"
+      ]
+    },
     "rex": {
       "Package": "rex",
       "Version": "1.2.1",
@@ -1986,6 +2005,14 @@
         "R6",
         "stringr"
       ]
+    },
+    "shape": {
+      "Package": "shape",
+      "Version": "1.4.6",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "9067f962730f58b14d8ae54ca885509f",
+      "Requirements": []
     },
     "shiny": {
       "Package": "shiny",
