@@ -1,0 +1,569 @@
+#+TITLE: EST-46115: Modelación Bayesiana
+#+AUTHOR: Prof. Alfredo Garbuno Iñigo
+#+EMAIL:  agarbuno@itam.mx
+#+DATE: ~Extensiones de MCMC~
+#+STARTUP: showall
+:REVEAL_PROPERTIES:
+#+LANGUAGE: es
+#+OPTIONS: num:nil toc:nil timestamp:nil
+#+REVEAL_REVEAL_JS_VERSION: 4
+#+REVEAL_THEME: night
+#+REVEAL_SLIDE_NUMBER: t
+#+REVEAL_HEAD_PREAMBLE: <meta name="description" content="Modelación Bayesiana">
+#+REVEAL_INIT_OPTIONS: width:1600, height:900, margin:.2
+#+REVEAL_EXTRA_CSS: ./mods.css
+#+REVEAL_PLUGINS: (notes)
+:END:
+#+PROPERTY: header-args:R :session hmc :exports both :results output org :tangle ../rscripts/03-hmc.R :mkdirp yes :dir ../
+#+EXCLUDE_TAGS: toc latex
+
+#+BEGIN_NOTES
+*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | HMC.\\
+*Objetivo*. Estudiaremos el uso de modelos de física para simular cadenas de Markov con el objetivo de resolver integrales derivadas de un modelo probabilístico. Esto nos lleva a estudiar el método que utiliza el estado del arte en simulación para resolver inferencia bayesiana. Lo lograremos con lo que ya hemos visto: método de aceptación-rechazo, Metropolis-Hastings y demás. \\
+*Lectura recomendada*: Capítulo 9 de citet:McElreath2020. Los artículos citep:Betancourt2018 y citep:Neal2011, aunque mas avanzados, tienen una muy buena explicación del mecanismo teórico y algorítmico que utiliza HMC. 
+#+END_NOTES
+
+
+* Contenido                                                             :toc:
+:PROPERTIES:
+:TOC:      :include all  :ignore this :depth 3
+:END:
+:CONTENTS:
+- [[#introducción][Introducción]]
+  - [[#extensiones-mala][Extensiones: MALA]]
+  - [[#observaciones][Observaciones:]]
+- [[#resolviendo-problemas-comunes][Resolviendo problemas comunes]]
+- [[#exploración-con-un-poco-de-física][Exploración con un poco de física]]
+  - [[#cómo-lo-logramos][¿Cómo lo logramos?]]
+  - [[#idea-general][Idea general]]
+  - [[#cómo-incorporamos-el-componente-aleatorio-en-la-simulación][¿Cómo incorporamos el componente aleatorio en la simulación?]]
+- [[#conclusiones][Conclusiones]]
+- [[#el-estado-del-arte][El estado del arte]]
+- [[#referencias][Referencias]]
+:END:
+
+* Introducción
+
+#+begin_src R :exports none :results none
+
+  ## Setup --------------------------------------------
+  library(tidyverse)
+  library(patchwork)
+  library(scales)
+  ## Cambia el default del tamaño de fuente 
+  theme_set(theme_linedraw(base_size = 20))
+
+  ## Cambia el número de decimales para mostrar
+  options(digits = 2)
+
+  sin_lineas <- theme(panel.grid.major = element_blank(),
+                      panel.grid.minor = element_blank())
+  color.itam  <- c("#00362b","#004a3b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f", NA)
+
+  sin_lineas <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+  sin_leyenda <- theme(legend.position = "none")
+  sin_ejes <- theme(axis.ticks = element_blank(), axis.text = element_blank())
+
+  #+end_src
+
+
+El interés es poder resolver
+\begin{align}
+\mathbb{E}[f] = \int_{\Theta}^{} f(\theta) \, \pi(\theta | y ) \,  \text{d}\theta\,. 
+\end{align}
+
+donde  $\theta_t \overset{.}{\sim} \pi(\theta|y)$ y existe una relación $\theta_t = h(\theta_{t-1}, \xi_{t-1})$.
+
+#+REVEAL: split
+Ya vimos que el método Metrópolis-Hastings es ~suficientemente general~ en el sentido de que no importa la distribución objetivo o la distribución de propuesta. Si las condiciones lo permiten se generarán muestras en el /largo plazo/. Sin embargo, el ~tiempo~ para llegar a ese estado de equilibrio o la ~correlación~ entre muestras sucesivas puede impactar nuestros estimadores y en ese caso generar resúmenes pobres.
+
+#+REVEAL: split
+Como vimos, el método de MH está /atraído/ por las zonas de alta densidad. Así que una extensión /natural/ es considerar distribuciones de propuesta que /apunten/ en dirección donde ~crece~ la densidad. Esto se ha estudiado como el método de difusiones de Langevin metropolizadas (~MALA~  por sus siglas en ingles, citep:Roberts1998). 
+
+** Extensiones: MALA
+
+La distribución propuesta está dada por
+
+\begin{align}
+q(\cdot | \theta_t) = \mathsf{N}\left( \theta_t + \tau \nabla \log \pi(\theta_t), \,\,2\tau  \right)\,.
+\end{align}
+
+Nota que es prácticamente una caminata aleatoria salvo que la media apunta ~en dirección de ascenso~ de la densidad objetivo.
+
+#+REVEAL: split
+Recordemos nuestra ilustración anterior que corresponde a la siguiente distribución objetivo
+\begin{align}
+\theta \sim \mathsf{N}(\textsf{m}, \textsf{S}), \qquad \textsf{m} = (1,2)^\top, \qquad \mathsf{S} = \begin{pmatrix}1 & .75\\.75 &1 \end{pmatrix}\,.
+\end{align}
+
+#+REVEAL: split
+#+caption: Propuestas Gaussianas (morado) contra densidad objetivo (línea sólida). Tres primeras iteraciones.
+[[file:../images/multinormal-propuestas-mh.jpeg]]
+
+
+#+begin_src R :exports none :results none
+  ## Modelo normal -------------------------------
+  library(R6)
+  library(mvtnorm)
+  ModeloNormalMultivariado <-
+    R6Class("ProbabilityModel",
+            list(
+              mean = NA,
+              cov  = NA, 
+              initialize = function(mu = 0, sigma = 1){
+                self$mean = mu
+                self$cov  = sigma |> as.matrix()
+              }, 
+              sample = function(n = 1){
+                rmvnorm(n, mean = self$mean, sigma = self$cov)              
+              },
+              density = function(x, log = TRUE){
+                dmvnorm(x, self$mean, self$cov, log = log)              
+              },
+              grad_log = function(x){
+                -solve(self$cov, (x - self$mean))
+              }
+            ))
+#+end_src
+
+#+begin_src R :exports none :results none
+  mu <- c(1, 2)
+  Sigma <- matrix(c(1, .75, .75, 1), nrow = 2)
+  objetivo <- ModeloNormalMultivariado$new(mu, Sigma)
+#+end_src
+
+
+#+begin_src R :exports none :results none
+  set.seed(108727)
+  ## Para dibujar las curvas de nivel - distribucion objetivo 
+  plot.grid <- expand_grid(x = seq(-2,5, by = 7/99), y = seq(-1,5, by = 6/99))
+  plot.grid <- plot.grid %>% 
+    mutate(density.target = objetivo$density(plot.grid, log = FALSE))
+  plot.breaks.target <- plot.grid %>% 
+    summarise(breaks = quantile(density.target, probs = c(.67, .90, .99, 1))) %>% 
+    pull(breaks)
+
+
+  contours.proposal.mala <- tibble(id = 1:3,
+         x = c(0.0241, -0.203, -0.59),
+         y = c(-0.237, -0.0175, 1.25)) |>
+    nest(location = c(x,y)) |>
+    mutate(density.mala = map(location,
+           function(x){
+             ## Calcula el gradiente
+             log.grad.objective <- objetivo$grad_log(as.matrix(x) |>
+                                                     matrix(nrow = 2)) |>
+               t()
+             ## Define la distribucion propuesta
+             tau <- 0.5
+             propuesta <- ModeloNormalMultivariado$new(
+                              mu =  as.matrix(x) + tau * log.grad.objective,
+                              sigma = 2 * tau * diag(c(1,1))
+                              )
+             ## Evalua la distribucion propuesta en el grid
+             propuesta$density(plot.grid |> select(x,y), log = FALSE)
+           }),
+           coords = list(plot.grid |> select(x,y)))
+#+end_src
+
+#+REVEAL: split
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/multinormal-propuestas-mala.jpeg :exports results :results output graphics file
+  contours.proposal.mala |>
+    unnest(density.mala, coords) |>
+    ggplot(aes(x, y, z = density.mala)) +
+    geom_contour_filled(bins = 4) + scale_fill_brewer(palette = "Purples") +
+    geom_point(data = contours.proposal.mala |> unnest(location),
+               aes(x, y), shape = 19, size = 10) +
+    geom_contour(data = plot.grid, aes(x,y,z = density.target),
+                 breaks = plot.breaks.target, color = "black") +
+    xlab(expression(x[1])) + ylab(expression(x[2])) + 
+    facet_wrap(~id) + sin_lineas + coord_equal() + sin_leyenda
+#+end_src
+#+caption: Propuestas dirigidas por gradiente  morado) contra densidad objetivo (línea sólida). Tres primeras iteraciones.
+#+RESULTS:
+[[file:../images/multinormal-propuestas-mala.jpeg]]
+
+#+BEGIN_NOTES
+
+La formulación de las difusiones de Langevin metropolizadas proviene de modelos
+matemáticos para fenómenos físicos como la difusión de calor en un medio. El
+algoritmo surge por el interés de resolver numéricamente este modelo formulado
+como una ecuación diferencial estocástica. La discretización es altamente
+volátil y, a menos que se utilicen mecanismos de geometría diferencial, su
+simulación no será exacta. Utilizar el mecanismo de MH ayuda a preservar las
+buenas propiedades de la solución numérica. Puedes leer mas de esto en
+citet:Roberts1998 o puedes también al libro de citet:Pavliotis2014.
+
+#+END_NOTES
+
+** Observaciones:
+
+La alta dependencia en un parámetro de escala $\tau$ puede ocasionar problemas. Especialmente cuando la distribución es muy angosta. Para aliviar esto se puede incorporar información de segundo orden. Sin embargo la teoría necesaria (geometría diferencial) y el /software/ aún no permiten una adopción masiva (citep:Girolami2011,Byrne2013).
+
+* Resolviendo problemas comunes
+
+Una alternativa a estos problemas ~conceptuales, teóricos y computacionales~ se ha
+alcanzado con el método de simulación Hamiltoniano o Híbrido (HMC). 
+
+#+REVEAL: split
+#+begin_src R :exports none :results none
+  ## Modelo normal con alta correlacion -------------------------
+  mu <- c(1, 2)
+  Sigma <- matrix(c(1, .90, .90, 1), nrow = 2)
+  objetivo <- ModeloNormalMultivariado$new(mu, Sigma)
+
+  ## Para dibujar las curvas de nivel - distribucion objetivo 
+  plot.grid <- expand_grid(x = seq(-2,5, by = 7/99), y = seq(-1,5, by = 6/99))
+  plot.grid <- plot.grid %>% 
+    mutate(density.target = objetivo$density(plot.grid, log = FALSE))
+  plot.breaks.target <- plot.grid %>% 
+    summarise(breaks = quantile(density.target, probs = c(.67, .90, .99, 1))) %>% 
+    pull(breaks)
+
+#+end_src
+
+Como ejemplo de situaciones que pueden ser complicadas consideremos de nuevo nuestro modelo Normal en $\mathbb{R}^2$. Ahora consideraremos un modelo con mayor correlación:
+
+
+\begin{align}
+\theta \sim \mathsf{N}(\textsf{m}, \textsf{S}), \qquad \textsf{m} = (1,2)^\top, \qquad \mathsf{S} = \begin{pmatrix}1 & .90\\.90 &1 \end{pmatrix}\,.
+\end{align}
+
+Y también condsideremos utilizar una normal estandar (multivariada) como distribución propuesta.
+
+#+BEGIN_NOTES
+En este ejemplo incorporar mayor correlación puede parecer un artificio un tanto arbitrario. Sin embargo, considera que en aplicaciones normalmente no conocemos las dependencias condicionales en nuestro modelo y es usual observar correlaciones altas. 
+#+END_NOTES
+
+
+#+REVEAL: split
+- ~El problema~: la alta tasa de rechazo que tendremos. Incluso si estamos en el punto de mayor densidad. 
+
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/normal-model-tight.jpeg :exports results :results output graphics file
+  ## Para dibujar las curvas de nivel - distribucion propuesta
+  propuesta.std <- ModeloNormalMultivariado$new(c(1,2), diag(c(1,1)))
+
+  plot.grid.std <- expand_grid(x = seq(-2,5, by = 7/99), y = seq(-1,5, by = 6/99))
+  plot.grid.std <- plot.grid.std %>% 
+    mutate(density.proposal = propuesta.std$density(plot.grid.std, log = FALSE))
+  plot.breaks.propuesta <- plot.grid.std %>% 
+    summarise(breaks = quantile(density.proposal, probs = c(.67, .90, .99, 1))) %>% 
+    pull(breaks)
+
+  plot.grid |>  
+    ggplot(aes(x, y, z = density.target)) +
+    geom_contour_filled(breaks = plot.breaks.target) +
+    scale_fill_brewer(palette = "Reds") +
+    geom_contour(data = plot.grid.std, aes(x,y,z = density.proposal),
+                 breaks = plot.breaks.propuesta, color = "black") +
+    xlab(expression(x[1])) + ylab(expression(x[2])) + 
+    sin_lineas + coord_equal() + sin_leyenda
+#+end_src
+#+caption: Curvas de nivel de un modelo con alta correlación (rojo). Curvas de nivel de un modelo Gaussiano estandar como propuesta (línea sólida). 
+#+RESULTS:
+[[file:../images/normal-model-tight.jpeg]]
+
+#+REVEAL: split
+#+begin_src R :exports none :results none
+  ### Comparando muestras ---------------------- 
+#+end_src
+#+begin_src R :exports code :results none
+  mu <- c(1, 2)
+  Sigma <- matrix(c(1, .90, .90, 1), nrow = 2)
+  objetivo <- ModeloNormalMultivariado$new(mu, Sigma)
+  propuesta.std <- ModeloNormalMultivariado$new(c(1,2), diag(c(1,1)))
+#+end_src
+
+#+REVEAL: split
+#+HEADER: :width 1200 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/samples-highcorrelation.jpeg :exports results :results output graphics file
+
+  muestras <- objetivo$sample(1000) |>
+    rbind(propuesta.std$sample(1000)) |>
+    as.tibble() |>
+    mutate(tipo = rep(c("objetivo", "propuesta"), each = 1000))   
+
+  g1 <- muestras |>
+    ggplot(aes(V1, V2)) +
+    geom_point(aes(color = tipo)) +
+    xlab(expression(x[1])) + ylab(expression(x[2])) + 
+    sin_lineas + coord_equal() + sin_leyenda +
+    ggtitle("Diagrama de dispersión")
+
+  g2 <- muestras |>
+    ggplot(aes(V1)) +
+    geom_histogram(aes(fill = tipo), position = "identity", alpha = .6) +
+    xlab(expression(x[1])) + 
+    sin_lineas  + sin_leyenda +
+      ggtitle("Histogramas")
+
+  g3 <- muestras |>
+    ggplot(aes(V2)) +
+    geom_histogram(aes(fill = tipo), position = "identity", alpha = .6) +
+    xlab(expression(x[2])) + 
+    sin_lineas + sin_leyenda
+
+  g1 + g2 + g3
+#+end_src
+#+caption: Muestras de la distribución objetivo (salmón) y la distribución propuesta (azul). 
+#+RESULTS:
+[[file:../images/samples-highcorrelation.jpeg]]
+
+#+BEGIN_NOTES
+En el ejemplo la distribución propuesta no parece tan mala. Las distribuciones marginales tienen exactamente la misma dispersión que le modelo conjunto. ¿Pero por qué generaría tantas simulaciones rechazadas? 
+#+END_NOTES
+
+
+#+REVEAL: split
+Alternativas como muestreo con el ~método de Gibbs~ (implementado en ~BUGS~ ó ~JAGS~) resuelven el problema de altas tasas de rechazo al muestrear de las marginales. De hecho, se consigue una tasa de aceptación de 100%. El inconveniente es que usualmente esto crea cadenas con mayor correlación entre iteraciones y en consecuencia sufre de ~exploración ineficiente~ de la distribución objetivo. 
+
+#+BEGIN_NOTES
+
+El muestreador de Gibbs fue el que popularizó el cómputo de muestreo en aplicaciones mas diversas (en comparación con Metropolis-Hastings) en la década de los 90s. Sin duda sin la contribución de este muestreador se hubiera retrasado la adopción de métodos Bayesianos. 
+
+#+END_NOTES
+
+#+REVEAL: split
+Se pueden aliviar estos problemas de muchas formas. Una de ellas es ~re-parametrizando~ el problema. Por ejemplo, podemos utilizar la técnica de ~cambio de variables~. Es decir, cambiar de
+\begin{align}
+\theta \sim \mathsf{N}(\textsf{m}, \textsf{S}), \qquad \text{ a } \qquad \tilde\theta \sim \mathsf{N}(\mathsf{0}, \mathsf{I})\,,
+\end{align}
+donde $\mathsf{I} \in \mathbb{R}^{p\times p}$ denota la matriz identidad, y $\tilde \theta$ la variable con entradas de-correlacionadas.
+
+#+BEGIN_NOTES
+Se puede utilizar descomposición en valores singulares o descomposición de Cholesky para expresar nuestro problema de muestreo en términos de una variable aleatoria con media 0 y varianza 1. Por ejemplo, consideremos la descomposición de Cholesky de la matriz de covarianzas  $\mathsf{S} = \mathsf{L}\mathsf{L}^\top$.  Por propiedades del operador varianza para vector, tenemos que
+\begin{align}
+\mathbb{V}(\theta) = \mathbb{V}(\mathsf{L} \tilde \theta) = \mathsf{L} \mathbb{V}(\tilde \theta) \mathsf{L}^\top = \mathsf{S}\,,
+\end{align}
+donde $\tilde \theta \sim \mathsf{N}(\mathsf{0},\mathsf{I} )$. 
+#+END_NOTES
+
+
+#+REVEAL: split
+Se pueden utilizar, además, técnicas de ~Gaussianización~ de variables (como la ~transformación Rosenblatt~) pero esto implica conocer la estructura de correlación del problema. En aplicaciones es inusual tener conocimiento de esto. 
+
+* Exploración con un poco de física
+
+Imaginemos que la función de densidad corresponde ahora a un /bowl/. Podemos explorar esa superficie rodando una pelota. Donde denotaremos su ~posición~ en el /bowl/ por medio de
+\begin{align}
+\theta(\cdot): \mathbb{R} \rightarrow \mathbb{R}^p\,.
+\end{align}
+El argumento lo consideraremos un ~tiempo ficticio~ $t$ que nos ayudará a registrar la ~posición~ de la pelota en cualquier momento, $\theta(t)$.
+
+#+REVEAL: split
+De esta manera, pensemos que la pelota la dejamos correr desde un punto inicial $\theta(0)$ y nos fijamos en dónde va al tiempo $T$. Es decir, registramos el punto $\theta(T)$. En nuestro contexto de muestreo, la *posición inicial* es el valor actual de nuestra cadena de Markov y la posición final de la pelota es la propuesta para nuestra nueva iteración. Lo podemos denotar como
+\begin{align}
+\theta_n = \theta(0), \qquad \theta_\star = \theta(T)\,.
+\end{align}
+
+#+REVEAL: split
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/bowl-gaussiano.jpeg :exports results :results output graphics file
+  plot.grid |>  
+    ggplot(aes(x, y, z = density.target)) +
+    geom_contour_filled(bins = 9) +
+    scale_fill_brewer(palette = "Greys") +
+    xlab(expression(x[1])) + ylab(expression(x[2])) + 
+    sin_lineas + coord_equal() + sin_leyenda
+#+end_src
+#+caption: Curvas de nivel del modelo Gaussiano. 
+#+RESULTS:
+[[file:../images/bowl-gaussiano.jpeg]]
+
+** ¿Cómo lo logramos?
+La idea es la misma que ha funcionado en optimización numérica. Primero,
+necesitamos ~información de gradiente~ para mover la pelota en dirección del fondo
+del /bowl/. Segundo, necesitamos incorporar ~información sobre la curvatura~ del
+/bowl/.
+
+#+REVEAL: split
+Para esto, aumentamos el espacio de variables e incorporamos información de
+inercia junto con el gradiente.
+
+#+DOWNLOADED: screenshot @ 2022-02-09 17:19:34
+#+caption: Tomado de [[https://towardsdatascience.com/a-visual-explanation-of-gradient-descent-methods-momentum-adagrad-rmsprop-adam-f898b102325c][Towards Data Science]]. 
+#+attr_html: :width 700 :align center
+[[file:images/20220209-171934_screenshot.png]]
+
+** Idea general
+
+Extendemos el espacio de variables $\theta \in \mathbb{R}^p$ al sistema en  $(\theta, \vartheta) \in \mathbb{R}^{p}\times \mathbb{R}^p$ por medio de
+la distribucion conjunta
+$$\pi(\theta, \vartheta) = \pi(\vartheta | \theta) \cdot \pi(\theta)\,,$$
+donde, como antes, $\pi(\theta)$ denota la distribución objetivo.
+
+#+REVEAL: split
+Es usual en mecánica clásica identificar un modelo probabilístico --la densidad $\pi(\cdot)$ -- con un potencial de energía --el negativo,  $(- 1) \times \log(\pi(\cdot))$ -- citep:Jorgensen1983a. De esta manera, podemos formular la densidad conjunta en términos del potencial de energía
+
+$$H(\theta, \vartheta) = - \log \pi(\theta, \vartheta)\,.$$
+
+
+#+REVEAL: split
+El cual podemos descomponer como 
+\begin{align} 
+H(\theta, \vartheta) &= -\log \pi(\vartheta | \theta) -\log \pi(\theta) \\
+& = K(\vartheta, \theta ) + V(\theta)\,.
+\end{align}
+#+REVEAL: split
+En este sistema, el vector $\theta$ representa la posición de un objeto y
+$\vartheta$ la inercia que tiene en su movimiento. Las funciones $K$ y $V$
+pueden ser interpretadas como las funciones de energía cinética y potencial,
+respectivamente, del sistema Hamiltoniano.
+
+#+REVEAL: split
+El sistema descrito arriba se puede simular en tiempo ficticio 
+por medio del sistema de ecuaciones de movimiento, las cuales son:
+
+$$ \frac{\text{d}\theta}{\text{d}t} = \frac{\partial H}{\partial \vartheta}\,, \qquad \frac{\text{d}\vartheta}{\text{d}t} = -\frac{\partial H}{\partial \theta}\,, $$
+lo cual pone en evidencia que es un sistema que ~conserva la energía~ dentro de la
+trayectoria. 
+
+#+REVEAL: split
+Esto último es de suma importancia pues quisiéramos que, para un nivel de
+inercia dado $\vartheta_\star$, la trayectoria del sistema $(\theta,
+\vartheta_\star)$ se mantenga dentro de la curva $H(\theta, \vartheta_\star)$.
+
+#+BEGIN_NOTES
+En la práctica sistema de ecuaciones Hamiltonianas se resuelve en un tiempo
+discreto ficticio. Estos se llaman integradores simplécticos y tienen la particularidad de
+aproximar muy bien las trayectorias, incluso en sistemas de dimensiones altas.
+Puedes consultar citep:Neal2011,Betancourt2018 para mayores detalles.
+#+END_NOTES
+
+#+REVEAL: split
+Cualquier ~patología~ que se encuentre en esta simulación determinista puede
+indicar problemas con el modelo $\pi(\theta)$ en sí (lo cual veremos más
+adelante).
+
+#+REVEAL: split
+El punto clave de utilizar el sistema extendido para simulación de cadenas de
+Markov viene de la siguiente observación. El sistema Hamiltoniano nos permite 
+recuperar realizaciones aleatorias (ya veremos cómo) de
+
+$$\pi(\theta, \vartheta) = \pi(\vartheta | \theta) \cdot \pi(\theta)\,.$$
+
+#+BEGIN_NOTES
+Ya hemos visto antes que dada una colección de valores aleatorios de una distribución conjunta podemos recuperar la distribución marginal de un componente ~descartando~ los demás componentes. Esto lo utilizamos en ~muestreo por aceptación-rechazo~. 
+#+END_NOTES
+
+** ¿Cómo incorporamos el componente aleatorio en la simulación?
+
+El proceso estocástico lo construimos como sigue. Consideremos que estamos en el
+estado $\theta_n$. Incorporamos el movimiento aleatorio en la cadena al ~simular~
+el componente de inercia $\vartheta_n$ de la distribución
+$\pi(\vartheta|\theta)$. Usualmente se considera una variable aleatoria
+Gaussiana
+
+$$\vartheta_n \, | \, \theta_n \sim \mathsf{N}(0, M).$$
+
+#+REVEAL: split
+Una vez que tenemos nuestro estado de inicio, consideramos 
+$$(\theta(0), \vartheta(0)) = (\theta_n, \vartheta_n)\,,$$
+y obtenemos el candidato
+\begin{align}
+(\theta(T), \vartheta(T)) = (\theta_\star, \vartheta_\star)\,,
+\end{align}
+simulando el sistema Hamiltoniano de manera determinista.
+
+
+#+BEGIN_NOTES
+La idea de combinar un proceso aleatorio (simular el componente de inercia) y un proceso determinista (seguir la trayectoria de las ecuaciones de Hamilton) es lo que originalmente motivó citet:Duane1987 a llamarle ~Monte Carlo Híbrido~. 
+#+END_NOTES
+
+#+REVEAL: split
+La simulación se ve así
+#+DOWNLOADED: screenshot @ 2022-02-11 20:28:42
+#+caption: Simulación de HMC. Imagen tomada de citet:McElreath2020. 
+#+attr_html: :width 700 :align center
+[[file:images/20220211-202842_screenshot.png]]
+
+* Conclusiones
+
+HMC es ~computacionalmente más costoso~ que Metropolis o Gibbs, sin embargo, sus
+propuestas suelen ser más eficientes, y por consiguiente no necesita un tamaño
+de muestra tan grandes. En particular cuando se ajustan modelos grandes y
+complejos (por ejemplo, con variables con correlación alta) HMC supera a otros.
+
+#+REVEAL: split
+HMC ha sido desarrollado y materializado en ~Stan~ el cual usa ~rutinas
+automáticas~ para determinar la función de energía cinética adecuada y ajusta el
+tiempo de simulación determinista en cada paso del algoritmo. El método derivado
+de HMC que se utiliza se conoce como el *No U-Turn Sampler* citep:Hoffman2011,Carpenter2017.
+
+* El estado del arte
+
+#+REVEAL: split
+El método de Metropolis-Hastings es muy flexible y existe una colección
+numerable de versiones que pueden ser empleadas en contextos muy particulares.
+Una buena referencia que incluye métodos de simulación por medio de cadenas de
+Markov se encuentra en citep:Liu2004, donde incluso se pueden encontrar
+generalizaciones con ~transiciones Markovianas asimétricos~ y extensiones a ~problemas de
+dimensión variable~. El libro citep:Brooks2011 presenta el estado del arte al 2010.
+
+#+REVEAL: split
+El cómputo Bayesiano se popularizó con el muestreador de Gibbs. En particular,
+el avance en teoría de grafos para representar una distribución conjunta como un
+Grafo Acíclico Dirigido (DAG) que se implementó en software como ~BUGS~ o [[https://www.mrc-bsu.cam.ac.uk/software/bugs/the-bugs-project-winbugs/][WinBUGS]].
+Pueden consultar el libro de citet:Kruschke2014 para su explicación.
+
+#+REVEAL: split
+La desventaja del muestreador de Gibbs es que tiende a ser muy lento en
+problemas de tamaño grande. Ha habido estrategias que aceleran la simulación
+aunque al ~costo de utilizar aproximaciones~. Estas estrategias han sido
+materializadas en lenguajes de programación mas generales como
+[[https://dotnet.github.io/infer/][Infer.NET]].
+
+#+REVEAL: split
+[[http://mcmc-jags.sourceforge.net][JAGS]] (Just Another Gibbs Sampler), es 
+una generalización donde se implementan métodos MCMC para generar simulaciones
+de distribuciones posteriores. Los paquetes ~rjags~ y ~R2jags~ permiten ajustar
+modelos en JAGS desde ~R~ citep:Hornik2003. Es muy fácil utilizar estos
+programas pues uno simplemente debe especificar las distribuciones iniciales, la
+verosimilitud y los datos observados. Igual el libro de citet:Kruschke2014. 
+
+#+REVEAL: split
+Al depender de gradientes para construir propuestas para las cadenas de Markov
+ha sido natural el desarrollo de herramientas de muestreo basadas en
+diferenciadores automáticos. Por ejemplo, [[https://pyro.ai/][Pyro]] utiliza [[https://pytorch.org/][PyTorch]]. Tenemos también
+[[https://www.tensorflow.org/probability][Tensorflow Probability]] que utiliza ~Tensorflow~. [[https://docs.pymc.io/][Pymc]] (antes Pymc3) utiliza Theano
+(ahora llamado [[https://github.com/aesara-devs/aesara][Aesara]]). [[https://github.com/pyro-ppl/numpyro][NumPyro]] utiliza ~numpy~ y [[https://github.com/google/jax][JAX]] como /backend/. 
+
+#+REVEAL: split
+[[https://docs.pymc.io/][Pymc]] es un muestreador ~híbrido~ que permite utilizar Metropolis-Hastings, Gibbs
+y HMC para la simulación de la posterior citep:Salvatier2016. También es
+mucho más flexible y brinda muestreadores más modernos basados en particulas e
+información de primer orden (gradientes).
+
+#+REVEAL: split
+Además, hay herramientas que utilizan las librerías de muestreo para análisis
+específicos.  Por ejemplo, tenemos ~cmdstanarm~ ajusta *modelos de regresión*
+utilizando ~Stan~ como /backend/. La herramienta de Facebook, ~Prophet~, utiliza ~Stan~
+(ver [[https://statmodeling.stat.columbia.edu/2017/03/01/facebooks-prophet-uses-stan/][aqui]]) como /backend/ y se especializa en *series de tiempo*. [[https://github.com/IvanYashchuk/fenics-pymc3][fenics-pymc3]] se
+especializa en soluciones de *ecuaciones diferenciales* escritas en
+~FEniCS~. También tenemos [[https://github.com/hvasbath/beat][beat]] para *análisis probabilístico de terremotos* y
+[[https://github.com/exoplanet-dev/exoplanet][exoplanet]] para series de tiempo en *astronomía*. Por supuesto, no podía faltar una
+integración ~scikit~ que se llama [[https://www.pymc-learn.org/][Pymc-Learn]].
+
+#+REVEAL: split
+Existen otras alternativas para construir cadenas de Markov. Por ejemplo, hay
+algoritmos que buscan evolucionar una colección de muestras de $\theta$ como un
+enjambre que se comunican entre si para generar una caminata aleatoria en el
+espacio del soporte de la distribución. Ejemplos de éstos son el ~t-walk~
+citep:Christen2010 o un ensamble de cadenas linealmente relacionadas como en la
+herramienta de ~emcee~  citep:Foreman-Mackey2013, 
+
+#+REVEAL: split
+Finalmente, hay muchos mas mecanismos que tienen como objetivo aproximar la
+distribución posterior. En problemas donde la verosimilitud es
+~computacionalmente costosa~ existen alternativas para crear aproximaciones. El
+artículo citep:Garbuno-Inigo2019 provee de una alternativa utilizando una
+combinación de técnicas bien establecidas (difusiones Langevin, ensamble de
+partículas interactivas y filtros de Kalman).
+
+* Referencias                                                         :latex: 
+
+bibliographystyle:abbrvnat
+bibliography:references.bib
+
