@@ -3,16 +3,28 @@
 #+EMAIL:  agarbuno@itam.mx
 #+DATE: ~Extensiones de MCMC~
 #+STARTUP: showall
-:REVEAL_PROPERTIES:
-#+LANGUAGE: es
-#+OPTIONS: num:nil toc:nil timestamp:nil
-#+REVEAL_REVEAL_JS_VERSION: 4
-#+REVEAL_THEME: night
-#+REVEAL_SLIDE_NUMBER: t
-#+REVEAL_HEAD_PREAMBLE: <meta name="description" content="Modelación Bayesiana">
-#+REVEAL_INIT_OPTIONS: width:1600, height:900, margin:.2
-#+REVEAL_EXTRA_CSS: ./mods.css
-#+REVEAL_PLUGINS: (notes)
+:LATEX_PROPERTIES:
+#+OPTIONS: toc:nil date:nil author:nil tasks:nil
+#+LANGUAGE: sp
+#+LATEX_CLASS: handout
+#+LATEX_HEADER: \usepackage[spanish]{babel}
+#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
+#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
+#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
+#+LATEX_HEADER: \decimalpoint
+#+LATEX_HEADER:\usepackage{framed}
+#+LaTeX_HEADER: \usepackage{listings}
+#+LATEX_HEADER: \usepackage{fancyvrb}
+#+LATEX_HEADER: \usepackage{xcolor}
+#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
+#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
+#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
+#+LaTeX_HEADER: {}
+#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
+#+LaTeX_HEADER: {}
+#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
+#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
+#+EXPORT_FILE_NAME: ../docs/03-extensiones-mcmc.pdf
 :END:
 #+PROPERTY: header-args:R :session hmc :exports both :results output org :tangle ../rscripts/03-hmc.R :mkdirp yes :dir ../
 #+EXCLUDE_TAGS: toc latex
@@ -20,7 +32,7 @@
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | HMC.\\
 *Objetivo*. Estudiaremos el uso de modelos de física para simular cadenas de Markov con el objetivo de resolver integrales derivadas de un modelo probabilístico. Esto nos lleva a estudiar el método que utiliza el estado del arte en simulación para resolver inferencia bayesiana. Lo lograremos con lo que ya hemos visto: método de aceptación-rechazo, Metropolis-Hastings y demás. \\
-*Lectura recomendada*: Capítulo 9 de citet:McElreath2020. Los artículos citep:Betancourt2018 y citep:Neal2011, aunque mas avanzados, tienen una muy buena explicación del mecanismo teórico y algorítmico que utiliza HMC. 
+*Lectura recomendada*: Capítulo 9 de [[citet:&Mcelreath2020]]. Los artículos citep:Betancourt2018 y citep:Neal2011, aunque mas avanzados, tienen una muy buena explicación del mecanismo teórico y algorítmico que utiliza HMC. 
 #+END_NOTES
 
 
