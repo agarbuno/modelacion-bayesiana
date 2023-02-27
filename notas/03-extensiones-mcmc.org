@@ -82,7 +82,7 @@ El interés es poder resolver
 \begin{align}
 \mathbb{E}[f] = \int_{\Theta}^{} f(\theta) \, \pi(\theta | y ) \,  \text{d}\theta\,. 
 \end{align}
-donde  $\theta_t \overset{.}{\sim} \pi(\theta|y)$ y existe una relación $\theta_n= h(\theta_{n-1}, \xi_{n-1})$.
+por medio de  $\theta_n \overset{.}{\sim} \pi(\theta|y)$ y existe una relación $\theta_n= h(\theta_{n-1}, \xi_{n-1})$.
 
 #+REVEAL: split
 Ya vimos que el método Metrópolis-Hastings es ~suficientemente general~ en el sentido de que no importa la distribución objetivo o la distribución de propuesta. Si las condiciones lo permiten se generarán muestras en el /largo plazo/. Sin embargo, el ~tiempo~ para llegar a ese estado de equilibrio o la ~correlación~ entre muestras sucesivas puede impactar nuestros estimadores y en ese caso generar resúmenes pobres.
@@ -412,7 +412,14 @@ Imaginemos que la función de densidad corresponde ahora a un /bowl/. Podemos ex
 \begin{align}
 \theta(\cdot): \mathbb{R} \rightarrow \mathbb{R}^p\,.
 \end{align}
-El argumento lo consideraremos un ~tiempo ficticio~ $t$ que nos ayudará a registrar la ~posición~ de la pelota en cualquier momento, $\theta(t)$.
+El argumento\ lo consideraremos un ~tiempo ficticio~ $t$ que nos ayudará a registrar la ~posición~ de la pelota en cualquier momento, $\theta(t)$.
+
+#+REVEAL: split
+La simulación se ve así
+#+DOWNLOADED: screenshot @ 2022-02-11 20:28:42
+#+caption: Simulación de HMC. Imagen tomada de citet:Mcelreath2020. 
+#+attr_html: :width 700 :align center
+[[file:images/20220211-202842_screenshot.png]]
 
 #+REVEAL: split
 De esta manera, pensemos que la pelota la dejamos correr desde un punto inicial $\theta(0)$ y nos fijamos en dónde va al tiempo $T$. Es decir, registramos el punto $\theta(T)$. En nuestro contexto de muestreo, la *posición inicial* es el valor actual de nuestra cadena de Markov y la posición final de la pelota es la propuesta para nuestra nueva iteración. Lo podemos denotar como
@@ -534,12 +541,6 @@ simulando el sistema Hamiltoniano de manera determinista.
 La idea de combinar un proceso aleatorio (simular el componente de inercia) y un proceso determinista (seguir la trayectoria de las ecuaciones de Hamilton) es lo que originalmente motivó citet:Duane1987 a llamarle ~Monte Carlo Híbrido~. 
 #+END_NOTES
 
-#+REVEAL: split
-La simulación se ve así
-#+DOWNLOADED: screenshot @ 2022-02-11 20:28:42
-#+caption: Simulación de HMC. Imagen tomada de citet:Mcelreath2020. 
-#+attr_html: :width 700 :align center
-[[file:images/20220211-202842_screenshot.png]]
 
 * Conclusiones
 
