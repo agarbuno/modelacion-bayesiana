@@ -30,7 +30,7 @@
 #+EXCLUDE_TAGS: toc latex
 
 #+BEGIN_NOTES
-*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | HMC.\\
+*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Extensiones MCMC.\\
 *Objetivo*. Estudiaremos el uso de modelos de física para simular cadenas de Markov con el objetivo de resolver integrales derivadas de un modelo probabilístico. Esto nos lleva a estudiar el método que utiliza el estado del arte en simulación para resolver inferencia bayesiana. Lo lograremos con lo que ya hemos visto: método de aceptación-rechazo, Metropolis-Hastings y demás. \\
 *Lectura recomendada*: Capítulo 9 de [[citet:&Mcelreath2020]]. Los artículos citep:Betancourt2018 y citep:Neal2011, aunque mas avanzados, tienen una muy buena explicación del mecanismo teórico y algorítmico que utiliza HMC. 
 #+END_NOTES
@@ -51,7 +51,6 @@
   - [[#cómo-incorporamos-el-componente-aleatorio-en-la-simulación][¿Cómo incorporamos el componente aleatorio en la simulación?]]
 - [[#conclusiones][Conclusiones]]
 - [[#el-estado-del-arte][El estado del arte]]
-- [[#referencias][Referencias]]
 :END:
 
 * Introducción
@@ -83,8 +82,7 @@ El interés es poder resolver
 \begin{align}
 \mathbb{E}[f] = \int_{\Theta}^{} f(\theta) \, \pi(\theta | y ) \,  \text{d}\theta\,. 
 \end{align}
-
-donde  $\theta_t \overset{.}{\sim} \pi(\theta|y)$ y existe una relación $\theta_t = h(\theta_{t-1}, \xi_{t-1})$.
+donde  $\theta_t \overset{.}{\sim} \pi(\theta|y)$ y existe una relación $\theta_n= h(\theta_{n-1}, \xi_{n-1})$.
 
 #+REVEAL: split
 Ya vimos que el método Metrópolis-Hastings es ~suficientemente general~ en el sentido de que no importa la distribución objetivo o la distribución de propuesta. Si las condiciones lo permiten se generarán muestras en el /largo plazo/. Sin embargo, el ~tiempo~ para llegar a ese estado de equilibrio o la ~correlación~ entre muestras sucesivas puede impactar nuestros estimadores y en ese caso generar resúmenes pobres.
@@ -97,7 +95,7 @@ Como vimos, el método de MH está /atraído/ por las zonas de alta densidad. As
 La distribución propuesta está dada por
 
 \begin{align}
-q(\cdot | \theta_t) = \mathsf{N}\left( \theta_t + \tau \nabla \log \pi(\theta_t), \,\,2\tau  \right)\,.
+q(\cdot | \theta_n) = \mathsf{N}\left( \theta_n + \tau \nabla \log \pi(\theta_n), \,\,2\tau  \right)\,.
 \end{align}
 
 Nota que es prácticamente una caminata aleatoria salvo que la media apunta ~en dirección de ascenso~ de la densidad objetivo.
@@ -157,8 +155,8 @@ Recordemos nuestra ilustración anterior que corresponde a la siguiente distribu
 
 
   contours.proposal.mala <- tibble(id = 1:3,
-         x = c(0.0241, -0.203, -0.59),
-         y = c(-0.237, -0.0175, 1.25)) |>
+         x = c(0.0241, -0.59, 2.5),
+         y = c(-0.237, 1.25, 3.25)) |>
     nest(location = c(x,y)) |>
     mutate(density.mala = map(location,
            function(x){
@@ -195,6 +193,58 @@ Recordemos nuestra ilustración anterior que corresponde a la siguiente distribu
 #+caption: Propuestas dirigidas por gradiente  morado) contra densidad objetivo (línea sólida). Tres primeras iteraciones.
 #+RESULTS:
 [[file:../images/multinormal-propuestas-mala.jpeg]]
+
+#+begin_src R :exports none :results none
+  set.seed(108727)
+  ## Para dibujar las curvas de nivel - distribucion objetivo 
+  plot.grid <- expand_grid(x = seq(-2,5, by = 7/99), y = seq(-1,5, by = 6/99))
+  plot.grid <- plot.grid %>% 
+    mutate(density.target = objetivo$density(plot.grid, log = FALSE))
+  plot.breaks.target <- plot.grid %>% 
+    summarise(breaks = quantile(density.target, probs = c(.67, .90, .99, 1))) %>% 
+    pull(breaks)
+
+
+  contours.proposal.mala <- tibble(id = 1:3,
+         x = c(0.0241, -0.59, 2.5),
+         y = c(-0.237, 1.25, 3.25)) |>
+    nest(location = c(x,y)) |>
+    mutate(density.mala = map(location,
+           function(x){
+             ## Calcula el gradiente
+             log.grad.objective <- objetivo$grad_log(as.matrix(x) |>
+                                                     matrix(nrow = 2)) |>
+               t()
+             ## Define la distribucion propuesta
+             tau <- 1.1
+             propuesta <- ModeloNormalMultivariado$new(
+                              mu =  as.matrix(x) + tau * log.grad.objective,
+                              sigma = 2 * tau * diag(c(1,1))
+                              )
+             ## Evalua la distribucion propuesta en el grid
+             propuesta$density(plot.grid |> select(x,y), log = FALSE)
+           }),
+           coords = list(plot.grid |> select(x,y)))
+#+end_src
+
+#+REVEAL: split
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/multinormal-propuestas-mala-long.jpeg :exports results :results output graphics file
+  contours.proposal.mala |>
+    unnest(density.mala, coords) |>
+    ggplot(aes(x, y, z = density.mala)) +
+    geom_contour_filled(bins = 4) + scale_fill_brewer(palette = "Purples") +
+    geom_point(data = contours.proposal.mala |> unnest(location),
+               aes(x, y), shape = 19, size = 10) +
+    geom_contour(data = plot.grid, aes(x,y,z = density.target),
+                 breaks = plot.breaks.target, color = "black") +
+    xlab(expression(x[1])) + ylab(expression(x[2])) + 
+    facet_wrap(~id) + sin_lineas + coord_equal() + sin_leyenda
+#+end_src
+#+caption: Propuestas dirigidas por gradiente  morado) contra densidad objetivo (línea sólida). Tres primeras iteraciones.
+#+RESULTS:
+[[file:../images/multinormal-propuestas-mala.jpeg]]
+
 
 #+BEGIN_NOTES
 
@@ -407,7 +457,7 @@ $$\pi(\theta, \vartheta) = \pi(\vartheta | \theta) \cdot \pi(\theta)\,,$$
 donde, como antes, $\pi(\theta)$ denota la distribución objetivo.
 
 #+REVEAL: split
-Es usual en mecánica clásica identificar un modelo probabilístico --la densidad $\pi(\cdot)$ -- con un potencial de energía --el negativo,  $(- 1) \times \log(\pi(\cdot))$ -- citep:Jorgensen1983a. De esta manera, podemos formular la densidad conjunta en términos del potencial de energía
+Es usual en mecánica clásica identificar un modelo probabilístico --la densidad $\pi(\cdot)$ -- con un potencial de energía --el negativo,  $(- 1) \times \log(\pi(\cdot))$ -- citep:Jorgensen1983. De esta manera, podemos formular la densidad conjunta en términos del potencial de energía
 
 $$H(\theta, \vartheta) = - \log \pi(\theta, \vartheta)\,.$$
 
@@ -487,7 +537,7 @@ La idea de combinar un proceso aleatorio (simular el componente de inercia) y un
 #+REVEAL: split
 La simulación se ve así
 #+DOWNLOADED: screenshot @ 2022-02-11 20:28:42
-#+caption: Simulación de HMC. Imagen tomada de citet:McElreath2020. 
+#+caption: Simulación de HMC. Imagen tomada de citet:Mcelreath2020. 
 #+attr_html: :width 700 :align center
 [[file:images/20220211-202842_screenshot.png]]
 
@@ -573,8 +623,6 @@ distribución posterior. En problemas donde la verosimilitud es
 artículo citep:Garbuno-Inigo2019 provee de una alternativa utilizando una
 combinación de técnicas bien establecidas (difusiones Langevin, ensamble de
 partículas interactivas y filtros de Kalman).
-
-* Referencias                                                         :latex: 
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
