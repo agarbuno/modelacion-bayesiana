@@ -1,0 +1,825 @@
+#+TITLE: EST-46115: Modelación Bayesiana
+#+AUTHOR: Prof. Alfredo Garbuno Iñigo
+#+EMAIL:  agarbuno@itam.mx
+#+DATE: ~Diagnósticos MCMC~
+#+STARTUP: showall
+:LATEX_PROPERTIES:
+#+OPTIONS: toc:nil date:nil author:nil tasks:nil
+#+LANGUAGE: sp
+#+LATEX_CLASS: handout
+#+LATEX_HEADER: \usepackage[spanish]{babel}
+#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
+#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
+#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
+#+LATEX_HEADER: \decimalpoint
+#+LATEX_HEADER:\usepackage{framed}
+#+LaTeX_HEADER: \usepackage{listings}
+#+LATEX_HEADER: \usepackage{fancyvrb}
+#+LATEX_HEADER: \usepackage{xcolor}
+#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
+#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
+#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
+#+LaTeX_HEADER: {}
+#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
+#+LaTeX_HEADER: {}
+#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
+#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
+#+EXPORT_FILE_NAME: ../docs/05-diagnosticos.pdf
+:END:
+#+EXCLUDE_TAGS: toc latex
+#+PROPERTY: header-args:R :session diagnosticos :exports both :results output org :tangle ../rscripts/05-diagnosticos.R :mkdirp yes :dir ../
+
+#+BEGIN_NOTES
+*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Diagnósticos MCMC.\\
+*Objetivo*. Estudiaremos diagnósticos típicos de métodos de simulación Markoviana (por Metropolis-Hastings o HMC) con el objetivo de poder identificar problemas y posibles soluciones para simulaciones deficientes. \\
+*Lectura recomendada*: Para una revisión de los diagnósticos de MCMC busca la sección 11.4 de citep:Gelman2014a. El Capítulo 3 de citep:Cressie2015 tiene una revisión muy bonita de series de tiempo. 
+#+END_NOTES
+
+#+begin_src R :exports none :results none
+  ## Setup ---------------------------------------------------------------------
+  library(tidyverse)
+  library(patchwork)
+  library(scales)
+
+  ## Cambia el default del tamaño de fuente 
+  theme_set(theme_linedraw(base_size = 25))
+
+  ## Cambia el número de decimales para mostrar
+  options(digits = 4)
+  ## Problemas con mi consola en Emacs
+  options(pillar.subtle = FALSE)
+  options(rlang_backtrace_on_error = "none")
+  options(crayon.enabled = FALSE)
+
+  ## Para el tema de ggplot
+  sin_lineas <- theme(panel.grid.major = element_blank(),
+                      panel.grid.minor = element_blank())
+  color.itam  <- c("#00362b","#004a3b", "#00503f", "#006953", "#008367", "#009c7b", "#00b68f", NA)
+
+  sin_leyenda <- theme(legend.position = "none")
+  sin_ejes <- theme(axis.ticks = element_blank(), axis.text = element_blank())
+#+end_src
+
+* Contenido                                                             :toc:
+:PROPERTIES:
+:TOC:      :include all  :ignore this :depth 3
+:END:
+:CONTENTS:
+- [[#introducción][Introducción]]
+- [[#diagnósticos-generales][Diagnósticos generales]]
+  - [[#monitoreo-de-convergencia][Monitoreo de convergencia]]
+    - [[#datos-cantantes-de-ópera][Datos: Cantantes de ópera]]
+  - [[#monitoreo-de-mezcla-dentro-y-entre-cadenas][Monitoreo de mezcla dentro y entre cadenas]]
+  - [[#número-efectivo-de-simulaciones][Número efectivo de simulaciones]]
+:END:
+
+* Introducción
+
+El avance en poder computacional ha permitido la proliferación de métodos Bayesianos. El poder generar cadenas de Markov es múltiples procesadores nos ayuda a relajar los requisitos y ayuda a explotar los recursos computacionales disponibles. 
+
+#+begin_src R :exports none :results none
+  library(mvtnorm)
+  library(R6)
+  ModeloNormalMultivariado <-
+    R6Class("ProbabilityModel",
+            list(
+              mean = NA,
+              cov  = NA, 
+              initialize = function(mu = 0, sigma = 1){
+                self$mean = mu
+                self$cov  = sigma |> as.matrix()
+              }, 
+              sample = function(n = 1){
+                rmvnorm(n, mean = self$mean, sigma = self$cov)              
+              },
+              density = function(x, log = TRUE){
+                dmvnorm(x, self$mean, self$cov, log = log)              
+              }           
+            ))
+#+end_src
+
+#+begin_src R :exports none :results none
+  ### Muestreador Metropolis-Hastings --------------------------------------------
+  crea_metropolis_hastings <- function(objetivo, muestreo){
+    ## Este muestreador aprovecha la simetría de la propuesta 
+    function(niter, x_start){
+      ## Empezamos en algun lugar
+      estado <- x_start
+      ndim <- length(estado) 
+      muestras <- matrix(nrow = niter, ncol = ndim + 1)      
+      muestras[1,2:(ndim+1)] <- estado
+      muestras[1,1] <- 1
+      for (ii in 2:niter){
+        propuesta   <- estado + muestreo$sample()
+        log_pi_propuesta <- objetivo$density(propuesta)
+        log_pi_estado    <- objetivo$density(estado)
+        log_alpha <- log_pi_propuesta - log_pi_estado
+
+        if (log(runif(1)) < log_alpha) {
+          muestras[ii, 1] <- 1 ## Aceptamos
+          muestras[ii, 2:(ndim+1)] <- propuesta
+        } else {
+          muestras[ii, 1] <- 0 ## Rechazamos
+          muestras[ii, 2:(ndim+1)] <- estado
+        }
+        estado <- muestras[ii, 2:(ndim+1)]
+      }
+      if (ndim == 1) {colnames(muestras) <- c("accept", "value")}
+      muestras
+    }
+  }
+
+#+end_src
+
+#+begin_src R :exports none :results none
+    set.seed(108727)
+    mu <- c(0, 0)
+    Sigma <- matrix(c(1, .75, .75, 1), nrow = 2)
+    objetivo <- ModeloNormalMultivariado$new(mu, Sigma)
+    muestreo <- ModeloNormalMultivariado$new(c(0,0),  .05 * diag(2))
+
+    muestras <- tibble(id = factor(1:5), x1 = c(-2, 2, 2, -2, 0), x2 = c(2, -2, 2, -2, 0)) |>
+      nest(x_start   = c(x1,x2)) |>
+      mutate(cadenas = map(x_start, function(x0){
+        mcmc <- crea_metropolis_hastings(objetivo, muestreo)
+        mcmc(1000, c(x0$x1, x0$x2)) |>
+          as_tibble() |>
+          mutate(iter = 1:1000)
+      }))
+#+end_src
+
+#+REVEAL: split
+Cuando generamos una muestra de la distribución posterior usando
+MCMC, sin importar el método (Metrópolis, Gibbs, HMC), buscamos que:
+
+#+REVEAL: split
+- Los valores simulados ~no estén influenciados~ por el valor inicial (arbitrario)
+  y deben explorar todo el rango de la posterior.
+- Debemos tener ~suficientes simulaciones~ de tal manera que las estimaciones sean
+  precisas y estables.
+- Queremos tener ~métodos y resúmenes informativos~ que nos ayuden diagnosticar
+  correctamente el desempeño de nuestas simulaciones.
+
+#+REVEAL: split
+En la ~práctica~ intentamos cumplir lo más posible estos objetivos. Debemos de
+tener un criterio para considerar cadenas de ~longitud finita~ y ~evaluar la calidad~ de las
+simulaciones.
+
+#+REVEAL: split
+Primero estudiaremos ~diagnósticos generales~ para métodos que utilicen MCMC y
+después mencionaremos particularidades del método de simulación HMC.
+
+* Diagnósticos generales
+
+Una forma que tenemos de evaluar la (o identificar la falta de) convergencia es
+considerar distintas secuencias independientes. 
+
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/cadenas-multiples.jpeg :exports results :results output graphics file
+    g.corta <- muestras |>
+      unnest(cadenas) |>
+      filter(iter <= 50) |>
+      ggplot(aes(V2, V3, color = id)) +
+      geom_path() + geom_point(size = .3) +
+      geom_point(data = muestras |> unnest(x_start), aes(x1, x2), color = 'red') + 
+      xlab(expression(x[1])) + ylab(expression(x[2])) + 
+      sin_lineas + sin_leyenda + ylim(-3,3) + xlim(-3,3)
+
+
+    g.completa <- muestras |>
+      unnest(cadenas) |>
+      ggplot(aes(V2, V3, color = id)) +
+      geom_path() + geom_point(size = .3) +
+      geom_point(data = muestras |> unnest(x_start), aes(x1, x2), color = 'red') + 
+      xlab(expression(x[1])) + ylab(expression(x[2])) + 
+      sin_lineas + sin_leyenda + ylim(-3,3) + xlim(-3,3)
+
+    g.conjunta <- muestras |>
+      unnest(cadenas) |>
+      ggplot(aes(V2, V3)) +
+      geom_point(size = .3) +
+      geom_point(data = muestras |> unnest(x_start), aes(x1, x2), color = 'red') + 
+      xlab(expression(x[1])) + ylab(expression(x[2])) + 
+      sin_lineas + sin_leyenda + ylim(-3,3) + xlim(-3,3)
+
+  g.objetivo <- objetivo$sample(4000) |>
+    as_tibble() |>
+    ggplot(aes(V1, V2)) +
+      geom_point(size = .3) +
+      xlab(expression(x[1])) + ylab(expression(x[2])) + 
+      sin_lineas + sin_leyenda + ylim(-3,3) + xlim(-3,3)
+
+    (g.corta + g.completa) / (g.conjunta + g.objetivo)
+#+end_src
+#+caption: Distintas cadenas de Markov. 
+#+RESULTS:
+[[file:../images/cadenas-multiples.jpeg]]
+
+
+#+REVEAL: split
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/traza-diagnosticos.jpeg :exports results :results output graphics file
+  muestreo <- ModeloNormalMultivariado$new(c(0,0),  10 * diag(2))
+
+  muestras.mal <- tibble(id = factor(1:5), x1 = c(-2, 2, 2, -2, 0), x2 = c(2, -2, 2, -2, 0)) |>
+    nest(x_start   = c(x1,x2)) |>
+    mutate(cadenas = map(x_start, function(x0){
+      mcmc <- crea_metropolis_hastings(objetivo, muestreo)
+      mcmc(1000, c(x0$x1, x0$x2)) |>
+        as_tibble() |>
+        mutate(iter = 1:1000)
+    }))
+
+  g1 <- muestras |>
+    unnest(cadenas) |>
+    ggplot(aes(iter, V2, color = id)) +
+    geom_line() + sin_lineas + sin_leyenda +
+    ylab(expression(x[1]))
+
+
+  g2 <- muestras.mal |>
+    unnest(cadenas) |>
+    ggplot(aes(iter, V2, color = id)) +
+    geom_line() + sin_lineas + sin_leyenda +
+    ylab(expression(x[1]))
+
+  g1/g2
+#+end_src
+#+caption: Trayectorias de simulación para $X_1$. 
+#+RESULTS:
+[[file:../images/traza-diagnosticos.jpeg]]
+
+** Monitoreo de convergencia
+
+~Burn-in e iteraciones iniciales~. En primer lugar, en muchas ocasiones las
+condiciones iniciales de las cadenas las escogemos de tal forma que 
+que son  "atípicos" en relación a la posterior.
+
+#+BEGIN_NOTES
+Estrategias de selección de puntos iniciales pueden ser valores aleatorios de la
+previa o perturbaciones aleatorias a estimadores $\textsf{MLE}$.
+#+END_NOTES
+
+#+REVEAL: split
+Correr varias cadenas en puntos dispersos tienen la ventaja de explorar desde
+distintas regiones de la posterior. Eventualmente, esperamos que todas las
+/cadenas/ ~mezclen bien~ y ~representen realizaciones independientes~ del mismo
+proceso estócastico (Markoviano).
+
+#+REVEAL: split
+Para contrarrestar la dependencia en los distintos puntos iniciales se descarta 
+parte de la cadena en un periodo inicial (periodo de calentamiento).
+
+*** Datos: Cantantes de ópera
+
+#+begin_src R :exports code :results none
+  ## Datos: cantantes de opera -----------------------
+  set.seed(3413)
+  cantantes <- lattice::singer |>
+    mutate(estatura_cm = round(2.54 * height)) |>
+    filter(str_detect(voice.part, "Tenor")) |>
+    select(voice.part, estatura_cm) |>
+    sample_n(20) |>
+    as_tibble()
+#+end_src
+
+#+begin_src R :exports results :results org
+   cantantes |> print(n = 3)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+# A tibble: 20 × 2
+  voice.part estatura_cm
+  <fct>            <dbl>
+1 Tenor 1            178
+2 Tenor 2            173
+3 Tenor 1            165
+# … with 17 more rows
+# ℹ Use `print(n = ...)` to see more rows
+#+end_src
+
+
+#+REVEAL: split
+Denotamos por $x_i$ la estatura de tenores (cantantas de ópera). Asumimos un modelo Normal con parámetros poblacionales no observados:  $\mu$ y $\sigma$. El modelo previo lo asumimos como
+\begin{gather}
+\mu | \sigma \sim \mathsf{Normal}\left(\mu_0, \frac{\sigma}{n_0}\right)\,,\\
+\sigma^{-1} \sim \mathsf{Gamma}(a_0, b_0)\,.
+\end{gather}
+
+
+#+begin_src R :exports none :results none
+  ModeloNormal <-
+    R6Class("PosteriorProbabilityModel",
+            list(
+              observaciones = NA,
+              mu_0 = NA, n_0 = NA, a = NA, b = NA,
+              initialize = function(x = 0){
+                ## Observaciones
+                self$observaciones <- x
+                ## Previa
+                self$mu_0 <- 175
+                self$n_0  <- 5
+                self$a    <- 3
+                self$b    <- 140
+              },
+              density = function(theta, log = TRUE){
+                theta <- matrix(theta, nrow = 1)
+                verosimilitud <- sum(dnorm(self$observaciones, theta[1], sd = theta[2], log = log))
+                previa <- dnorm(theta[1], self$mu_0, sd = theta[2]/sqrt(self$n_0), log = log) +
+                  dgamma(1/(theta[2]**2), self$a, self$b, log = log)
+                verosimilitud + previa 
+              }           
+            ))
+
+  objetivo <- ModeloNormal$new(cantantes$estatura_cm)
+  muestreo <- ModeloNormalMultivariado$new(c(0,0),  0.50 * diag(2))
+#+end_src
+
+#+REVEAL: split
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/cantantes-muestras.jpeg :exports results :results output graphics file
+  set.seed(108727)
+  mcmc <- crea_metropolis_hastings(objetivo, muestreo)
+
+  muestras.cantantes <-  mcmc(5000, c(162, 3)) |>
+    as_tibble() |>
+    mutate(mu = V2, sigma = V3, iter = 1:n())
+
+  muestras.cantantes |>
+    ggplot(aes(mu, sigma, color = iter)) +
+    geom_line(alpha = .2) +geom_point(size = 4, alpha = .4) + 
+    sin_lineas 
+ #+end_src
+#+caption: Cadena de Markov simulando de la posterior como distribución objetivo. 
+ #+RESULTS:
+ [[file:../images/cantantes-muestras.jpeg]]
+
+En esta simulación es evidente$^\dagger$ que necesitamos descartar una parte inicial de la simulación.
+
+#+REVEAL: split
+citet:Gelman2014a recomiendan descartar la mitad de las iteraciones de cada una de las cadenas
+que se simularon. Para problemas en dimensiones altas, incluso se podría esperar 
+descartar hasta un $80\%$ de simulaciones (en especial para métodos basados en
+Metropolis-Hastings).
+
+#+REVEAL: split
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/trayectorias-cantantes.jpeg :exports results :results output graphics file
+   cadenas.cantantes <- tibble(cadena  = factor(1:4),
+          mu_start    = rnorm(4, 160, 20),
+          sigma_start = runif(4, 0, 20)) |>
+     nest(inicial = c(mu_start, sigma_start)) |>
+     mutate(cadenas = map(inicial, function(x0){
+       mcmc(2500, c(x0$mu_start, x0$sigma_start)) |>
+         as_tibble() |>
+         mutate(mu = V2, sigma = V3, iter = 1:n())
+     }))
+
+  cadenas.cantantes |>
+     unnest(cadenas) |>
+     pivot_longer(cols = mu:sigma) |>
+     ggplot(aes(iter, value, color = cadena)) +
+     geom_line() +
+     facet_wrap(~name, ncol = 1, scales = "free_y") +
+     sin_lineas
+#+end_src
+#+caption: Trayectorias con dependencias iniciales.
+#+RESULTS:
+[[file:../images/trayectorias-cantantes.jpeg]]
+
+#+REVEAL: split
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/trayectorias-estacionarias-cantantes.jpeg :exports results :results output graphics file
+  cadenas.cantantes |>
+    unnest(cadenas) |>
+    filter(iter >= 1000) |> 
+    pivot_longer(cols = mu:sigma) |>
+    ggplot(aes(iter, value, color = cadena)) +
+    geom_line() +
+    facet_wrap(~name, ncol = 1, scales = "free_y") +
+    sin_lineas
+#+end_src
+#+caption: Trayectorias estacionarias.
+#+RESULTS:
+[[file:../images/trayectorias-estacionarias-cantantes.jpeg]]
+
+** Monitoreo de mezcla /dentro/ y /entre/ cadenas
+
+Podemos utilizar ~todas~ las simulaciones como si vinieran de una sola cadena (argumentando por estacionariedad)
+
+#+begin_src R :exports both :results org 
+  cadenas.cantantes |>
+    unnest(cadenas) |>
+    filter(iter > 100) |> 
+    summarise(.estimate = mean(sigma), .variance = var(sigma), .error_mc = sqrt(.variance/n()))
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+# A tibble: 1 × 3
+  .estimate .variance .error_mc
+      <dbl>     <dbl>     <dbl>
+1      7.11      4.14    0.0208
+#+end_src
+
+#+REVEAL: split
+Sin embargo, al calcular la varianza como si fueran 4 cadenas independientes vemos que nuestro estimador del error Monte Carlo es mucho mas elevado de lo que esperamos ¿por qué?
+
+#+begin_src R :exports both :results org 
+  cadenas.cantantes |>
+   unnest(cadenas) |>
+   filter(iter > 100) |> 
+   group_by(cadena) |> 
+   summarise(media = mean(sigma), varianza = var(sigma)) |>
+   summarise(.estimate = mean(media), .error_mc = sd(media))
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+# A tibble: 1 × 2
+  .estimate error_mc
+      <dbl>    <dbl>
+1      7.11    0.272
+#+end_src
+
+#+REVEAL: split
+Al inspeccionar cada cadena tenemos los siguientes resúmenes
+
+#+begin_src R :exports both :results org 
+  cadenas.cantantes |>
+   unnest(cadenas) |>
+   filter(iter > 100) |> 
+   group_by(cadena) |> 
+   summarise(media = mean(sigma), varianza = var(sigma))
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+# A tibble: 4 × 3
+  cadena media varianza
+  <fct>  <dbl>    <dbl>
+1 1       7.34     7.74
+2 2       6.93     2.35
+3 3       6.82     1.13
+4 4       7.35     5.12
+#+end_src
+
+#+REVEAL: split
+Lo cual indica que nuestras cadenas realmente no han terminado de converger y
+tienen comportamiento distinto aunque en promedio parecen estar cercanas.
+
+#+REVEAL: split
+Gelman y diversos de sus coatures han desarollado un diagnóstico numérico para evaluar
+implementaciones de MCMC al considerar múltiples cadenas. Aunque éste
+estadístico se ha ido refinando con los años, su desarrollo muestra 
+un entendimiento gradual de éstos métodos en la práctica. La
+medida $\hat{R}$ se conoce como el ~factor de reducción potencial de escala~.
+
+#+REVEAL: split
+El estadístico $\hat R$ pretende ser una estimación de la posible ~reducción en
+la longitud~ de un intervalo de confianza si las simulaciones continuaran
+infinitamente. Recuerda que la varianza de un estimador nos ayuda a construir
+intervalos en el sentido frecuentista. 
+
+#+REVEAL: split
+La $\hat{R}$ estudia de manera simultánea ~la mezcla~ de todas
+las cadenas (cada cadena, y fracciones de ella, deberían de haber transitado el
+soporte de la distribución objetivo) y ~estacionariedad~ (de haberse logrado cada
+mitad de una cadena deberían de poseer las mismas característica estadísticas).
+
+#+REVEAL: split
+La estrategia es descartar la ~primera mitad~ de cada cadena. El resto lo volvemos
+a dividir en dos y utilizamos cada fracción como si fuera una cadena independiente$^\dagger$.
+
+#+HEADER: :width 900 :height 300 :R-dev-args bg="transparent"
+#+begin_src R :file images/split-cadenas.jpeg :exports results :results output graphics file
+cadenas.cantantes |>
+    unnest(cadenas) |>
+    filter(iter < 300) |>
+    ggplot(aes(x = iter, y = mu, color = cadena)) + 
+    geom_path() +  sin_lineas + 
+    annotate("rect", xmin = 0, xmax = 225, ymin = -Inf, ymax = Inf, alpha = .2) + 
+    annotate("rect", xmin = 0, xmax = 150, ymin = -Inf, ymax = Inf, alpha = .2) + 
+    annotate("text", x = c(75, 187.5,262.5),
+             y = rep(145, 3), 
+             label = c("burn-in", "sub 1", "sub 2"))
+#+end_src
+#+caption: Separación de simulaciones para cálculo de $\hat R$. 
+#+RESULTS:
+[[file:../images/split-cadenas.jpeg]]
+
+
+#+REVEAL: split
+Denotemos por $m$ el número de cadenas simuladas y por $n$ el número de 
+simulaciones dentro de cada cadena. Cada una de las ~cantidades escalares de
+interés~ las denotamos por $\phi$. Éstas pueden ser los parámetros originales
+$\theta$ o alguna otra cantidad derivada $\phi = f(\theta)$.
+
+
+#+REVEAL: split
+Ahora denotemos por $\phi_{ij}$ las simulaciones que tenemos disponibles con $i
+= 1, \ldots, n$, y $j = 1, \ldots, m$. Calculamos $B$ y $W$, la variabilidad
+~entre~ (/between/) y ~dentro~ (/within/) cadenas, respectivamente, por medio de
+\begin{align}
+W &= \frac1m \sum_{j = 1}^m s_j^2, \quad \text{con} \quad s_j^2 = \frac{1}{n-1}\sum_{i = 1}^n (\phi_{ij} - \bar \phi_{\cdot j})^2, \quad \text{donde} \quad \bar \phi_{\cdot j} = \frac1n \sum_{i = 1}^n \phi_{ij}, \\
+B &= \frac{n}{m-1}\sum_{j = 1}^m (\bar \phi_{\cdot j} - \bar \phi_{\cdot \cdot})^2, \quad \text{donde} \quad \bar \phi_{\cdot \cdot} = \frac1m \sum_{j = 1}^m \bar \phi_{\cdot j}.
+\end{align}
+
+
+#+BEGIN_NOTES
+La varianza entre cadenas, $B$, se multiplica por $n$ dado que ésta se calcula
+por medio de promedios y sin este factor de corrección no reflejaría la
+variabilidad de las cantidades de interés $\phi$. 
+#+END_NOTES
+
+#+REVEAL: split
+La varianza de $\phi$ se puede estimar por medio de 
+\begin{align}
+\hat{\mathbb{V}}(\phi)^+ = \frac{n -1}{n} W + \frac{1}{n} B \, .
+\end{align}
+
+Este estimador ~sobre-estima~ la varianza pues los puntos iniciales
+pueden estar sobre-dispersos, mientras que es un ~estimador insesgado~ una vez
+que se haya alcanzado el estado estacionario (realizaciones de la distribución
+objetivo)
+
+#+REVEAL: split
+Por otro lado, la varianza estimada por $W$ será un sub-estimador pues podría
+ser el caso de que cada cadena no ha tenido la oportunidad de recorrer todo el
+soporte de la distribución. En el límite $n \to \infty$, el valor esperado de
+$W$ aproxima $\mathbb{V}(\phi)$. 
+
+#+REVEAL: split
+Se utiliza como diagnostico el factor por el cual la escala de la
+distribución actual de $\phi$ se puede reducir si se continua con el
+procedimiento en el límite $n \to \infty$. Esto es, 
+$$\hat{R} = \sqrt{\frac{\hat{\mathbb{V}}(\phi)^+}{W}}\,,$$
+por construcción converge a 1 cuando $n \to \infty$.
+
+#+REVEAL: split
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/diagnosticos-rhat-cantantes.jpeg :exports results :results output graphics file
+  diagnosticos.rhat.short <- cadenas.cantantes |>
+    unnest(cadenas) |>
+    filter(iter < 200) |>
+    filter(iter > max(iter)/2) |>
+    mutate(cadena = paste(cadena, ifelse(iter <= (max(iter) + min(iter))/2, 
+                                         'a', 'b'), sep = "")) |>
+    pivot_longer(mu:sigma, names_to = "parametro", values_to = "valor") |>
+    group_by(parametro, cadena) |>
+    summarise(media = mean(valor), num = n(), sigma2 = var(valor)) |>
+    summarise(N = first(num), 
+              M = n_distinct(cadena), 
+              B = N * var(media), 
+              W = mean(sigma2), 
+              V_hat = ((N-1)/N) * W + B/N,
+              R_hat = sqrt(V_hat/W)) 
+
+  g.mu <- cadenas.cantantes |>
+    unnest(cadenas) |>
+    filter(iter < 200) |>
+    ggplot(aes(x = iter, y = mu, color = cadena)) + 
+    geom_path() + sin_leyenda + sin_lineas + 
+    ggtitle(paste("Rhat: ", round((diagnosticos.rhat.short |> pull(R_hat))[1], 3), sep = "")) + 
+    annotate("rect", xmin = 0, xmax = 150, ymin = -Inf, ymax = Inf, alpha = .2) + 
+    annotate("rect", xmin = 0, xmax = 100, ymin = -Inf, ymax = Inf, alpha = .2) + 
+    annotate("text", x = c(50, 125, 175),
+             y = rep(145, 3), 
+             label = c("burn-in", "sub 1", "sub 2"))
+
+  g.sigma <- cadenas.cantantes |>
+    unnest(cadenas) |>
+    filter(iter < 200) |>
+    ggplot(aes(x = iter, y = sigma, color = cadena)) + 
+    geom_path() + sin_leyenda + sin_lineas + 
+    ggtitle(paste("Rhat: ", round((diagnosticos.rhat.short |> pull(R_hat))[2], 3), sep = "")) + 
+    annotate("rect", xmin = 0, xmax = 150, ymin = -Inf, ymax = Inf, alpha = .2) + 
+    annotate("rect", xmin = 0, xmax = 100, ymin = -Inf, ymax = Inf, alpha = .2) + 
+    annotate("text", x = c(50, 125, 175),
+             y = rep(5, 3), 
+             label = c("burn-in", "sub 1", "sub 2"))
+
+  g.mu / g.sigma
+#+end_src
+#+caption: Diágnostico de reducción de escala. Sugerencia: generar mas simulaciones. 
+#+RESULTS:
+[[file:../images/diagnosticos-rhat-cantantes.jpeg]]
+
+#+REVEAL: split
+#+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
+#+begin_src R :file images/diagnosticos-rhat-cantantes-estacionario.jpeg :exports results :results output graphics file
+  diagnosticos.rhat.short <- cadenas.cantantes |>
+    unnest(cadenas) |>
+    filter(iter < 600) |>
+    filter(iter > max(iter)/2) |>
+    mutate(cadena = paste(cadena, ifelse(iter <= (max(iter) + min(iter))/2, 
+                                         'a', 'b'), sep = "")) |>
+    pivot_longer(mu:sigma, names_to = "parametro", values_to = "valor") |>
+    group_by(parametro, cadena) |>
+    summarise(media = mean(valor), num = n(), sigma2 = var(valor)) |>
+    summarise(N = first(num), 
+              M = n_distinct(cadena), 
+              B = N * var(media), 
+              W = mean(sigma2), 
+              V_hat = ((N-1)/N) * W + B/N,
+              R_hat = sqrt(V_hat/W)) 
+
+  g.mu <- cadenas.cantantes |>
+    unnest(cadenas) |>
+    filter(iter < 600) |>
+    ggplot(aes(x = iter, y = mu, color = cadena)) + 
+    geom_path() + sin_leyenda + sin_lineas + 
+    ggtitle(paste("Rhat: ", round((diagnosticos.rhat.short |> pull(R_hat))[1], 3), sep = "")) + 
+    annotate("rect", xmin = 0, xmax = 450, ymin = -Inf, ymax = Inf, alpha = .2) + 
+    annotate("rect", xmin = 0, xmax = 300, ymin = -Inf, ymax = Inf, alpha = .2) + 
+    annotate("text", x = c(150, 375, 525),
+             y = rep(145, 3), 
+             label = c("burn-in", "sub 1", "sub 2"))
+
+  g.sigma <- cadenas.cantantes |>
+    unnest(cadenas) |>
+    filter(iter < 600) |>
+    ggplot(aes(x = iter, y = sigma, color = cadena)) + 
+    geom_path() + sin_leyenda + sin_lineas + 
+    ggtitle(paste("Rhat: ", round((diagnosticos.rhat.short |> pull(R_hat))[2], 3), sep = "")) + 
+    annotate("rect", xmin = 0, xmax = 450, ymin = -Inf, ymax = Inf, alpha = .2) + 
+    annotate("rect", xmin = 0, xmax = 300, ymin = -Inf, ymax = Inf, alpha = .2) + 
+    annotate("text", x = c(150, 375, 525),
+             y = rep(5, 3), 
+             label = c("burn-in", "sub 1", "sub 2"))
+
+  g.mu / g.sigma
+#+end_src
+#+caption: Diágnostico de reducción de escala. Observaciones: parece estar bien. 
+#+RESULTS:
+[[file:../images/diagnosticos-rhat-cantantes-estacionario.jpeg]]
+
+#+BEGIN_NOTES
+Problemas con $\hat{R}$. El estimador de reducción de escala funciona bien para
+monitorear estimadores y cantidades de interés basados en medias y varianzas, o
+bien, cuando la distribución es simétrica y cercana a una Gaussiana. Es decir,
+colas ligeras. Sin embargo, para percentiles, o distribuciones lejos del
+supuesto de normalidad no es un buen indicador. Es por esto que también se
+recomienda incorprorar transformaciones que nos permitan generar un buen
+estimador. Puedes leer mas de esto aqui: citep:Vehtari2021a. 
+#+END_NOTES
+
+** Número efectivo de simulaciones
+
+Queremos que los recursos que hemos asignado a generar simulaciones sean
+representativos de la distribución objetivo. Si las $n$ simulaciones dentro de cada cadena en verdad son
+realizaciones independientes entonces la estimación de $B$ sería un estimador insesgado 
+de $\mathbb{V}(\phi)$.
+
+#+REVEAL: split
+En esta situación tendríamos $n \cdot m$ realizaciones de la distribución que
+queremos simular. Sin embargo, la correlación entre las muestras hacen que $B$
+sea mayor que $\mathbb{V}(\phi)$ en promedio.
+
+#+REVEAL: split
+Una manera para definir el tamaño efectivo de simulaciones es por medio del estudio
+del estimador
+\begin{align}
+\bar{\phi}_{\cdot\cdot} \approx \mathbb{E}(\phi)\,.
+\end{align}
+Del cual podemos derivar que
+$$\mathbb{V}(\bar{\phi}_{\cdot\cdot}) = \frac{\mathbb{V}(\phi)}{m\cdot n}\,.$$
+
+#+REVEAL: split
+El problema es que la correlación en las cadenas implica el denominador ($m\cdot n$)
+realmente sea una fracción del total de muestras, digamos $\lambda$. De tal forma que 
+el número efectivo de simulaciones es 
+$$N_{\mathsf{eff}} = \lambda \cdot (m \, n)\,,$$
+donde
+$$ \lambda = \frac{1}{\sum_{t = -\infty}^\infty \rho_t} = \frac{1}{1 + 2 \sum_{t = 1}^\infty  \rho_t}\,.$$
+
+
+#+REVEAL: split
+El término $\rho_t$ denota la *auto-correlación* con diferencia en $t$ unidades de tiempo.
+
+#+REVEAL: split
+~Definición (autocorrelación)~: La autocovarianza y autocorrelación de una serie temporal *estacionaria* $\{Y_t : t = 0, \ldots\}$ están definidas (respectivamente) como
+\begin{align}
+C_\tau = \mathbb{E}[(Y_{t+\tau} - \mu ) (Y_t - \mu)], \qquad \rho_\tau = \frac{\mathbb{E}[(Y_{t+\tau} - \mu ) (Y_t - \mu)]}{\sigma^2}\,.
+\end{align}
+#+REVEAL: split
+~Definición (estimador de autocorrelación)~: La función de autocorrelación se estima utilizando
+\begin{align}
+\hat C_\tau = \frac{1}{T- \tau} \sum_{t = 1}^{T - \tau} (Y_{t + \tau} - \hat \mu)( Y_{t} - \hat \mu), \qquad \hat \rho_\tau = \frac{\hat C_\tau}{\hat C_0}\,.
+\end{align}
+#+REVEAL: split
+~Definición (variograma)~: El variograma de una serie temporal *estacionaria* $\{Y_t : t = 0, \ldots\}$ está definido como
+\begin{align}
+V_\tau = \mathbb{E}[(Y_{t+\tau} - Y_t)^2]\,.
+\end{align}
+
+*Nota* que $V_\tau = C_0 - C_\tau$.
+
+#+REVEAL: split
+Regresando a nuestro contexto... para estimar $\rho_t$ partimos de nuestro estimador $\hat{\mathbb{V}}(\phi)^+;$
+y utilizamos el *variograma* $V_t$ para ~cada retraso~ $t$
+$$V_t = \frac{1}{m (n - t)} \sum_{j = 1}^m \sum_{i = t + 1}^n (\phi_{i,j} - \phi_{i-t, j})^2\,.$$
+
+#+REVEAL: split
+Utilizando la igualdad $\mathbb{E}(\phi_{i} - \phi_{i-t})^2 = 2 (1 - \rho_t) \mathbb{V}(\phi)$, podemos estimar
+$$\hat \rho_t = 1 - \frac{V_t}{2 \, \hat{\mathbb{V}}(\phi)^+} \, . $$
+
+#+BEGIN_NOTES
+La mayor dificultad que presenta el estimador es considerar *todos* los retrasos
+posibles. Eventualmente agotaremos la longitud de las cadenas para ello. Por
+otro lado, para $t$  eventualmente grande nuestros estimadores del variograma
+$V_t$ serán muy ruidosos (¿por qué?). En la práctica truncamos la serie de
+acuerdo a las observaciones citep:Geyer2002. La serie tiene la propiedad de que para
+cada par $\rho_{2 t} + \rho_{2 t + 1} > 0$. Por lo tanto, la serie se trunca 
+cuando observamos $\hat \rho_{2 t} + \hat \rho_{2 t + 1} < 0$ para dos retrasos
+sucesivos.
+#+END_NOTES
+
+Si denotamos por $T$ el *tiempo de paro*, el estimador para el número efectivo de
+simulaciones es
+$$\hat N_{\mathsf{eff}} = \frac{m \, n}{1 + 2 \sum_{t = 1}^T \hat  \rho_t}\,.$$
+
+#+REVEAL: split
+El ~tamaño efectivo de simulaciones~ nos ayuda a monitorear lo siguiente. Si las
+simulaciones fueran independientes $N_{\textsf{eff}}$ sería el número total de
+simulaciones; sin embargo, las simulaciones de MCMC suelen estar
+correlacionadas, de modo que cada iteración de MCMC es menos informativa que si
+fueran independientes.
+
+#+REVEAL: split
+Por ejemplo si graficaramos simulaciones independientes, esperaríamos valores de 
+autocorrelación chicos:
+
+#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/autocorrelacion-indep.jpeg :exports results :results output graphics file
+  library(forecast)
+  ggAcf(rgamma(1000,1,1)) + sin_lineas
+#+end_src
+
+#+RESULTS:
+[[file:../images/autocorrelacion-indep.jpeg]]
+
+#+REVEAL: split
+Sin embargo, los valores que simulamos tienen el siguiente perfil de
+autocorrelación:
+
+#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/autocorrelacion-metropolishastings.jpeg :exports results :results output graphics file
+  ggAcf(muestras.cantantes$mu) + sin_lineas +
+  ggtitle("Series: mu (modelo cantantes)")
+#+end_src
+
+#+RESULTS:
+[[file:../images/autocorrelacion-metropolishastings.jpeg]]
+
+
+#+REVEAL: split
+#+begin_src R :exports results :results org
+  library(posterior)
+  c(mu    = ess_basic(muestras.cantantes$mu)/nrow(muestras.cantantes),
+    sigma = ess_basic(muestras.cantantes$sigma)/nrow(muestras.cantantes),
+    accept = mean(muestras.cantantes$V1))
+#+end_src
+#+caption: Fracción $N_\mathsf{eff}/nm$ para la simulación de la posterior los cantantes de ópera. 
+#+RESULTS:
+#+begin_src org
+     mu   sigma  accept 
+0.02921 0.04822 0.69000
+#+end_src
+
+
+#+begin_src R :exports results :results org
+  ### Actualización del muestreador  -------------------------------------------
+  set.seed(108727)
+  objetivo <- ModeloNormal$new(cantantes$estatura_cm)
+  muestreo <- ModeloNormalMultivariado$new(c(0,0), 3 * diag(2))
+  mcmc <- crea_metropolis_hastings(objetivo, muestreo)
+
+  muestras.cantantes <-  mcmc(5000, c(175, 6.5)) |>
+    as_tibble() |>
+    mutate(mu = V2, sigma = V3, iter = 1:n())
+
+  c(mu    = ess_basic(muestras.cantantes$mu)/nrow(muestras.cantantes),
+    sigma = ess_basic(muestras.cantantes$sigma)/nrow(muestras.cantantes),
+    accept = mean(muestras.cantantes$V1))
+#+end_src
+#+caption: Fracción $N_\mathsf{eff}/nm$ para la simulación (calibrada) de la posterior los cantantes de ópera. 
+#+RESULTS:
+#+begin_src org
+     mu   sigma  accept 
+0.08824 0.14556 0.38020
+#+end_src
+
+#+REVEAL: split
+#+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/autocorrelacion-metropolishastings-rechazo.jpeg :exports results :results output graphics file
+  ggAcf(muestras.cantantes$mu) + sin_lineas +
+    ggtitle("Series: mu (modelo cantantes)")
+#+end_src
+#+caption: Perfil de correlación para la simulación calibrada. 
+#+RESULTS:
+[[file:../images/autocorrelacion-metropolishastings-rechazo.jpeg]]
+
+bibliographystyle:abbrvnat
+bibliography:references.bib
