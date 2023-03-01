@@ -31,9 +31,9 @@
 
 
 #+BEGIN_NOTES
-*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Stan.\\
+*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Introducción a Stan.\\
 *Objetivo*. Un primer acercamiento a ~Stan~,  sintaxis, manipulación de objetos y visualizaciones sencillas. Además un caso de estudio donde empezaremos a ver ciertos errores en el ajuste de los modelos.\\
-*Lectura recomendada*: Sección 6.2.1 de citep:Dogucu2021. 
+*Lectura recomendada*: Sección 6.2.1 de citep:Johnson2021. 
 #+END_NOTES
 
 * Contenido                                                             :toc:
@@ -54,6 +54,7 @@
 - [[#primer-modelo-en-stan][Primer modelo en Stan]]
   - [[#simulación][Simulación]]
   - [[#alternativas--rstan][Alternativas:  Rstan]]
+  - [[#consulta-de-resultados-de-muestreo][Consulta de resultados de muestreo]]
   - [[#generando-mas-simulaciones][Generando mas simulaciones]]
   - [[#haciendo-tweaks-en-el-simulador][Haciendo tweaks en el simulador]]
 - [[#cambiando-ligeramente-el-modelo][Cambiando ligeramente el modelo]]
@@ -148,6 +149,8 @@ bloques con nombre. En general el esqueleto es como sigue:
       // ... declarations ... statements ...
   }
 #+end_src
+
+\newpage
 
 #+REVEAL: split
 En general ~todos~ los bloques ~son opcionales~, y *no es necesario* tener todos para
@@ -744,7 +747,8 @@ convergence, Rhat=1).
 #+end_src
 
 
-#+REVEAL: split
+** Consulta de resultados de muestreo
+
 En caso de necesitarlo podemos extraer las muestras en una tabla para poder 
 procesarlas y generar visualizaciones. Por ejemplo, un gráfico de traza 
 con $\tau$ que es el parámetro donde más problemas parecemos tener.
@@ -1302,7 +1306,7 @@ Veamos lo siguiente para comparar los distintos modelos probabilísticos (Normal
   mcmc_scatter(model.horseshoe,
              pars = c("pregnancies", "skinthickness"),
              np   = nuts_params(model.horseshoe),
-             alpha = 0.2)
+             alpha = 0.2) + sin_lineas
 #+end_src
 #+caption: Efecto de la regularización en un par de coeficientes. 
 #+RESULTS:
@@ -1327,7 +1331,7 @@ Notemos como el modelo tiene dos zonas de alta probabilidad.
   np <- nuts_params(fit)
 
   # mcmc_scatter with divergences highlighted
-  mcmc_scatter(posterior, pars = c("wt", "sigma"), np = np, alpha = .3)
+  mcmc_scatter(posterior, pars = c("wt", "sigma"), np = np, alpha = .3) + sin_lineas
 #+end_src
 #+caption: Efecto de regularización en dos parámetros de un modelo. 
 #+RESULTS:
