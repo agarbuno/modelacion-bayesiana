@@ -32,7 +32,7 @@
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Diagnósticos MCMC.\\
 *Objetivo*. Estudiaremos diagnósticos típicos de métodos de simulación Markoviana (por Metropolis-Hastings o HMC) con el objetivo de poder identificar problemas y posibles soluciones para simulaciones deficientes. \\
-*Lectura recomendada*: Para una revisión de los diagnósticos de MCMC busca la sección 11.4 de citep:Gelman2014a. El Capítulo 3 de citep:Cressie2015 tiene una revisión muy bonita de series de tiempo. 
+*Lectura recomendada*: Para una revisión de los diagnósticos de MCMC busca la sección 11.4 de citep:Gelman2014a. El Capítulo 3 de citep:Cressie2015 tiene una revisión muy bonita de series de tiempo que es útil para algunos términos que estudiaremos.  
 #+END_NOTES
 
 #+begin_src R :exports none :results none
@@ -273,7 +273,7 @@ parte de la cadena en un periodo inicial (periodo de calentamiento).
 *** Datos: Cantantes de ópera
 
 #+begin_src R :exports code :results none
-  ## Datos: cantantes de opera -----------------------
+  ## Datos: cantantes de opera -------------------------------------------------
   set.seed(3413)
   cantantes <- lattice::singer |>
     mutate(estatura_cm = round(2.54 * height)) |>
@@ -438,9 +438,9 @@ Sin embargo, al calcular la varianza como si fueran 4 cadenas independientes vem
 #+RESULTS:
 #+begin_src org
 # A tibble: 1 × 2
-  .estimate error_mc
-      <dbl>    <dbl>
-1      7.11    0.272
+  .estimate .error_mc
+      <dbl>     <dbl>
+1      7.11     0.272
 #+end_src
 
 #+REVEAL: split
@@ -466,8 +466,34 @@ Al inspeccionar cada cadena tenemos los siguientes resúmenes
 #+end_src
 
 #+REVEAL: split
-Lo cual indica que nuestras cadenas realmente no han terminado de converger y
-tienen comportamiento distinto aunque en promedio parecen estar cercanas.
+Podemos partir cada cadena a la mitad y calcular nuestra estimación del error
+Monte Carlo. Ahora tenemos  $8$ cadenas que /esperamos/ sean ~estacionarias~
+(/idénticamente distribuidas/).
+
+#+begin_src R :exports results :results org 
+  cadenas.cantantes |>
+   unnest(cadenas) |>
+   filter(iter > 100) |>
+   group_by(cadena) |>
+   mutate(.draw = 1:n(), .particion = ifelse(.draw >= n()/2, 1, 0)) |>
+   group_by(cadena, .particion) |>
+   summarise(media = mean(sigma), varianza = var(sigma), .groups = "drop") |>
+   summarise(.estimate = mean(media), .error_mc = sd(media))
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+# A tibble: 1 × 2
+  .estimate .error_mc
+      <dbl>     <dbl>
+1      7.11     0.418
+#+end_src
+
+#+REVEAL: split
+Nota cómo está sucediendo algo contraintuitivo. Tenemos mas observaciones
+(pasamos de 1 cadena a 8) y el error Monte Carlo no decrece.  Lo cual indica que
+nuestras cadenas realmente no han terminado de converger y tienen comportamiento
+distinto aunque en promedio parecen estar cercanas.
 
 #+REVEAL: split
 Gelman y diversos de sus coatures han desarollado un diagnóstico numérico para evaluar

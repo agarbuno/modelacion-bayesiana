@@ -146,7 +146,7 @@ g2 <- muestras.mal |>
 
 g1/g2
 
-## Datos: cantantes de opera -----------------------
+## Datos: cantantes de opera -------------------------------------------------
 set.seed(3413)
 cantantes <- lattice::singer |>
   mutate(estatura_cm = round(2.54 * height)) |>
@@ -239,6 +239,15 @@ cadenas.cantantes |>
  filter(iter > 100) |> 
  group_by(cadena) |> 
  summarise(media = mean(sigma), varianza = var(sigma))
+
+cadenas.cantantes |>
+ unnest(cadenas) |>
+ filter(iter > 100) |>
+ group_by(cadena) |>
+ mutate(.draw = 1:n(), .particion = ifelse(.draw >= n()/2, 1, 0)) |>
+ group_by(cadena, .particion) |>
+ summarise(media = mean(sigma), varianza = var(sigma), .groups = "drop") |>
+ summarise(.estimate = mean(media), .error_mc = sd(media))
 
 cadenas.cantantes |>
     unnest(cadenas) |>
