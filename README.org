@@ -382,21 +382,29 @@ tareas que tendrán mecanismos de calificación automatizada.
 bibliographystyle:abbrvnat
 bibliography:references.bib
 
-* COMMENT Plan de trabajo [2/16][12%]                              :noexport:
+* COMMENT Plan de trabajo [7/18][38%]                              :noexport:
 :PROPERTIES:
 :UNNUMBERED: notoc
 :END:
-** TODO Repaso 
-** TODO Integración numerica
-** TODO MCMC (Parte 1)
-** TODO MCMC (Parte 2)
-** TODO HMC
+** DONE Repaso 
+CLOSED: [2023-03-03 Fri 20:14]
+** DONE Integración numerica
+CLOSED: [2023-03-03 Fri 20:14]
+** DONE MCMC (Parte 1)
+CLOSED: [2023-03-03 Fri 20:14]
+** DONE MCMC (Parte 2)
+CLOSED: [2023-03-03 Fri 20:14]
+** DONE HMC
+CLOSED: [2023-03-03 Fri ]
+** TODO Primer Examen Parcial
+** TODO Introducción a Stan
 ** TODO Diagnosticos
 ** TODO Posterior Predictive Sampling
 ** TODO Posterior and prior predictive checks
 ** TODO Simulation Based calibration
 ** TODO Evaluation and cross validation
 ** TODO Decision Analysis
+Optimización bayesiana
 ** TODO Multi-Armed Bandits
 Tomar el caso en [[https://www.smartly.io/blog/tutorial-how-we-productized-bayesian-revenue-estimation-with-stan][Smartly.io]] o también [[https://www.linkedin.com/pulse/tutorial-how-we-productized-bayesian-revenue-estimation-markus-ojala/][aqui]]. Comentarios por [[https://statmodeling.stat.columbia.edu/2018/01/21/smartly-io-productized-bayesian-revenue-estimation-stan/][Andrew Gelman]]. 
 ** TODO Variational inference
