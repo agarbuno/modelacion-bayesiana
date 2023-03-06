@@ -3,31 +3,22 @@
 #+EMAIL:  agarbuno@itam.mx
 #+DATE: ~Introducción a Stan~
 #+STARTUP: showall
-:LATEX_PROPERTIES:
-#+OPTIONS: toc:nil date:nil author:nil tasks:nil
-#+LANGUAGE: sp
-#+LATEX_CLASS: handout
-#+LATEX_HEADER: \usepackage[spanish]{babel}
-#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
-#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
-#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
-#+LATEX_HEADER: \decimalpoint
-#+LATEX_HEADER:\usepackage{framed}
-#+LaTeX_HEADER: \usepackage{listings}
-#+LATEX_HEADER: \usepackage{fancyvrb}
-#+LATEX_HEADER: \usepackage{xcolor}
-#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
-#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
-#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
-#+LaTeX_HEADER: {}
-#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
-#+LaTeX_HEADER: {}
-#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
-#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
-#+EXPORT_FILE_NAME: ../docs/04-intro-stan.pdf
+:REVEAL_PROPERTIES:
+# Template uses org export with export option <R B>
+# Alternatives: use with citeproc
+#+LANGUAGE: es
+#+OPTIONS: num:nil toc:nil timestamp:nil
+#+REVEAL_REVEAL_JS_VERSION: 4
+#+REVEAL_MATHJAX_URL: https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+#+REVEAL_THEME: night
+#+REVEAL_SLIDE_NUMBER: t
+#+REVEAL_HEAD_PREAMBLE: <meta name="description" content="Bayesiana">
+#+REVEAL_INIT_OPTIONS: width:1600, height:900, margin:.2
+#+REVEAL_EXTRA_CSS: ./mods.css
+#+REVEAL_PLUGINS: (notes)
 :END:
 #+EXCLUDE_TAGS: toc latex
-#+PROPERTY: header-args:R :session tutorial :exports both :results output org :tangle ../rscripts/04-stan.R :mkdirp yes :dir ../
+#+PROPERTY: header-args:R :session tutorial :exports both :results output org :tangle ../rscripts/04-stan.R :mkdirp yes :dir ../ :eval never
 
 
 #+BEGIN_NOTES
@@ -115,6 +106,7 @@ Habíamos visto que los /bayesics/ son los componentes:
 2) Supuestos del proceso generador de  datos. 
 3) Conocimiento previo sobre los componentes que rigen el modelo.
 
+#+REVEAL: split
 Para ~Stan~ tenemos que seguir algo muy similar. Es decir,
 1) Definir el modelo.
 2) Ingestar los datos.
@@ -179,6 +171,7 @@ El código es:
   }
 #+end_src
 
+#+REVEAL: split
 #+caption: Código necesario para interactuar con ~Stan~ desde ~R~.
 #+begin_src R :exports code :results none
   ## Modelo Beta-Binomial --------------------------------------------------------
@@ -515,6 +508,7 @@ resultados de dicha prueba.
                   sigma = c(15, 10, 16, 11, 9, 11, 10, 18))
 #+end_src
 
+#+REVEAL: split
 En este caso se utiliza un modelo normal para los resultados de cada escuela
 \begin{align}
 y_j \sim \mathsf{N}(\theta_j, \sigma_j), \qquad j = 1, \ldots, J\,,
@@ -523,7 +517,7 @@ y_j \sim \mathsf{N}(\theta_j, \sigma_j), \qquad j = 1, \ldots, J\,,
 donde $J = 8$, y $\theta_j$ representa el promedio de los alumnos de escuela que
 no observamos pero del cual tenemos un estimador $y_j$.
 
-
+#+REVEAL: split
 Nota que tenemos $J$ valores distintos para $\theta_j$ y $\sigma_j$. Dado que 
 esperamos que las escuelas provengan de la misma población de escuelas asumimos
 que
@@ -533,10 +527,9 @@ donde $\mu$ representa la media poblacional (el promedio en el sistema escolar)
 y $\tau$ la desviación estándar alrededor de este valor.
 
 
+#+REVEAL: split
 Representamos nuestra incertidumbre en estos dos valores por medio de
-
 $$ \mu \sim \mathsf{N}(0, 5), \qquad \tau \sim \textsf{Half-Cauchy}(0,5)\,, $$
-
 lo cual representa información poco precisa de estos valores poblacionales. 
 
 * Primer modelo en ~Stan~
@@ -551,6 +544,7 @@ y_j \sim \mathsf{N}(\theta_j, \sigma_j), \qquad j = 1, \ldots, J\,.
 \end{gather}
 \end{subequations}
 
+#+REVEAL: split
 #+caption: Código del modelo para el desempeño de las escuelas. 
 #+begin_src stan :tangle ../modelos/caso-escuelas/modelo-escuelas.stan
   data {
@@ -572,12 +566,14 @@ y_j \sim \mathsf{N}(\theta_j, \sigma_j), \qquad j = 1, \ldots, J\,.
 #+end_src
 
 
+#+REVEAL: split
 Nota que ~sigma~ está definida como /parte del conjunto de datos/ que el usuario
 debe de proveer. Aunque es un parámetro en nuestro modelo (verosimilitud) no está
 sujeto al proceso de inferencia. Por otro lado, nota que la declaración no se
 hace de manera componente por componente, sino de forma ~vectorizada~. 
 
 
+#+REVEAL: split
 Una vez escrito nuestro modelo, lo podemos compilar utilizando la librería de
 ~cmdstanr~, que es la interface con ~Stan~ desde ~R~.
 
@@ -587,6 +583,7 @@ Una vez escrito nuestro modelo, lo podemos compilar utilizando la librería de
   modelo <- cmdstan_model(ruta, dir = modelos_files)
 #+end_src
 
+#+REVEAL: split
 Los datos que necesita el bloque ~data~ se pasan como una /lista con nombres/.
 
 #+begin_src R :exports code :results none
@@ -620,7 +617,6 @@ See https://mc-stan.org/misc/warnings for details.
 Warning: 1 of 1 chains had an E-BFMI less than 0.2.
 See https://mc-stan.org/misc/warnings for details.
 #+end_src
-
 
 #+REVEAL: split
 El muestreador en automático nos regresa ciertas alertas las cuales podemos
@@ -796,6 +792,7 @@ seríamos capaces de diagnosticar estos problemas.
 [[file:../images/escuelas-media-acumulada.jpeg]]
 
 
+#+REVEAL: split
 Utilizar gráficos de dispersión bivariados nos ayuda a identificar mejor el
 problema. En color salmón apuntamos las muestras con transiciones /divergentes/
 (mas adelante lo explicaremos).
@@ -878,6 +875,7 @@ Warning: 94 of 5000 (2.0%) transitions ended with a divergence.
 See https://mc-stan.org/misc/warnings for details.
 #+end_src
 
+#+REVEAL: split
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/escuelas-traceplot-cadenalarga.jpeg :exports results :results output graphics file
   muestras_dt <- tibble(posterior::as_draws_df(muestras$draws(c("tau", "theta[1]"))))
@@ -948,6 +946,7 @@ segura de la distribución.
 #+end_src
 
 
+#+REVEAL: split
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/escuelas-diagnosticos-noparam.jpeg  :exports results :results output graphics file
   muestras_dt <- tibble(posterior::as_draws_df(muestras$draws(c("tau", "theta[1]"))))
@@ -983,6 +982,7 @@ punto. Seguimos teniendo problemas y no hay garantías que nuestra simulación
 y nuestros estimadores Monte Carlo no estén sesgados.
 
 
+#+REVEAL: split
 Esta situación es muy común en /modelos jerárquicos/. El cual hemos definido como
 \begin{subequations}
 \begin{gather}
@@ -993,6 +993,7 @@ y_j \sim \mathsf{N}(\theta_j, \sigma_j),  \qquad j = 1, \ldots, J\,.
 \end{gather}
 \end{subequations}
 
+#+REVEAL: split
 El problema es la geometría de la distribución posterior. La ventaja es que
 existe una solución sencilla para hacer el problema de muestreo mas
 sencillo. Esto es al escribir el modelo en términos de una variable auxiliar:
@@ -1006,6 +1007,7 @@ y_j \sim \mathsf{N}(\theta_j, \sigma_j), \qquad j = 1, \ldots, J\,.
 \end{gather}
 \end{subequations}
 
+#+REVEAL: split
 El modelo en ~Stan~ es muy parecido. La nomenclatura que se utiliza es: *modelo
 centrado* para el primero, y para la reparametrización presentada en la
 ecuación de arriba nos referimos a un *modelo no centrado*. 
@@ -1046,6 +1048,7 @@ vectorizada.
 #+END_NOTES
 
 
+#+REVEAL: split
 Igual que antes lo necesitamos compilar para hacerlo un objeto ejecutable desde
 ~R~.
 
@@ -1056,6 +1059,7 @@ Igual que antes lo necesitamos compilar para hacerlo un objeto ejecutable desde
 #+end_src
 
 
+#+REVEAL: split
 Muestreamos de la posterior 
 
 #+begin_src R :exports both :results org
@@ -1126,7 +1130,6 @@ comportamiento (del cual ya teníamos indicios por los diagnósticos del modelo)
 #+RESULTS:
 [[file:../images/escuelas-traceplot-ncp.jpeg]]
 
-
 #+REVEAL: split
 Si regresamos a los gráficos de dispersión para verificar que se hayan resuelto los
 problemas observamos lo siguiente: 
@@ -1179,10 +1182,12 @@ Otro caso de uso bastante común y con el cual /podrían/ estar altamente famili
 \begin{align}
 \hat \theta = \underset{\theta}{\arg \min} \, \mathcal{J}(y, f_\theta(x))\,.
 \end{align}
+#+REVEAL: split
 El problema de optimización está usualmente ~mal formulado~ en el sentido de que pequeñas perturbaciones en el conjunto de datos utilizado para /entrenar/ lleva a soluciones radicalmente distintas. En este contexto se busca ~regularizar~ el problema utilizando una función que permita restringir la solución y de esta manera tener soluciones ~estables~. Esto lo formulamos como 
 \begin{align}
 \hat \theta_R = \underset{\theta}{\arg \min} \,\left( \mathcal{J}(y, f_\theta(x)) + R(\theta) \right)\,.
 \end{align}
+#+REVEAL: split
 Esto es bastante usual en la solución de problemas inversos (citep:Tarantola2005,Kaipio2005) y la estimación de modelos predictivos por medio de Ridge o Lasso (citep:Hastie2009c). Por ejemplo, se pueden considerar regularizadores  como  penalizaciones en *norma 2* (=Ridge=, $\|\theta\|_2^2 =  \sum (\theta_i)^2$ ) o *norma 1* (=Lasso=, $\|\theta\|_1 = \sum |\theta_i|$ ).
 
 ** Formulación probabilística 
@@ -1192,6 +1197,7 @@ En términos probabilísticos esto correspondería a plantear un modelo
 \pi(\theta | y ) \propto \exp \left(  - \mathcal{J}(y, f_\theta(x))  \right) \, \exp \left(- R(\theta)  \right)\,.
 \end{align}
 
+#+REVEAL: split
 Por ejemplo, considerar ~regresión Ridge~ implica considerar un modelo =Gaussiano=
 para la =verosimilitud= y un modelo Gaussiano para la =previa=.
 
@@ -1301,6 +1307,7 @@ Veamos lo siguiente para comparar los distintos modelos probabilísticos (Normal
 #+RESULTS:
 [[file:../images/comparacion-regularizacion-diabetes.jpeg]]
 
+#+REVEAL: split
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/dispersion-regularizacion.jpeg :exports results :results output graphics file
   mcmc_scatter(model.horseshoe,
