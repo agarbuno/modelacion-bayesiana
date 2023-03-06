@@ -3,19 +3,28 @@
 #+EMAIL:  agarbuno@itam.mx
 #+DATE: ~Introducción a Stan~
 #+STARTUP: showall
-:REVEAL_PROPERTIES:
-# Template uses org export with export option <R B>
-# Alternatives: use with citeproc
-#+LANGUAGE: es
-#+OPTIONS: num:nil toc:nil timestamp:nil
-#+REVEAL_REVEAL_JS_VERSION: 4
-#+REVEAL_MATHJAX_URL: https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
-#+REVEAL_THEME: night
-#+REVEAL_SLIDE_NUMBER: t
-#+REVEAL_HEAD_PREAMBLE: <meta name="description" content="Bayesiana">
-#+REVEAL_INIT_OPTIONS: width:1600, height:900, margin:.2
-#+REVEAL_EXTRA_CSS: ./mods.css
-#+REVEAL_PLUGINS: (notes)
+:LATEX_PROPERTIES:
+#+OPTIONS: toc:nil date:nil author:nil tasks:nil
+#+LANGUAGE: sp
+#+LATEX_CLASS: handout
+#+LATEX_HEADER: \usepackage[spanish]{babel}
+#+LATEX_HEADER: \usepackage[sort,numbers]{natbib}
+#+LATEX_HEADER: \usepackage[utf8]{inputenc} 
+#+LATEX_HEADER: \usepackage[capitalize]{cleveref}
+#+LATEX_HEADER: \decimalpoint
+#+LATEX_HEADER:\usepackage{framed}
+#+LaTeX_HEADER: \usepackage{listings}
+#+LATEX_HEADER: \usepackage{fancyvrb}
+#+LATEX_HEADER: \usepackage{xcolor}
+#+LaTeX_HEADER: \definecolor{backcolour}{rgb}{.95,0.95,0.92}
+#+LaTeX_HEADER: \definecolor{codegray}{rgb}{0.5,0.5,0.5}
+#+LaTeX_HEADER: \definecolor{codegreen}{rgb}{0,0.6,0} 
+#+LaTeX_HEADER: {}
+#+LaTeX_HEADER: {\lstset{language={R},basicstyle={\ttfamily\footnotesize},frame=single,breaklines=true,fancyvrb=true,literate={"}{{\texttt{"}}}1{<-}{{$\bm\leftarrow$}}1{<<-}{{$\bm\twoheadleftarrow$}}1{~}{{$\bm\sim$}}1{<=}{{$\bm\le$}}1{>=}{{$\bm\ge$}}1{!=}{{$\bm\neq$}}1{^}{{$^{\bm\wedge}$}}1{|>}{{$\rhd$}}1,otherkeywords={!=, ~, $, \&, \%/\%, \%*\%, \%\%, <-, <<-, ::, /},extendedchars=false,commentstyle={\ttfamily \itshape\color{codegreen}},stringstyle={\color{red}}}
+#+LaTeX_HEADER: {}
+#+LATEX_HEADER_EXTRA: \definecolor{shadecolor}{gray}{.95}
+#+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
+#+EXPORT_FILE_NAME: ../docs/04-intro-stan.pdf
 :END:
 #+EXCLUDE_TAGS: toc latex
 #+PROPERTY: header-args:R :session tutorial :exports both :results output org :tangle ../rscripts/04-stan.R :mkdirp yes :dir ../ :eval never
@@ -53,6 +62,7 @@
   - [[#formulación-probabilística][Formulación probabilística]]
   - [[#regularización-en-regresión-diabetes][Regularización en regresión (diabetes)]]
   - [[#regularización-en-regresión-carros][Regularización en regresión (carros)]]
+  - [[#regularización-y-previas][Regularización y previas]]
 :END:
 
 #+begin_src R :exports none :results none
@@ -1343,6 +1353,147 @@ Notemos como el modelo tiene dos zonas de alta probabilidad.
 #+caption: Efecto de regularización en dos parámetros de un modelo. 
 #+RESULTS:
 [[file:../images/dispersion-mtcars.jpeg]]
+
+** Regularización y previas
+
+#+begin_src R :exports code :results none
+
+  library("rstanarm")
+  x <- seq(-2,2,1)
+  y <- c(50, 44, 50, 47, 56)
+  sexratio <- tibble(x, y)
+
+#+end_src
+
+#+begin_src R :exports both :results org 
+  fit <- lm(y ~ x, data = sexratio)
+  fit |> broom::tidy()
+  fit |> broom::glance() |> select(1:5)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+# A tibble: 2 × 5
+  term        estimate std.error statistic  p.value
+  <chr>          <dbl>     <dbl>     <dbl>    <dbl>
+1 (Intercept)    49.4       1.94     25.4  0.000134
+2 x               1.50      1.37      1.09 0.355
+# A tibble: 1 × 5
+  r.squared adj.r.squared sigma statistic p.value
+      <dbl>         <dbl> <dbl>     <dbl>   <dbl>
+1     0.284        0.0455  4.35      1.19   0.355
+#+end_src
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/beauty-sex-ratio-lm.jpeg :exports results :results output graphics file
+
+  g1 <- sexratio |>
+    ggplot(aes(x, y)) +
+    geom_point() +
+    xlab("Medida de atracción") + ylab("Porcentaje de niñas") + sin_lineas
+
+  g2 <- sexratio |>
+    ggplot(aes(x, y)) +
+    geom_point() +
+    geom_smooth(formula = y ~ x, sd = TRUE, method = "lm") + 
+    xlab("Medida de atracción") + ylab("Porcentaje de niñas") + sin_lineas
+
+g1 + g2
+
+#+end_src
+
+#+RESULTS:
+[[file:../images/beauty-sex-ratio-lm.jpeg]]
+
+#+begin_src R :exports both :results org 
+  fit_post <- stan_glm(y ~ x, data = sexratio,
+                       prior = normal(0, 0.2),
+                       prior_intercept = normal(48.8, 0.5),
+                       refresh = 0)
+  prior_summary(fit_post)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+Priors for model 'fit_post' 
+------
+Intercept (after predictors centered)
+ ~ normal(location = 49, scale = 0.5)
+
+Coefficients
+ ~ normal(location = 0, scale = 0.2)
+
+Auxiliary (sigma)
+  Specified prior:
+    ~ exponential(rate = 1)
+  Adjusted prior:
+    ~ exponential(rate = 0.22)
+------
+See help('prior_summary.stanreg') for more details
+#+end_src
+
+
+#+begin_src R :exports both :results org 
+  print(fit_post)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+stan_glm
+ family:       gaussian [identity]
+ formula:      y ~ x
+ observations: 5
+ predictors:   2
+------
+            Median MAD_SD
+(Intercept) 48.8    0.5  
+x            0.0    0.2  
+
+Auxiliary parameter(s):
+      Median MAD_SD
+sigma 4.3    1.3   
+
+------
+,* For help interpreting the printed output see ?print.stanreg
+,* For info on the priors used see ?prior_summary.stanreg
+#+end_src
+
+
+#+begin_src R :exports code :results none
+  fit_default <- stan_glm(y ~ x, data = sexratio, refresh = 0)
+  prior_summary(fit_default)
+#+end_src
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/beauty-sex-posterior-analysis.jpeg :exports results :results output graphics file
+  gweak <- g1 +
+    geom_abline(data = as_tibble(fit_default) |> mutate(id = 1:n()) |>
+                  sample_n(100),
+                aes(slope = x, intercept = `(Intercept)`, group = id),
+                alpha = .2) +
+    geom_abline(data = as_tibble(fit_default) |> pivot_longer(1:3) |>
+                  group_by(name) |> summarise(.estimate = mean(value)) |>
+                  pivot_wider(values_from = .estimate),
+                aes(slope = x, intercept = `(Intercept)`),
+                linewidth = 2)
+
+  ginformative <- g1 +
+    geom_abline(data = as_tibble(fit_post) |> mutate(id = 1:n()) |>
+                  sample_n(100),
+                aes(slope = x, intercept = `(Intercept)`, group = id),
+                alpha = .2) +
+    geom_abline(data = as_tibble(fit_post) |> pivot_longer(1:3) |>
+                  group_by(name) |> summarise(.estimate = mean(value)) |>
+                  pivot_wider(values_from = .estimate),
+                aes(slope = x, intercept = `(Intercept)`),
+                linewidth = 2)
+
+  gweak + ginformative
+#+end_src
+#+caption: Incorporar información en la previa permite regularizar el problema.
+#+RESULTS:
+[[file:../images/beauty-sex-posterior-analysis.jpeg]]
+
 
 # * Referencias                                                         :latex:
 
