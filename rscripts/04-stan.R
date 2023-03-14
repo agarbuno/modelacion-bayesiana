@@ -41,13 +41,18 @@ class(modelo)
 data.list <- list(Y = 7)
 
 muestras <- modelo$sample(data = data.list, 
-                          chains = 1, 
+                          chains = 4, 
                           iter=1500, 
                           iter_warmup=500, 
                           seed=483892929, 
-                          refresh=500)
+                          refresh=500,
+)
 
 class(muestras)
+
+muestras |> as_draws_df() |> as_tibble() |>
+  group_by(.chain) |>
+  summarise(.estimate = mean(theta), .error_mc = sd(theta)/n())
 
 mcmc_trace(muestras$draws(), pars = "theta") +
   sin_lineas +
@@ -108,6 +113,8 @@ muestras <- modelo$sample(data = data_list,
                           seed=483892929, 
                           refresh=1200)
 
+muestras
+
 muestras$cmdstan_diagnose()
 
 muestras$cmdstan_summary()
@@ -137,7 +144,7 @@ muestras_dt |>
    ggplot(aes(x = .iteration, y = media)) + 
     geom_point() + sin_lineas + 
     xlab("Iteraciones") + 
-    ylim(-4, 4) + 
+    ylim(-4, 4) +
     geom_hline(yintercept = 0.7657852, lty = 2)
 
 g1_dispersion <- muestras_dt |> 
@@ -181,7 +188,7 @@ g2_dispersion <- muestras_dt |>
   mutate(log_tau = log(tau)) |> 
   mcmc_scatter(
   pars = c("theta[1]", "log_tau"),
-  np = nuts_params(stanfit),
+  np = nuts_params(muestras),
   np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)) + 
   sin_lineas+ ylim(-4, 3) +
   ggtitle("Original")
@@ -205,7 +212,7 @@ muestras <- modelo$sample(data        = data_list,
                           adapt_delta = .90)
 
 muestras_dt <- tibble(posterior::as_draws_df(muestras$draws(c("tau", "theta[1]"))))
-stanfit <- rstan::read_stan_csv(muestras$output_files())
+
 
 g1 <- muestras_dt |> 
    ggplot(aes(x = .iteration, y = log(tau))) + 
@@ -219,7 +226,7 @@ g2_dispersion_90 <- muestras_dt |>
   mutate(log_tau = log(tau)) |> 
   mcmc_scatter(
   pars = c("theta[1]", "log_tau"),
-  np = nuts_params(stanfit),
+  np = nuts_params(muestras),
   np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)) + 
   sin_lineas + ylim(-4, 3) +
   ggtitle("Configuración hmc")
@@ -241,6 +248,8 @@ stanfit_ncp
 
 muestras_dt <- tibble(posterior::as_draws_df(muestras_ncp$draws(c("tau", "theta[1]", "theta_tilde[1]"))))
 
+muestras
+
 muestras_dt |> 
    ggplot(aes(x = .iteration, y = log(tau))) + 
     geom_point() + sin_lineas + 
@@ -252,7 +261,7 @@ g3 <- muestras_dt |>
   mutate(log_tau = log(tau)) |> 
   mcmc_scatter(
   pars = c("theta_tilde[1]", "log_tau"),
-  np = nuts_params(stanfit_ncp),
+  np = nuts_params(muestras_ncp),
   np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)) + 
   sin_lineas + ylim(-4, 3) +
   ggtitle("Variable auxiliar")
@@ -261,7 +270,7 @@ g3_dispersion <- muestras_dt |>
   mutate(log_tau = log(tau)) |> 
   mcmc_scatter(
   pars = c("theta[1]", "log_tau"),
-  np = nuts_params(stanfit_ncp),
+  np = nuts_params(muestras_ncp),
   np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)) + 
   sin_lineas + ylim(-4, 3) +
   ggtitle("Re-parametrización")
