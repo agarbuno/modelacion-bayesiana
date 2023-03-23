@@ -27,7 +27,7 @@
 #+EXPORT_FILE_NAME: ../docs/04-intro-stan.pdf
 :END:
 #+EXCLUDE_TAGS: toc latex
-#+PROPERTY: header-args:R :session tutorial :exports both :results output org :tangle ../rscripts/04-stan.R :mkdirp yes :dir ../ :eval never
+#+PROPERTY: header-args:R :session tutorial :exports both :results output org :tangle ../rscripts/04-stan.R :mkdirp yes :dir ../
 
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2023 | Introducción a Stan.\\
@@ -934,7 +934,7 @@ siguiente gráfica.
     mutate(log_tau = log(tau)) |> 
     mcmc_scatter(
     pars = c("theta[1]", "log_tau"),
-    np = nuts_params(stanfit),
+    np = nuts_params(muestras_dt),
     np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)) + 
     sin_lineas+ ylim(-4, 3) +
     ggtitle("Original")
@@ -980,7 +980,6 @@ segura de la distribución.
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/escuelas-diagnosticos-noparam.jpeg  :exports results :results output graphics file
   muestras_dt <- tibble(posterior::as_draws_df(muestras$draws(c("tau", "theta[1]"))))
-  stanfit <- rstan::read_stan_csv(muestras$output_files())
 
   g1 <- muestras_dt |> 
      ggplot(aes(x = .iteration, y = log(tau))) + 
@@ -994,7 +993,7 @@ segura de la distribución.
     mutate(log_tau = log(tau)) |> 
     mcmc_scatter(
     pars = c("theta[1]", "log_tau"),
-    np = nuts_params(stanfit),
+    np = nuts_params(muestras_dt),
     np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)) + 
     sin_lineas + ylim(-4, 3) +
     ggtitle("Configuración hmc")

@@ -30,7 +30,7 @@
 #+EXCLUDE_TAGS: toc latex
 
 #+BEGIN_NOTES
-*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Extensiones MCMC.\\
+*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2023 | Extensiones MCMC.\\
 *Objetivo*. Estudiaremos el uso de modelos de física para simular cadenas de Markov con el objetivo de resolver integrales derivadas de un modelo probabilístico. Esto nos lleva a estudiar el método que utiliza el estado del arte en simulación para resolver inferencia bayesiana. Lo lograremos con lo que ya hemos visto: método de aceptación-rechazo, Metropolis-Hastings y demás. \\
 *Lectura recomendada*: Capítulo 9 de [[citet:&Mcelreath2020]]. Los artículos citep:Betancourt2018 y citep:Neal2011, aunque mas avanzados, tienen una muy buena explicación del mecanismo teórico y algorítmico que utiliza HMC. 
 #+END_NOTES
