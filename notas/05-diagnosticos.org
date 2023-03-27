@@ -31,8 +31,16 @@
 
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Diagnósticos MCMC.\\
-*Objetivo*. Estudiaremos diagnósticos típicos de métodos de simulación Markoviana (por Metropolis-Hastings o HMC) con el objetivo de poder identificar problemas y posibles soluciones para simulaciones deficientes. \\
-*Lectura recomendada*: Para una revisión de los diagnósticos de MCMC busca la sección 11.4 de citep:Gelman2014a. El Capítulo 3 de citep:Cressie2015 tiene una revisión muy bonita de series de tiempo que es útil para algunos términos que estudiaremos.  
+*Objetivo*. Estudiaremos diagnósticos típicos de métodos de simulación Markoviana
+ (por Metropolis-Hastings o HMC) con el objetivo de poder identificar problemas
+ y posibles soluciones para simulaciones deficientes. \\
+*Lectura recomendada*: Para una revisión de los diagnósticos de MCMC busca la
+ sección 11.4 de citep:Gelman2014a. El Capítulo 3 de citep:Cressie2015 tiene una
+ revisión muy bonita de series de tiempo que es útil para algunos términos que
+ estudiaremos.  El artículo de citet:Roy2019 tiene un breve resumen sobre
+ diagnósticos. Además, se mencionan algunas técnicas modernas de diagnóstico
+ como los métodos basados en los principios de Stein o distancias adecuadas para
+ espacios de probabilidad.
 #+END_NOTES
 
 #+begin_src R :exports none :results none
@@ -71,11 +79,17 @@
     - [[#datos-cantantes-de-ópera][Datos: Cantantes de ópera]]
   - [[#monitoreo-de-mezcla-dentro-y-entre-cadenas][Monitoreo de mezcla dentro y entre cadenas]]
   - [[#número-efectivo-de-simulaciones][Número efectivo de simulaciones]]
+  - [[#relación-con-error-monte-carlo][Relación con error Monte Carlo]]
+  - [[#adelgazamiento-de-cadenas][Adelgazamiento de cadenas]]
+- [[#conclusiones][Conclusiones]]
 :END:
 
 * Introducción
 
-El avance en poder computacional ha permitido la proliferación de métodos Bayesianos. El poder generar cadenas de Markov es múltiples procesadores nos ayuda a relajar los requisitos y ayuda a explotar los recursos computacionales disponibles. 
+El avance en poder computacional ha permitido la proliferación de métodos
+Bayesianos. El poder generar cadenas de Markov es múltiples procesadores nos
+ayuda a relajar los requisitos de convergencia y ayuda a explotar los recursos
+computacionales disponibles.
 
 #+begin_src R :exports none :results none
   library(mvtnorm)
@@ -162,12 +176,17 @@ MCMC, sin importar el método (Metrópolis, Gibbs, HMC), buscamos que:
 
 #+REVEAL: split
 En la ~práctica~ intentamos cumplir lo más posible estos objetivos. Debemos de
-tener un criterio para considerar cadenas de ~longitud finita~ y ~evaluar la calidad~ de las
-simulaciones.
+tener un criterio para considerar cadenas de ~longitud finita~ y ~evaluar la
+calidad~ de las simulaciones.
 
 #+REVEAL: split
 Primero estudiaremos ~diagnósticos generales~ para métodos que utilicen MCMC y
-después mencionaremos particularidades del método de simulación HMC.
+después /mencionaremos/ particularidades del método de simulación HMC.
+
+#+REVEAL: split
+En general, el problema es doble:
+1. Determinar si la cadena de Markov ha alcanzado el estado estacionario;
+2. Determinar si los estimadores Monte Carlo convergen a los valores esperados. 
 
 * Diagnósticos generales
 
@@ -542,15 +561,23 @@ simulaciones dentro de cada cadena. Cada una de las ~cantidades escalares de
 interés~ las denotamos por $\phi$. Éstas pueden ser los parámetros originales
 $\theta$ o alguna otra cantidad derivada $\phi = f(\theta)$.
 
+#+BEGIN_NOTES
+Ejemplos de esto puede ser en un modelo Beta-Binomial donde nos interesa la tasa
+de éxitos $\theta$ pero necesitamos monitorear $\phi = \log \left( \theta / 1 -
+\theta \right)$. Otra situación puede ser el caso de un modelo normal con
+varianza desconocida $\sigma^2$ y necesitamos monitorear $\phi = \log \sigma^2$.
+#+END_NOTES
+
+
 
 #+REVEAL: split
 Ahora denotemos por $\phi_{ij}$ las simulaciones que tenemos disponibles con $i
 = 1, \ldots, n$, y $j = 1, \ldots, m$. Calculamos $B$ y $W$, la variabilidad
 ~entre~ (/between/) y ~dentro~ (/within/) cadenas, respectivamente, por medio de
-\begin{align}
-W &= \frac1m \sum_{j = 1}^m s_j^2, \quad \text{con} \quad s_j^2 = \frac{1}{n-1}\sum_{i = 1}^n (\phi_{ij} - \bar \phi_{\cdot j})^2, \quad \text{donde} \quad \bar \phi_{\cdot j} = \frac1n \sum_{i = 1}^n \phi_{ij}, \\
-B &= \frac{n}{m-1}\sum_{j = 1}^m (\bar \phi_{\cdot j} - \bar \phi_{\cdot \cdot})^2, \quad \text{donde} \quad \bar \phi_{\cdot \cdot} = \frac1m \sum_{j = 1}^m \bar \phi_{\cdot j}.
-\end{align}
+\begin{gather}
+W = \frac1m \sum_{j = 1}^m s_j^2, \quad \text{con} \quad s_j^2 = \frac{1}{n-1}\sum_{i = 1}^n (\phi_{ij} - \bar \phi_{\cdot j})^2, \quad \text{donde} \quad \bar \phi_{\cdot j} = \frac1n \sum_{i = 1}^n \phi_{ij}, \\
+B = \frac{n}{m-1}\sum_{j = 1}^m (\bar \phi_{\cdot j} - \bar \phi_{\cdot \cdot})^2, \quad \text{donde} \quad \bar \phi_{\cdot \cdot} = \frac1m \sum_{j = 1}^m \bar \phi_{\cdot j}.
+\end{gather}
 
 
 #+BEGIN_NOTES
@@ -560,7 +587,7 @@ variabilidad de las cantidades de interés $\phi$.
 #+END_NOTES
 
 #+REVEAL: split
-La varianza de $\phi$ se puede estimar por medio de 
+La varianza de $\phi$ se puede estimar por medio del ~estimador agregado de varianza~
 \begin{align}
 \hat{\mathbb{V}}(\phi)^+ = \frac{n -1}{n} W + \frac{1}{n} B \, .
 \end{align}
@@ -688,7 +715,16 @@ bien, cuando la distribución es simétrica y cercana a una Gaussiana. Es decir,
 colas ligeras. Sin embargo, para percentiles, o distribuciones lejos del
 supuesto de normalidad no es un buen indicador. Es por esto que también se
 recomienda incorprorar transformaciones que nos permitan generar un buen
-estimador. Puedes leer mas de esto aqui: citep:Vehtari2021a. 
+estimador. Puedes leer mas de esto en el articulo de citet:Vehtari2021a. 
+#+END_NOTES
+
+#+BEGIN_NOTES
+Existe una versión multivariada de este estadístico que busca resumir la misma
+información a lo largo de todos los componentes de $\theta \in \mathbb{R}^p$. Es prácticamente el mismo estimador con las versiones multivariadas de varianza dentro de cada cadena $\Sigma_W$ y la varianza agregada $\Sigma_{V^{^+}}$. Es decir, el estadístico se calcula como
+\begin{align}
+\hat R_p = \max_{a \in \mathbb{R}^p} \frac{a^\top \Sigma_{V^{^+}} a}{a^\top \Sigma_W a}\,,
+\end{align}
+el cual, se puede probar, está relacionado con el valor propio mas grande de la matriz $\Sigma_W^{-1} \Sigma_{V^{^+}}/n$ citep:Roy2019.
 #+END_NOTES
 
 ** Número efectivo de simulaciones
@@ -699,7 +735,7 @@ realizaciones independientes entonces la estimación de $B$ sería un estimador 
 de $\mathbb{V}(\phi)$.
 
 #+REVEAL: split
-En esta situación tendríamos $n \cdot m$ realizaciones de la distribución que
+En esta situación tendríamos $n \times m$ realizaciones de la distribución que
 queremos simular. Sin embargo, la correlación entre las muestras hacen que $B$
 sea mayor que $\mathbb{V}(\phi)$ en promedio.
 
@@ -716,13 +752,13 @@ $$\mathbb{V}(\bar{\phi}_{\cdot\cdot}) = \frac{\mathbb{V}(\phi)}{m\cdot n}\,.$$
 El problema es que la correlación en las cadenas implica el denominador ($m\cdot n$)
 realmente sea una fracción del total de muestras, digamos $\lambda$. De tal forma que 
 el número efectivo de simulaciones es 
-$$N_{\mathsf{eff}} = \lambda \cdot (m \, n)\,,$$
+$$\mathsf{ESS} = \lambda \cdot (m \, n)\,,$$
 donde
 $$ \lambda = \frac{1}{\sum_{t = -\infty}^\infty \rho_t} = \frac{1}{1 + 2 \sum_{t = 1}^\infty  \rho_t}\,.$$
 
 
 #+REVEAL: split
-El término $\rho_t$ denota la *auto-correlación* con diferencia en $t$ unidades de tiempo.
+El término $\rho_t$ denota la *auto-correlación* con rezago en $t$ unidades de tiempo.
 
 #+REVEAL: split
 ~Definición (autocorrelación)~: La autocovarianza y autocorrelación de una serie temporal *estacionaria* $\{Y_t : t = 0, \ldots\}$ están definidas (respectivamente) como
@@ -762,13 +798,13 @@ cuando observamos $\hat \rho_{2 t} + \hat \rho_{2 t + 1} < 0$ para dos retrasos
 sucesivos.
 #+END_NOTES
 
-Si denotamos por $T$ el *tiempo de paro*, el estimador para el número efectivo de
-simulaciones es
-$$\hat N_{\mathsf{eff}} = \frac{m \, n}{1 + 2 \sum_{t = 1}^T \hat  \rho_t}\,.$$
+Si denotamos por $T$ el *tiempo de paro* (el máximo número de rezagos que podemos
+considerar), el estimador para el número efectivo de simulaciones es
+$$\widehat{\mathsf{ESS}} = \frac{m \, n}{1 + 2 \sum_{t = 1}^T \hat \rho_t}\,.$$
 
 #+REVEAL: split
 El ~tamaño efectivo de simulaciones~ nos ayuda a monitorear lo siguiente. Si las
-simulaciones fueran independientes $N_{\textsf{eff}}$ sería el número total de
+simulaciones fueran independientes $\mathsf{ESS}$ sería el número total de
 simulaciones; sin embargo, las simulaciones de MCMC suelen estar
 correlacionadas, de modo que cada iteración de MCMC es menos informativa que si
 fueran independientes.
@@ -807,7 +843,7 @@ autocorrelación:
     sigma = ess_basic(muestras.cantantes$sigma)/nrow(muestras.cantantes),
     accept = mean(muestras.cantantes$V1))
 #+end_src
-#+caption: Fracción $N_\mathsf{eff}/nm$ para la simulación de la posterior los cantantes de ópera. 
+#+caption: Fracción $\mathsf{ESS}/nm$ y tasas de aceptación para la simulación de la posterior los cantantes de ópera. 
 #+RESULTS:
 #+begin_src org
      mu   sigma  accept 
@@ -830,7 +866,7 @@ autocorrelación:
     sigma = ess_basic(muestras.cantantes$sigma)/nrow(muestras.cantantes),
     accept = mean(muestras.cantantes$V1))
 #+end_src
-#+caption: Fracción $N_\mathsf{eff}/nm$ para la simulación (calibrada) de la posterior los cantantes de ópera. 
+#+caption: Fracción $\mathsf{ESS}/nm$ y tasas de aceptación para la simulación (calibrada) de la posterior los cantantes de ópera. 
 #+RESULTS:
 #+begin_src org
      mu   sigma  accept 
@@ -846,6 +882,45 @@ autocorrelación:
 #+caption: Perfil de correlación para la simulación calibrada. 
 #+RESULTS:
 [[file:../images/autocorrelacion-metropolishastings-rechazo.jpeg]]
+
+** Relación con error Monte Carlo
+
+Conocer el número efectivo de simulaciones nos permite calcular el error
+estándar de una aproximación Monte Carlo por medio de expresiones como
+\begin{align}
+\mathsf{SE}({\pi}(f)) \approx \left(  \frac{\hat{\mathbb{V}}_\pi(f)}{\widehat{\mathsf{ESS}}} \right)^{\frac12}\,.
+\end{align}
+
+#+BEGIN_NOTES
+citet:Geyer2002 menciona que realizar estimaciones puntuales sin medidas de
+incertidumbre es el /deber/ ser de un analista/estadístico. Esto es,
+independientemente de si la técnica es Bayesiana o frecuentista. El artículo de
+[[citet:Flegal2008]] también discute la importancia de reportar errores estándar.
+#+END_NOTES
+
+
+** Adelgazamiento de cadenas
+
+El método de simulación por medio de cadenas de Markov es computacionalmente
+intensivo. Sin embargo, los estimadores de varianza pueden ser muy volátiles
+(debido a altas correlaciones entre muestras). Adelgazar la cadena tiene como
+objetivo buscar quedarse con muestras de ~alta calidad~ para realizar estimaciones
+Monte Carlo. Se puede utilizar el $\mathsf{ESS}$ como una noción de cuántas
+muestras preservar.
+
+
+* Conclusiones
+
+- Ambos estadísticos asumen la existencia de un teorema de límite central Markoviano.
+- En la práctica, las condiciones teóricas para garantizar su existencia
+  ($\mathsf{CLT}$) se necesitan probar caso a caso. Sin embargo, no es común que
+  estos no existan bajo un mecanismo de muestreo tipo Metropolis-Hastings.
+- Existen  otras alternativas  para diagnosticar  un buen  comportamiento de  la
+  cadena de  Markov. Por ejemplo, se  pueden utilizar pruebas de  hipótesis para
+  diferencias en medias con dos pedazos de cadenas.
+- Para casos multivariados se pueden ajustar los análisis univariados por medio
+  de pruebas de hipótesis múltiples con sus ajustes correspondientes (tipo
+  Bonferroni, por nombrar uno).
 
 bibliographystyle:abbrvnat
 bibliography:references.bib
