@@ -9,7 +9,7 @@ theme_set(theme_linedraw(base_size = 25))
 ## Cambia el número de decimales para mostrar
 options(digits = 4)
 ## Problemas con mi consola en Emacs
-options(pillar.subtle = FALSE)
+options(pillar.subtle = FALSE, pillar.width = 75)
 options(rlang_backtrace_on_error = "none")
 options(crayon.enabled = FALSE)
 
@@ -110,6 +110,8 @@ muestras <- modelo$sample(data = data_list,
 
 muestras$cmdstan_diagnose()
 
+muestras
+
 muestras$cmdstan_summary()
 
 ## Ejemplo de código utilizando Rstan
@@ -181,7 +183,7 @@ g2_dispersion <- muestras_dt |>
   mutate(log_tau = log(tau)) |> 
   mcmc_scatter(
   pars = c("theta[1]", "log_tau"),
-  np = nuts_params(stanfit),
+  np = nuts_params(muestras_dt),
   np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)) + 
   sin_lineas+ ylim(-4, 3) +
   ggtitle("Original")
@@ -205,7 +207,6 @@ muestras <- modelo$sample(data        = data_list,
                           adapt_delta = .90)
 
 muestras_dt <- tibble(posterior::as_draws_df(muestras$draws(c("tau", "theta[1]"))))
-stanfit <- rstan::read_stan_csv(muestras$output_files())
 
 g1 <- muestras_dt |> 
    ggplot(aes(x = .iteration, y = log(tau))) + 
@@ -219,13 +220,14 @@ g2_dispersion_90 <- muestras_dt |>
   mutate(log_tau = log(tau)) |> 
   mcmc_scatter(
   pars = c("theta[1]", "log_tau"),
-  np = nuts_params(stanfit),
+  np = nuts_params(muestras_dt),
   np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)) + 
   sin_lineas + ylim(-4, 3) +
   ggtitle("Configuración hmc")
 
 g1 / (g2_dispersion + g2_dispersion_90)
 
+## Cambio de parametrización ---------------------------------------------------
 ruta_ncp <- file.path("modelos/caso-escuelas/modelo-escuelas-ncp.stan")
 modelo_ncp <- cmdstan_model(ruta_ncp, dir = modelos_files)
 
@@ -236,8 +238,7 @@ muestras_ncp <- modelo_ncp$sample(data = data_list,
                           seed=483892929, 
                           refresh=10000)
 
-stanfit_ncp <- rstan::read_stan_csv(muestras_ncp$output_files())
-stanfit_ncp
+print(muestras_ncp, max_rows = 19)
 
 muestras_dt <- tibble(posterior::as_draws_df(muestras_ncp$draws(c("tau", "theta[1]", "theta_tilde[1]"))))
 
@@ -252,7 +253,7 @@ g3 <- muestras_dt |>
   mutate(log_tau = log(tau)) |> 
   mcmc_scatter(
   pars = c("theta_tilde[1]", "log_tau"),
-  np = nuts_params(stanfit_ncp),
+  np = nuts_params(muestras_ncp),
   np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)) + 
   sin_lineas + ylim(-4, 3) +
   ggtitle("Variable auxiliar")
@@ -261,7 +262,7 @@ g3_dispersion <- muestras_dt |>
   mutate(log_tau = log(tau)) |> 
   mcmc_scatter(
   pars = c("theta[1]", "log_tau"),
-  np = nuts_params(stanfit_ncp),
+  np = nuts_params(muestras_ncp),
   np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)) + 
   sin_lineas + ylim(-4, 3) +
   ggtitle("Re-parametrización")
@@ -270,7 +271,7 @@ g3 + g3_dispersion
 
 g2_dispersion + g2_dispersion_90 + g3_dispersion
 
-## Modelos de regularizacion --------------------------------
+## Modelos de regularizacion ---------------------------------------------------
 modelos_files <- "modelos/compilados/regularizacion"
 ruta <- file.path("modelos/regularizacion/modelo-")
 
@@ -301,7 +302,7 @@ tibble(nombre = fct_inorder(c("normal", "laplace", "horseshoe"))) |>
   xlim(-10, 10) + ylim(-10, 10) +
   ylab(expression(theta[2])) + xlab(expression(theta[1]))
 
-## Ejemplo regresion regularizada --------------------------------
+## Ejemplo regresion regularizada ----------------------------------------------
 library(rstanarm)
 library(bayesplot)
 data <- read_csv("datos/diabetes.csv")
@@ -326,7 +327,7 @@ p=dim(data)[2]
 model.normal <- stan_glm(reg_formula, data, family = binomial(link = "logit"))
 
 g1 <- plot(model.normal, "areas", prob = 0.95, prob_outer = 1) +
-  geom_vline(xintercept = 0, lty = 2) + ggtitle("Normal")
+  geom_vline(xintercept = 0, lty = 2) + ggtitle("Normal") + sin_lineas
 
 model.laplace <- stan_glm(reg_formula, data, family = binomial(link = "logit"),
                             prior = laplace())
@@ -334,16 +335,16 @@ model.horseshoe <- stan_glm(reg_formula, data, family = binomial(link = "logit")
                             prior = hs())
 
 g2 <- plot(model.laplace, "areas", prob = 0.95, prob_outer = 1) +
-  geom_vline(xintercept = 0, lty = 2) + ggtitle("Laplace")
+  geom_vline(xintercept = 0, lty = 2) + ggtitle("Laplace") + sin_lineas
 g3 <- plot(model.horseshoe, "areas", prob = 0.95, prob_outer = 1) +
-  geom_vline(xintercept = 0, lty = 2) + ggtitle("Horseshoe")
+  geom_vline(xintercept = 0, lty = 2) + ggtitle("Horseshoe") + sin_lineas
 
 g1 + g2 + g3
 
 mcmc_scatter(model.horseshoe,
            pars = c("pregnancies", "skinthickness"),
            np   = nuts_params(model.horseshoe),
-           alpha = 0.2)
+           alpha = 0.2) + sin_lineas
 
 ## Ejemplo mtcars ------------------------------------
 fit <- stan_glm(
@@ -358,4 +359,61 @@ posterior <- as.array(fit)
 np <- nuts_params(fit)
 
 # mcmc_scatter with divergences highlighted
-mcmc_scatter(posterior, pars = c("wt", "sigma"), np = np, alpha = .3)
+mcmc_scatter(posterior, pars = c("wt", "sigma"), np = np, alpha = .3) + sin_lineas
+
+library("rstanarm")
+x <- seq(-2,2,1)
+y <- c(50, 44, 50, 47, 56)
+sexratio <- tibble(x, y)
+
+fit <- lm(y ~ x, data = sexratio)
+fit |> broom::tidy()
+fit |> broom::glance() |> select(1:5)
+
+g1 <- sexratio |>
+    ggplot(aes(x, y)) +
+    geom_point() +
+    xlab("Medida de atracción") + ylab("Porcentaje de niñas") + sin_lineas
+
+  g2 <- sexratio |>
+    ggplot(aes(x, y)) +
+    geom_point() +
+    geom_smooth(formula = y ~ x, sd = TRUE, method = "lm") + 
+    xlab("Medida de atracción") + ylab("Porcentaje de niñas") + sin_lineas
+
+g1 + g2
+
+fit_post <- stan_glm(y ~ x, data = sexratio,
+                     prior = normal(0, 0.2),
+                     prior_intercept = normal(48.8, 0.5),
+                     refresh = 0)
+prior_summary(fit_post)
+
+print(fit_post)
+
+fit_default <- stan_glm(y ~ x, data = sexratio, refresh = 0)
+prior_summary(fit_default)
+
+gweak <- g1 +
+  geom_abline(data = as_tibble(fit_default) |> mutate(id = 1:n()) |>
+                sample_n(100),
+              aes(slope = x, intercept = `(Intercept)`, group = id),
+              alpha = .2) +
+  geom_abline(data = as_tibble(fit_default) |> pivot_longer(1:3) |>
+                group_by(name) |> summarise(.estimate = mean(value)) |>
+                pivot_wider(values_from = .estimate),
+              aes(slope = x, intercept = `(Intercept)`),
+              linewidth = 2)
+
+ginformative <- g1 +
+  geom_abline(data = as_tibble(fit_post) |> mutate(id = 1:n()) |>
+                sample_n(100),
+              aes(slope = x, intercept = `(Intercept)`, group = id),
+              alpha = .2) +
+  geom_abline(data = as_tibble(fit_post) |> pivot_longer(1:3) |>
+                group_by(name) |> summarise(.estimate = mean(value)) |>
+                pivot_wider(values_from = .estimate),
+              aes(slope = x, intercept = `(Intercept)`),
+              linewidth = 2)
+
+gweak + ginformative

@@ -29,9 +29,8 @@
 #+EXCLUDE_TAGS: toc latex
 #+PROPERTY: header-args:R :session tutorial :exports both :results output org :tangle ../rscripts/04-stan.R :mkdirp yes :dir ../
 
-
 #+BEGIN_NOTES
-*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Introducción a Stan.\\
+*Profesor*: Alfredo Garbuno Iñigo | Primavera, 2023 | Introducción a Stan.\\
 *Objetivo*. Un primer acercamiento a ~Stan~,  sintaxis, manipulación de objetos y visualizaciones sencillas. Además un caso de estudio donde empezaremos a ver ciertos errores en el ajuste de los modelos.\\
 *Lectura recomendada*: Sección 6.2.1 de citep:Johnson2021. 
 #+END_NOTES
@@ -62,6 +61,7 @@
   - [[#formulación-probabilística][Formulación probabilística]]
   - [[#regularización-en-regresión-diabetes][Regularización en regresión (diabetes)]]
   - [[#regularización-en-regresión-carros][Regularización en regresión (carros)]]
+  - [[#regularización-y-previas][Regularización y previas]]
 :END:
 
 #+begin_src R :exports none :results none
@@ -76,7 +76,7 @@
   ## Cambia el número de decimales para mostrar
   options(digits = 4)
   ## Problemas con mi consola en Emacs
-  options(pillar.subtle = FALSE)
+  options(pillar.subtle = FALSE, pillar.width = 75)
   options(rlang_backtrace_on_error = "none")
   options(crayon.enabled = FALSE)
 
@@ -115,6 +115,7 @@ Habíamos visto que los /bayesics/ son los componentes:
 2) Supuestos del proceso generador de  datos. 
 3) Conocimiento previo sobre los componentes que rigen el modelo.
 
+#+REVEAL: split
 Para ~Stan~ tenemos que seguir algo muy similar. Es decir,
 1) Definir el modelo.
 2) Ingestar los datos.
@@ -179,6 +180,7 @@ El código es:
   }
 #+end_src
 
+#+REVEAL: split
 #+caption: Código necesario para interactuar con ~Stan~ desde ~R~.
 #+begin_src R :exports code :results none
   ## Modelo Beta-Binomial --------------------------------------------------------
@@ -515,6 +517,7 @@ resultados de dicha prueba.
                   sigma = c(15, 10, 16, 11, 9, 11, 10, 18))
 #+end_src
 
+#+REVEAL: split
 En este caso se utiliza un modelo normal para los resultados de cada escuela
 \begin{align}
 y_j \sim \mathsf{N}(\theta_j, \sigma_j), \qquad j = 1, \ldots, J\,,
@@ -523,7 +526,7 @@ y_j \sim \mathsf{N}(\theta_j, \sigma_j), \qquad j = 1, \ldots, J\,,
 donde $J = 8$, y $\theta_j$ representa el promedio de los alumnos de escuela que
 no observamos pero del cual tenemos un estimador $y_j$.
 
-
+#+REVEAL: split
 Nota que tenemos $J$ valores distintos para $\theta_j$ y $\sigma_j$. Dado que 
 esperamos que las escuelas provengan de la misma población de escuelas asumimos
 que
@@ -533,10 +536,9 @@ donde $\mu$ representa la media poblacional (el promedio en el sistema escolar)
 y $\tau$ la desviación estándar alrededor de este valor.
 
 
+#+REVEAL: split
 Representamos nuestra incertidumbre en estos dos valores por medio de
-
 $$ \mu \sim \mathsf{N}(0, 5), \qquad \tau \sim \textsf{Half-Cauchy}(0,5)\,, $$
-
 lo cual representa información poco precisa de estos valores poblacionales. 
 
 * Primer modelo en ~Stan~
@@ -551,6 +553,7 @@ y_j \sim \mathsf{N}(\theta_j, \sigma_j), \qquad j = 1, \ldots, J\,.
 \end{gather}
 \end{subequations}
 
+#+REVEAL: split
 #+caption: Código del modelo para el desempeño de las escuelas. 
 #+begin_src stan :tangle ../modelos/caso-escuelas/modelo-escuelas.stan
   data {
@@ -572,12 +575,14 @@ y_j \sim \mathsf{N}(\theta_j, \sigma_j), \qquad j = 1, \ldots, J\,.
 #+end_src
 
 
+#+REVEAL: split
 Nota que ~sigma~ está definida como /parte del conjunto de datos/ que el usuario
 debe de proveer. Aunque es un parámetro en nuestro modelo (verosimilitud) no está
 sujeto al proceso de inferencia. Por otro lado, nota que la declaración no se
 hace de manera componente por componente, sino de forma ~vectorizada~. 
 
 
+#+REVEAL: split
 Una vez escrito nuestro modelo, lo podemos compilar utilizando la librería de
 ~cmdstanr~, que es la interface con ~Stan~ desde ~R~.
 
@@ -587,6 +592,7 @@ Una vez escrito nuestro modelo, lo podemos compilar utilizando la librería de
   modelo <- cmdstan_model(ruta, dir = modelos_files)
 #+end_src
 
+#+REVEAL: split
 Los datos que necesita el bloque ~data~ se pasan como una /lista con nombres/.
 
 #+begin_src R :exports code :results none
@@ -621,7 +627,6 @@ Warning: 1 of 1 chains had an E-BFMI less than 0.2.
 See https://mc-stan.org/misc/warnings for details.
 #+end_src
 
-
 #+REVEAL: split
 El muestreador en automático nos regresa ciertas alertas las cuales podemos
 inspeccionar más a fondo con el siguiente comando:
@@ -632,7 +637,7 @@ inspeccionar más a fondo con el siguiente comando:
 #+caption: Diagnósticos y resumen. 
 #+RESULTS:
 #+begin_src org
-Processing csv files: /var/folders/lk/4hdvzkhx269df8zc5xmkqgwr0000gn/T/RtmpSCHD1Q/modelo-escuelas-202303011234-1-426317.csv
+Processing csv files: /var/folders/lk/4hdvzkhx269df8zc5xmkqgwr0000gn/T/Rtmpjf4eiM/modelo-escuelas-202303100958-1-8df91d.csv
 
 Checking sampler transitions treedepth.
 Treedepth satisfactory for all transitions.
@@ -663,9 +668,30 @@ Notamos que parece ser que tenemos varias transiciones divergentes, algunos
 parámetros tienen una $\hat R$ tienen un valor que excede la referencia de 1.1 (lo veremos más adelante),
 y parece ser que los estadisticos de energía también presentan problemas.
 
-
 #+REVEAL: split
 Podemos inspeccionar el resultado de las simulaciones utilizando:
+#+begin_src R :exports both :results org 
+  muestras
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+ variable   mean median   sd   mad     q5   q95 rhat ess_bulk ess_tail
+ lp__     -11.62 -11.90 8.04 10.77 -24.85  0.36 1.08       13       34
+ mu         3.98   3.40 3.46  3.45  -1.71  9.71 1.06       56      135
+ tau        2.87   1.65 2.96  1.90   0.32  8.93 1.12       10       10
+ theta[1]   5.44   4.01 5.14  4.66  -1.46 14.62 1.10       64      131
+ theta[2]   4.43   3.35 4.78  4.43  -2.63 12.43 1.05       69      209
+ theta[3]   3.44   3.34 5.42  4.29  -4.92 11.38 1.10      102      147
+ theta[4]   4.11   3.40 4.86  4.23  -3.56 11.98 1.11       73      141
+ theta[5]   3.48   3.18 4.44  3.97  -3.88 10.65 1.08       87      176
+ theta[6]   3.67   3.64 4.83  4.30  -4.64 11.10 1.11       92      236
+ theta[7]   5.44   4.14 4.88  4.21  -1.22 13.57 1.10       58       93
+
+ # showing 10 of 11 rows (change via 'max_rows' argument or 'cmdstanr_max_rows' option)
+#+end_src
+
+#+REVEAL: split
 #+begin_src R :exports both :results org
   muestras$cmdstan_summary()
 #+end_src
@@ -675,29 +701,29 @@ Podemos inspeccionar el resultado de las simulaciones utilizando:
 Inference for Stan model: modelo_escuelas_model
 1 chains: each with iter=(700); warmup=(0); thin=(1); 700 iterations saved.
 
-Warmup took 0.028 seconds
-Sampling took 0.045 seconds
+Warmup took 0.031 seconds
+Sampling took 0.048 seconds
 
                  Mean     MCSE   StdDev       5%    50%    95%    N_Eff  N_Eff/s    R_hat
 
-lp__              -12      2.0      8.0      -25    -12   0.36       16      365      1.1
-accept_stat__    0.76  1.1e-01  3.7e-01  4.6e-16   0.98   1.00  1.1e+01  2.3e+02  1.1e+00
+lp__              -12      2.0      8.0      -25    -12   0.36       16      342      1.1
+accept_stat__    0.76  1.1e-01  3.7e-01  4.6e-16   0.98   1.00  1.1e+01  2.2e+02  1.1e+00
 stepsize__      0.086      nan  2.8e-17  8.6e-02  0.086  0.086      nan      nan      nan
-treedepth__       3.9  4.1e-01  1.5e+00  1.0e+00    4.0    6.0  1.3e+01  2.9e+02  1.1e+00
-n_leapfrog__       28  4.2e+00  2.3e+01  3.0e+00     19     63  3.0e+01  6.6e+02  1.1e+00
-divergent__     0.076  6.0e-02  2.6e-01  0.0e+00   0.00    1.0  1.9e+01  4.3e+02  1.1e+00
-energy__           17  2.0e+00  8.5e+00  4.0e+00     17     30  1.7e+01  3.9e+02  1.1e+00
+treedepth__       3.9  4.1e-01  1.5e+00  1.0e+00    4.0    6.0  1.3e+01  2.7e+02  1.1e+00
+n_leapfrog__       28  4.2e+00  2.3e+01  3.0e+00     19     63  3.0e+01  6.2e+02  1.1e+00
+divergent__     0.076  6.0e-02  2.6e-01  0.0e+00   0.00    1.0  1.9e+01  4.0e+02  1.1e+00
+energy__           17  2.0e+00  8.5e+00  4.0e+00     17     30  1.7e+01  3.6e+02  1.1e+00
 
-mu                4.0     0.47      3.5     -1.7    3.4    9.7       55     1226      1.0
-tau               2.9     0.55      3.0     0.32    1.7    8.9       30      657      1.1
-theta[1]          5.4     0.60      5.1     -1.6    4.0     15       74     1642      1.1
-theta[2]          4.4     0.56      4.8     -2.6    3.4     12       72     1599      1.0
-theta[3]          3.4     0.47      5.4     -5.1    3.3     11      130     2894      1.0
-theta[4]          4.1     0.54      4.9     -3.6    3.4     12       82     1829      1.0
-theta[5]          3.5     0.46      4.4     -4.1    3.2     11       92     2048      1.0
-theta[6]          3.7     0.49      4.8     -4.7    3.6     11       99     2194     1.00
-theta[7]          5.4     0.59      4.9     -1.2    4.2     14       68     1516      1.1
-theta[8]          4.5     0.53      4.9     -3.0    3.6     12       85     1888      1.0
+mu                4.0     0.47      3.5     -1.7    3.4    9.7       55     1149      1.0
+tau               2.9     0.55      3.0     0.32    1.7    8.9       30      616      1.1
+theta[1]          5.4     0.60      5.1     -1.6    4.0     15       74     1540      1.1
+theta[2]          4.4     0.56      4.8     -2.6    3.4     12       72     1499      1.0
+theta[3]          3.4     0.47      5.4     -5.1    3.3     11      130     2713      1.0
+theta[4]          4.1     0.54      4.9     -3.6    3.4     12       82     1715      1.0
+theta[5]          3.5     0.46      4.4     -4.1    3.2     11       92     1920      1.0
+theta[6]          3.7     0.49      4.8     -4.7    3.6     11       99     2057     1.00
+theta[7]          5.4     0.59      4.9     -1.2    4.2     14       68     1421      1.1
+theta[8]          4.5     0.53      4.9     -3.0    3.6     12       85     1770      1.0
 
 Samples were drawn using hmc with nuts.
 For each parameter, N_Eff is a crude measure of effective sample size,
@@ -796,6 +822,7 @@ seríamos capaces de diagnosticar estos problemas.
 [[file:../images/escuelas-media-acumulada.jpeg]]
 
 
+#+REVEAL: split
 Utilizar gráficos de dispersión bivariados nos ayuda a identificar mejor el
 problema. En color salmón apuntamos las muestras con transiciones /divergentes/
 (mas adelante lo explicaremos).
@@ -878,6 +905,7 @@ Warning: 94 of 5000 (2.0%) transitions ended with a divergence.
 See https://mc-stan.org/misc/warnings for details.
 #+end_src
 
+#+REVEAL: split
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/escuelas-traceplot-cadenalarga.jpeg :exports results :results output graphics file
   muestras_dt <- tibble(posterior::as_draws_df(muestras$draws(c("tau", "theta[1]"))))
@@ -906,7 +934,7 @@ siguiente gráfica.
     mutate(log_tau = log(tau)) |> 
     mcmc_scatter(
     pars = c("theta[1]", "log_tau"),
-    np = nuts_params(stanfit),
+    np = nuts_params(muestras_dt),
     np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)) + 
     sin_lineas+ ylim(-4, 3) +
     ggtitle("Original")
@@ -948,10 +976,10 @@ segura de la distribución.
 #+end_src
 
 
+#+REVEAL: split
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/escuelas-diagnosticos-noparam.jpeg  :exports results :results output graphics file
   muestras_dt <- tibble(posterior::as_draws_df(muestras$draws(c("tau", "theta[1]"))))
-  stanfit <- rstan::read_stan_csv(muestras$output_files())
 
   g1 <- muestras_dt |> 
      ggplot(aes(x = .iteration, y = log(tau))) + 
@@ -965,7 +993,7 @@ segura de la distribución.
     mutate(log_tau = log(tau)) |> 
     mcmc_scatter(
     pars = c("theta[1]", "log_tau"),
-    np = nuts_params(stanfit),
+    np = nuts_params(muestras_dt),
     np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)) + 
     sin_lineas + ylim(-4, 3) +
     ggtitle("Configuración hmc")
@@ -983,6 +1011,7 @@ punto. Seguimos teniendo problemas y no hay garantías que nuestra simulación
 y nuestros estimadores Monte Carlo no estén sesgados.
 
 
+#+REVEAL: split
 Esta situación es muy común en /modelos jerárquicos/. El cual hemos definido como
 \begin{subequations}
 \begin{gather}
@@ -993,6 +1022,7 @@ y_j \sim \mathsf{N}(\theta_j, \sigma_j),  \qquad j = 1, \ldots, J\,.
 \end{gather}
 \end{subequations}
 
+#+REVEAL: split
 El problema es la geometría de la distribución posterior. La ventaja es que
 existe una solución sencilla para hacer el problema de muestreo mas
 sencillo. Esto es al escribir el modelo en términos de una variable auxiliar:
@@ -1006,6 +1036,7 @@ y_j \sim \mathsf{N}(\theta_j, \sigma_j), \qquad j = 1, \ldots, J\,.
 \end{gather}
 \end{subequations}
 
+#+REVEAL: split
 El modelo en ~Stan~ es muy parecido. La nomenclatura que se utiliza es: *modelo
 centrado* para el primero, y para la reparametrización presentada en la
 ecuación de arriba nos referimos a un *modelo no centrado*. 
@@ -1046,6 +1077,7 @@ vectorizada.
 #+END_NOTES
 
 
+#+REVEAL: split
 Igual que antes lo necesitamos compilar para hacerlo un objeto ejecutable desde
 ~R~.
 
@@ -1056,6 +1088,7 @@ Igual que antes lo necesitamos compilar para hacerlo un objeto ejecutable desde
 #+end_src
 
 
+#+REVEAL: split
 Muestreamos de la posterior 
 
 #+begin_src R :exports both :results org
@@ -1126,7 +1159,6 @@ comportamiento (del cual ya teníamos indicios por los diagnósticos del modelo)
 #+RESULTS:
 [[file:../images/escuelas-traceplot-ncp.jpeg]]
 
-
 #+REVEAL: split
 Si regresamos a los gráficos de dispersión para verificar que se hayan resuelto los
 problemas observamos lo siguiente: 
@@ -1179,10 +1211,12 @@ Otro caso de uso bastante común y con el cual /podrían/ estar altamente famili
 \begin{align}
 \hat \theta = \underset{\theta}{\arg \min} \, \mathcal{J}(y, f_\theta(x))\,.
 \end{align}
+#+REVEAL: split
 El problema de optimización está usualmente ~mal formulado~ en el sentido de que pequeñas perturbaciones en el conjunto de datos utilizado para /entrenar/ lleva a soluciones radicalmente distintas. En este contexto se busca ~regularizar~ el problema utilizando una función que permita restringir la solución y de esta manera tener soluciones ~estables~. Esto lo formulamos como 
 \begin{align}
 \hat \theta_R = \underset{\theta}{\arg \min} \,\left( \mathcal{J}(y, f_\theta(x)) + R(\theta) \right)\,.
 \end{align}
+#+REVEAL: split
 Esto es bastante usual en la solución de problemas inversos (citep:Tarantola2005,Kaipio2005) y la estimación de modelos predictivos por medio de Ridge o Lasso (citep:Hastie2009c). Por ejemplo, se pueden considerar regularizadores  como  penalizaciones en *norma 2* (=Ridge=, $\|\theta\|_2^2 =  \sum (\theta_i)^2$ ) o *norma 1* (=Lasso=, $\|\theta\|_1 = \sum |\theta_i|$ ).
 
 ** Formulación probabilística 
@@ -1192,6 +1226,7 @@ En términos probabilísticos esto correspondería a plantear un modelo
 \pi(\theta | y ) \propto \exp \left(  - \mathcal{J}(y, f_\theta(x))  \right) \, \exp \left(- R(\theta)  \right)\,.
 \end{align}
 
+#+REVEAL: split
 Por ejemplo, considerar ~regresión Ridge~ implica considerar un modelo =Gaussiano=
 para la =verosimilitud= y un modelo Gaussiano para la =previa=.
 
@@ -1301,6 +1336,7 @@ Veamos lo siguiente para comparar los distintos modelos probabilísticos (Normal
 #+RESULTS:
 [[file:../images/comparacion-regularizacion-diabetes.jpeg]]
 
+#+REVEAL: split
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/dispersion-regularizacion.jpeg :exports results :results output graphics file
   mcmc_scatter(model.horseshoe,
@@ -1336,6 +1372,147 @@ Notemos como el modelo tiene dos zonas de alta probabilidad.
 #+caption: Efecto de regularización en dos parámetros de un modelo. 
 #+RESULTS:
 [[file:../images/dispersion-mtcars.jpeg]]
+
+** Regularización y previas
+
+#+begin_src R :exports code :results none
+
+  library("rstanarm")
+  x <- seq(-2,2,1)
+  y <- c(50, 44, 50, 47, 56)
+  sexratio <- tibble(x, y)
+
+#+end_src
+
+#+begin_src R :exports both :results org 
+  fit <- lm(y ~ x, data = sexratio)
+  fit |> broom::tidy()
+  fit |> broom::glance() |> select(1:5)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+# A tibble: 2 × 5
+  term        estimate std.error statistic  p.value
+  <chr>          <dbl>     <dbl>     <dbl>    <dbl>
+1 (Intercept)    49.4       1.94     25.4  0.000134
+2 x               1.50      1.37      1.09 0.355
+# A tibble: 1 × 5
+  r.squared adj.r.squared sigma statistic p.value
+      <dbl>         <dbl> <dbl>     <dbl>   <dbl>
+1     0.284        0.0455  4.35      1.19   0.355
+#+end_src
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/beauty-sex-ratio-lm.jpeg :exports results :results output graphics file
+
+  g1 <- sexratio |>
+    ggplot(aes(x, y)) +
+    geom_point() +
+    xlab("Medida de atracción") + ylab("Porcentaje de niñas") + sin_lineas
+
+  g2 <- sexratio |>
+    ggplot(aes(x, y)) +
+    geom_point() +
+    geom_smooth(formula = y ~ x, sd = TRUE, method = "lm") + 
+    xlab("Medida de atracción") + ylab("Porcentaje de niñas") + sin_lineas
+
+g1 + g2
+
+#+end_src
+
+#+RESULTS:
+[[file:../images/beauty-sex-ratio-lm.jpeg]]
+
+#+begin_src R :exports both :results org 
+  fit_post <- stan_glm(y ~ x, data = sexratio,
+                       prior = normal(0, 0.2),
+                       prior_intercept = normal(48.8, 0.5),
+                       refresh = 0)
+  prior_summary(fit_post)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+Priors for model 'fit_post' 
+------
+Intercept (after predictors centered)
+ ~ normal(location = 49, scale = 0.5)
+
+Coefficients
+ ~ normal(location = 0, scale = 0.2)
+
+Auxiliary (sigma)
+  Specified prior:
+    ~ exponential(rate = 1)
+  Adjusted prior:
+    ~ exponential(rate = 0.22)
+------
+See help('prior_summary.stanreg') for more details
+#+end_src
+
+
+#+begin_src R :exports both :results org 
+  print(fit_post)
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+stan_glm
+ family:       gaussian [identity]
+ formula:      y ~ x
+ observations: 5
+ predictors:   2
+------
+            Median MAD_SD
+(Intercept) 48.8    0.5  
+x            0.0    0.2  
+
+Auxiliary parameter(s):
+      Median MAD_SD
+sigma 4.3    1.3   
+
+------
+,* For help interpreting the printed output see ?print.stanreg
+,* For info on the priors used see ?prior_summary.stanreg
+#+end_src
+
+
+#+begin_src R :exports code :results none
+  fit_default <- stan_glm(y ~ x, data = sexratio, refresh = 0)
+  prior_summary(fit_default)
+#+end_src
+
+#+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
+#+begin_src R :file images/beauty-sex-posterior-analysis.jpeg :exports results :results output graphics file
+  gweak <- g1 +
+    geom_abline(data = as_tibble(fit_default) |> mutate(id = 1:n()) |>
+                  sample_n(100),
+                aes(slope = x, intercept = `(Intercept)`, group = id),
+                alpha = .2) +
+    geom_abline(data = as_tibble(fit_default) |> pivot_longer(1:3) |>
+                  group_by(name) |> summarise(.estimate = mean(value)) |>
+                  pivot_wider(values_from = .estimate),
+                aes(slope = x, intercept = `(Intercept)`),
+                linewidth = 2)
+
+  ginformative <- g1 +
+    geom_abline(data = as_tibble(fit_post) |> mutate(id = 1:n()) |>
+                  sample_n(100),
+                aes(slope = x, intercept = `(Intercept)`, group = id),
+                alpha = .2) +
+    geom_abline(data = as_tibble(fit_post) |> pivot_longer(1:3) |>
+                  group_by(name) |> summarise(.estimate = mean(value)) |>
+                  pivot_wider(values_from = .estimate),
+                aes(slope = x, intercept = `(Intercept)`),
+                linewidth = 2)
+
+  gweak + ginformative
+#+end_src
+#+caption: Incorporar información en la previa permite regularizar el problema.
+#+RESULTS:
+[[file:../images/beauty-sex-posterior-analysis.jpeg]]
+
 
 # * Referencias                                                         :latex:
 
