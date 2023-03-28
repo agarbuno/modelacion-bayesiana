@@ -183,7 +183,7 @@ g2_dispersion <- muestras_dt |>
   mutate(log_tau = log(tau)) |> 
   mcmc_scatter(
   pars = c("theta[1]", "log_tau"),
-  np = nuts_params(muestras_dt),
+  np = nuts_params(muestras),
   np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)) + 
   sin_lineas+ ylim(-4, 3) +
   ggtitle("Original")
@@ -220,7 +220,7 @@ g2_dispersion_90 <- muestras_dt |>
   mutate(log_tau = log(tau)) |> 
   mcmc_scatter(
   pars = c("theta[1]", "log_tau"),
-  np = nuts_params(muestras_dt),
+  np = nuts_params(muestras),
   np_style = scatter_style_np(div_color = "salmon", div_alpha = 0.8)) + 
   sin_lineas + ylim(-4, 3) +
   ggtitle("Configuración hmc")
