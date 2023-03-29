@@ -108,7 +108,7 @@ una distribución de probabilidad de interés $\pi(\cdot)$. En el contexto
 bayesiano $\pi(\cdot)$ denota la distribución (previa o posterior) para un
 problema de inferencia, donde queremos reportar resúmenes
 \begin{align}
-\pi(f) = \mathbb{E}[f(\theta)] = \int_{\Theta} f(\theta) \, \pi(\theta | y) \, \text{d}\theta\,.
+\pi(f | y) = \mathbb{E}[f(\theta) | y] = \int_{\Theta} f(\theta) \, \pi(\theta | y) \, \text{d}\theta\,.
 \end{align}
 
 #+BEGIN_NOTES
@@ -119,7 +119,7 @@ computacionales~.
 - Los ~datos~ con los que contamos (o podemos contar), $y$.
 - Nuestra ~abstracción del modelo generativo~, $\pi(y|\theta)$.
 - Nuestra matematización de nuestro ~conocimiento sobre el problema~, $\pi(\theta)$.
-- Los ~resúmenes~ que reportaremos, $f(\theta)$ ó $f(\hat y)$.
+- Los ~resúmenes~ que reportaremos, $f(\theta)$ ó $f(\tilde y)$.
 - El ~mecanismo computacional~ para resolver integrales,  $\int_\Theta \, \cdot \, \pi(\theta|y) \, \text{d}\theta$. 
 #+END_NOTES
 
@@ -256,7 +256,6 @@ Dado que nuestro objetivo es modelo el ~número de reclamos atendidos~ lo natura
 
 
 El modelo ~poisson~ es el candidato natural para este modelo. El cual tiene una función de masa de probabilidad igual a
-
 \begin{align}
 \mathbb{P}(X = k | \lambda) = \frac{\lambda^k e^{-\lambda}}{k!}\,,
 \end{align}
@@ -422,13 +421,11 @@ Poisson. Así que necesitamos buscar qué distribución es la adecuada para nues
 problema (ver Sección 17.2 de citep:Gelman2014a). Una variable aleatoria
 ~Binomial Negativa~ es la sugerida donde la función de masa de probabilidad está
 definida por
-
 \begin{align}
 \mathbb{P}(Y = k | \alpha, \beta) = {k + \alpha -1 \choose \alpha - 1 } \left( \frac{\beta}{\beta+1} \right)^\alpha \left( \frac{1}{\beta+1} \right)^k\,,
 \end{align}
 
 donde $Y|\alpha, \beta \sim \mathsf{NegBinom}(\alpha, \beta)$ y cuyos estadísticos básicos están definidos como
-
 \begin{align}
 \mathbb{E}[Y] = \frac{\alpha}{\beta}, \qquad \mathbb{V}(Y) = \frac{\alpha}{\beta^2}(\beta+1)\,.
 \end{align}
@@ -436,13 +433,11 @@ donde $Y|\alpha, \beta \sim \mathsf{NegBinom}(\alpha, \beta)$ y cuyos estadísti
 Lo cual es informativo, pero poco útil para generar un poco de intuición. Asi
 que optamos por una segunda ~parametrización~ [[https://mc-stan.org/docs/2_29/functions-reference/nbalt.html][(Neg-Binom)]] la cual tiene como masa de
 probabilidad
-
 \begin{align}
 \mathbb{P}(Y = k | \mu, \phi) = {k + \phi -1 \choose k } \left( \frac{\mu}{\mu + \phi} \right)^k \left( \frac{\phi}{\mu + \phi} \right)^\phi\,,
 \end{align}
 
 donde $Y|\mu, \phi \sim \mathsf{NegBinom}(\mu, \phi)$ y cuyos estadísticos básicos están definidos como
-
 \begin{align}
 \mathbb{E}[Y] = \mu, \qquad \mathbb{V}(Y) = \mu + \frac{\mu^2}{\phi}\,,
 \end{align}
@@ -802,8 +797,7 @@ distancias distintas. En [[fig:golf-datos]] se muestran los datos disponibles.
 ** Modelo logístico 
 
 Un primer intento es modelar la probabilidad de éxito a través de una regresión
-logística.
-
+logística
 \begin{subequations}
 \begin{gather}
 p_j =  \text{logit}^{-1}(a + b x_j)\,,\\
@@ -812,7 +806,6 @@ y_j \sim \mathsf{Binomial}\left(n_j,p_j\right)\,,
 \end{subequations}
 
 para cada $j = 1, \ldots, J$. Esto es equivalente a
-
 \begin{align}
 \log \left(  \frac{p_j}{ 1 - p_j}\right) = a + b \, x_j\,.
 \end{align}
@@ -1046,7 +1039,6 @@ Supongamos que la distancia del centro de la pelota al centro del hoyo es $x.$
 Idealmente ésta es la trayectoria que el golfista tendría que ejecutar. Sin
 embargo, el tiro puede ser inexacto y denotamos por $\theta$ el ángulo del tiro
 realizado. El tiro es exitoso cuando el angulo de tiro satisface
-
 \begin{align}
 |\theta| < \tan^{-1}\left(\frac{R - r}{x}\right)\,.
 \end{align}
@@ -1064,7 +1056,6 @@ pelota y el centro del hoyo. ¿Cómo cambiaría nuestra condición de éxito si
 suponemos que la distancia que viaja la pelota es la registrada?
 
 Para nuestro problema, la condición de éxito es
-
 \begin{align}
 |\theta| < \tan^{-1}\left( \frac{3.3}{x} \right)\,.
 \end{align}
@@ -1098,7 +1089,6 @@ suposición de que los jugadores en promedio tirarán en la dirección correcta,
 sin embargo puede haber diversos factores que afectarán este resultado.
 
 Siguiendo esta distribución, la probabilidad de éxito se calcula como 
-
 \begin{align}
 \mathbb{P}\left\{\,  |\theta| <  \tan^{-1}\left( \frac{R - r}{x} \right)\right\} = 2 \, \Phi\left[ \frac{\tan^{-1}((R - r)/x)}{\sigma}\right] - 1\,,
 \end{align}
@@ -1169,7 +1159,6 @@ Notamos que los tiros en general tienen un buen comportamiento. Posiblemente
 valores de tiros con una desviación de $60^\circ$ dan lugar a tiros que no
 tienen sentido. Este punto lo veremos más adelante en caso de que tengamos que
 refinar. Por el momento, el modelo queda como sigue
-
 \begin{align}
 p_j & =  2 \, \Phi\left( \frac{\tan^{-1}((R - r)/x_j)}{\sigma}\right) - 1\,,\\
 y_j &\sim \mathsf{Binomial}\left(n_j, p_j\right)\,, 
