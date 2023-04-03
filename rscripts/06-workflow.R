@@ -7,7 +7,7 @@ library(scales)
 theme_set(theme_linedraw(base_size = 25))
 
 ## Cambia el número de decimales para mostrar
-options(digits = 4)
+options(digits = 4, , pillar.width = 75)
 ## Problemas con mi consola en Emacs
 options(pillar.subtle = FALSE)
 options(rlang_backtrace_on_error = "none")
@@ -113,7 +113,7 @@ data_list <- list(N = nrow(reclamos), y = reclamos$atendidos)
 previa <- modelo$sample(data = list(N = 0, y = c()), refresh = 0)
 posterior <- modelo$sample(data = data_list, refresh = 500, seed = 108727)
 
-posterior$summary()
+posterior$summary() |> print(n = 5, width = 70)
 
 reclamos |>
   summarise(promedio = mean(atendidos),
@@ -148,7 +148,7 @@ data_list <- list(N = nrow(reclamos),
                   gamma_beta  = previa.params$beta)
 posterior <- modelo$sample(data = data_list, refresh = 500, seed = 108727)
 
-posterior$summary() |> print(n = 15)
+posterior$summary() |> print(n = 15, width = 75)
 
 mcmc_hist(posterior$draws(),
           regex_pars = "lambda",
@@ -191,7 +191,7 @@ ajustar_modelo <- function(modelo, datos, iter_sampling = 1000, iter_warmup = 10
 data_list <- c(datos, list("J" = nrow(datos)))
 ajuste <- ajustar_modelo(modelo, data_list)
 
-ajuste$summary() |> as.data.frame()
+ajuste$summary() |> print(width = 75 )
 
 muestras <- tibble(posterior::as_draws_df(ajuste$draws(c("a", "b"))))
 muestras |>
@@ -203,9 +203,10 @@ muestras |>
   scale_color_viridis_d(option = 'plasma')+ sin_lineas
 
 params_map <- modelo$optimize(data = data_list, seed = 108)
+
 params_map <- params_map$summary() |>
   pivot_wider(values_from = estimate, names_from = variable)
-params_map |> as.data.frame()
+params_map
 
 muestras |> 
   ggplot(aes(x = a, y = b)) + 
@@ -247,7 +248,7 @@ g_logistico
 
 radios <- tibble(pelota = (1.68/2 * 2.54) |> round(1), 
                   hoyo  = (4.25/2 * 2.54) |> round(1))
-radios |> as.data.frame()
+radios
 
 tibble(x = seq(10, 1500, 1)) |> 
   mutate(theta = (180 / pi) * atan(3.3 / x)) |> 
@@ -299,7 +300,7 @@ ruta <- file.path("modelos/golf/modelo-angulo.stan")
 modelo <- cmdstan_model(ruta, dir = modelos_files)
 
 ajuste <- ajustar_modelo(modelo, data_list)
-ajuste$summary() |> as.data.frame()
+ajuste$summary() |> print(width = 75)
 
 muestras <- tibble(posterior::as_draws_df(ajuste$draws(c("sigma", "sigma_degrees"))))
 

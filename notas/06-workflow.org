@@ -37,8 +37,8 @@
  bayesiano. Estableceremos las bases para continuar nuestro proceso de
  aprendizaje a temas que se requerirá estudiar con mayor cuidado para navegar el
  camino de un modelado iterativo. \\
-*Lectura recomendada*: El Capítulo 9 de citep:Martin2021 muestra un caso del
- proceso iterativo de modelado bayesiano. El artículo citep:Gelman2020 busca
+*Lectura recomendada*: El Capítulo 9 de citet:Martin2021 muestra un caso del
+ proceso iterativo de modelado bayesiano. El artículo de citet:Gelman2020 busca
  explorar los diversos componentes del proceso de construcción de modelos en los
  cuales profundizaremos en esta segunda parte del curso.
 #+END_NOTES
@@ -206,7 +206,7 @@ de /tweets/ por reclamaciones de manera diaria.
 La variable de interés es el número de mensajes atendidos diario (~atendidos~) y
 nos concentraremos en el periodo de Octubre y Noviembre del 2017. 
 
-#+begin_src R :exports code :results org
+#+begin_src R :exports both :results org
    reclamos |> print(n = 3)
 #+end_src
 
@@ -259,7 +259,6 @@ El modelo ~poisson~ es el candidato natural para este modelo. El cual tiene una 
 \begin{align}
 \mathbb{P}(X = k | \lambda) = \frac{\lambda^k e^{-\lambda}}{k!}\,,
 \end{align}
-
 cuando $X |\lambda \sim \mathsf{Poisson}(\lambda)$ con $\lambda >0$. 
 
 Dada nuestra ignorancia sobre el problema escogemos una distribución previa para
@@ -424,7 +423,6 @@ definida por
 \begin{align}
 \mathbb{P}(Y = k | \alpha, \beta) = {k + \alpha -1 \choose \alpha - 1 } \left( \frac{\beta}{\beta+1} \right)^\alpha \left( \frac{1}{\beta+1} \right)^k\,,
 \end{align}
-
 donde $Y|\alpha, \beta \sim \mathsf{NegBinom}(\alpha, \beta)$ y cuyos estadísticos básicos están definidos como
 \begin{align}
 \mathbb{E}[Y] = \frac{\alpha}{\beta}, \qquad \mathbb{V}(Y) = \frac{\alpha}{\beta^2}(\beta+1)\,.
@@ -436,12 +434,10 @@ probabilidad
 \begin{align}
 \mathbb{P}(Y = k | \mu, \phi) = {k + \phi -1 \choose k } \left( \frac{\mu}{\mu + \phi} \right)^k \left( \frac{\phi}{\mu + \phi} \right)^\phi\,,
 \end{align}
-
 donde $Y|\mu, \phi \sim \mathsf{NegBinom}(\mu, \phi)$ y cuyos estadísticos básicos están definidos como
 \begin{align}
 \mathbb{E}[Y] = \mu, \qquad \mathbb{V}(Y) = \mu + \frac{\mu^2}{\phi}\,,
 \end{align}
-
 donde $\mu>0$ es el número esperado de casos y $\phi >0$ controla el factor
 adicional de dispersión de la ~binomial negativa~. Al parámetro $\phi$ le llamamos
 precisión del modelo. Si $\phi$ es pequeño entonces el modelo tiene que
@@ -1092,7 +1088,6 @@ Siguiendo esta distribución, la probabilidad de éxito se calcula como
 \begin{align}
 \mathbb{P}\left\{\,  |\theta| <  \tan^{-1}\left( \frac{R - r}{x} \right)\right\} = 2 \, \Phi\left[ \frac{\tan^{-1}((R - r)/x)}{\sigma}\right] - 1\,,
 \end{align}
-
 donde $\Phi$ es la función de acumulación de una Normal estándar.
 
 El parámetro $\sigma$ controla la desviación de los tiros en línea recta. Por lo
