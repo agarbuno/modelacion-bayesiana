@@ -167,11 +167,9 @@ complex tools before truly /understanding the need/.  ---citet:Martin2021.
 
 #+REVEAL: split
 #+caption: Tomada de [[https://twitter.com/bayesdose][@BayesDose]], Generable. 
-
-
-#+attr_html: :width 700 :align center
+#+attr_html: :width 1200 :align center
+#+attr_latex: :width .95\linewidth
 file:../images/workflow.jpeg
-
 
 
 * Ejemplo: datos de conteo
@@ -203,6 +201,7 @@ de /tweets/ por reclamaciones de manera diaria.
     ungroup() 
 #+end_src
 
+#+REVEAL: split
 La variable de interés es el número de mensajes atendidos diario (~atendidos~) y
 nos concentraremos en el periodo de Octubre y Noviembre del 2017. 
 
@@ -222,6 +221,7 @@ nos concentraremos en el periodo de Octubre y Noviembre del 2017.
 # ℹ Use `print(n = ...)` to see more rows
 #+end_src
 
+#+REVEAL: split
 #+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/reclamos-histograma.jpeg :exports results :results output graphics file
   reclamos |>
@@ -232,12 +232,12 @@ nos concentraremos en el periodo de Octubre y Noviembre del 2017.
 #+RESULTS:
 [[file:../images/reclamos-histograma.jpeg]]
 
+#+REVEAL: split
 Donde vemos que el número promedio de reclamos es el siguiente. 
 
 #+begin_src R :exports results :results org
   reclamos |>
     summarise(promedio = mean(atendidos)) 
-
 #+end_src
 
 #+RESULTS:
@@ -254,7 +254,7 @@ Dado que nuestro objetivo es modelo el ~número de reclamos atendidos~ lo natura
 - ~Binomial~: el número de éxitos que suceden con una tasa $\theta$ dentro de una colección de $n$ observaciones.
 - ~Poisson~: el número de eventos que suceden con una tasa de ocurrencia $\lambda$.
 
-
+#+REVEAL: split
 El modelo ~poisson~ es el candidato natural para este modelo. El cual tiene una función de masa de probabilidad igual a
 \begin{align}
 \mathbb{P}(X = k | \lambda) = \frac{\lambda^k e^{-\lambda}}{k!}\,,
@@ -266,6 +266,7 @@ $\lambda$ como una $\mathsf{Gamma}(100,2)$ que es una distribución inicial ~poc
 informativa~. En promedio con esta distribución esperamos 50 reclamos atendidos
 por twitter al día con una dispersión de 25 reclamos.
 
+#+REVEAL: split
 El modelo lo escribimos como sigue:
 
 #+begin_src stan :eval never :tangle ../modelos/reclamaciones/modelo-poisson.stan
@@ -273,11 +274,9 @@ El modelo lo escribimos como sigue:
     int N;
     int y[N];
   }
-
   parameters {
     real<lower=0> lambda; 
   }
-
   model {
     lambda ~ gamma(100, 2);
     y ~ poisson(lambda);
@@ -290,6 +289,7 @@ El modelo lo escribimos como sigue:
   modelo <- cmdstan_model(ruta, dir = modelos_files)
 #+end_src
  
+#+REVEAL: split
 Lo utilizamos para muestrear de la previa y la posterior
 
 #+begin_src R :exports code :results none
@@ -302,6 +302,7 @@ Lo utilizamos para muestrear de la previa y la posterior
 Nota que para muestrear de la previa utilizamos un ~bloque de datos vacío~. 
 #+END_NOTES
 
+#+REVEAL: split
 Podemos extraer resúmenes como sigue
 
 #+begin_src R :exports results :results org
@@ -317,6 +318,7 @@ Podemos extraer resúmenes como sigue
 2 lambda      54.9    54.9 0.396 0.399    54.2    55.5  1.00    1451.    1855.
 #+end_src
 
+#+REVEAL: split
 Y finalmente podemos crear histogramas para comparar la distribución previa contra la posterior sobre el parámetro de interés, ver [[fig:poisson-lambda]].
 
 #+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
@@ -337,6 +339,7 @@ Y finalmente podemos crear histogramas para comparar la distribución previa con
 #+RESULTS:
 [[file:../images/reclamos-poisson-media.jpeg]]
 
+#+REVEAL: split
 También podemos obtener histogramas de la distribución predictiva (previa y
 posterior) para comparar las inferencias sobre ~observables~ bajo nuestro modelo, ver [[fig:poisson-preds]]. 
 
@@ -356,6 +359,7 @@ posterior) para comparar las inferencias sobre ~observables~ bajo nuestro modelo
 #+RESULTS:
 [[file:../images/reclamos-poisson-predictiva.jpeg]]
 
+#+REVEAL: split
 Finalmente, hacemos una comparación con el histograma de los datos. 
 
 #+HEADER: :width 900 :height 400 :R-dev-args bg="transparent"
@@ -415,6 +419,7 @@ Calculemos la media y varianza de nuestro datos:
 1     54.9    1230.
 #+end_src
 
+#+REVEAL: split
 Claramente no podremos modelar la variabilidad de nuestros datos con un modelo
 Poisson. Así que necesitamos buscar qué distribución es la adecuada para nuestro
 problema (ver Sección 17.2 de citep:Gelman2014a). Una variable aleatoria
@@ -428,7 +433,8 @@ donde $Y|\alpha, \beta \sim \mathsf{NegBinom}(\alpha, \beta)$ y cuyos estadísti
 \mathbb{E}[Y] = \frac{\alpha}{\beta}, \qquad \mathbb{V}(Y) = \frac{\alpha}{\beta^2}(\beta+1)\,.
 \end{align}
 
-Lo cual es informativo, pero poco útil para generar un poco de intuición. Asi
+#+REVEAL: split
+Lo cual es informativo, pero /poco útil/ para generar un poco de intuición. Asi
 que optamos por una segunda ~parametrización~ [[https://mc-stan.org/docs/2_29/functions-reference/nbalt.html][(Neg-Binom)]] la cual tiene como masa de
 probabilidad
 \begin{align}
@@ -454,6 +460,7 @@ conteo. Es por esto que también a una binomial negativa se le conoce como
 ~Poisson-Gamma~ citep:Mcelreath2020.
 #+END_NOTES
 
+#+REVEAL: split
 Escribimos el modelo donde igual que antes utilizamos una distribución previa
 sobre el parámetro adicional poco informativa.  En este momento lo que queremos
 es probar si podemos ajustar este modelo a nuestros datos.
@@ -463,24 +470,21 @@ es probar si podemos ajustar este modelo a nuestros datos.
     int N;
     int y[N];
   }
-
   parameters {
     real<lower=0> lambda;
     real<lower=0> phi; 
   }
-
   model {
     lambda ~ normal(50, 10);
     phi    ~ gamma(1, 1); 
     y      ~ neg_binomial_2(lambda, phi);
   }
-
   generated quantities {
     int y_tilde = neg_binomial_2_rng(lambda, phi); 
   }
 #+end_src
 
-
+#+REVEAL: split
 #+begin_src R :exports code :results none
   modelos_files <- "modelos/compilados/reclamaciones"
   ruta <- file.path("modelos/reclamaciones/modelo-negbinom.stan")
@@ -493,11 +497,13 @@ es probar si podemos ajustar este modelo a nuestros datos.
   posterior <- modelo$sample(data = data_list, refresh = 500, seed = 108727)
 #+end_src
 
+#+REVEAL: split
 Vemos algunas alertas en el ajuste de la posterior. Las cuales podemos explorar
 mejor utilizando la opción ~refresh~ del muestreador. Con esto vemor que las
 alertas suceden en el periodo de calentamiento del muestreador. Podemos ver los
 resúmenes y ver que efectivamente parece no haber problemas con el ajuste. 
 
+#+REVEAL: split
 #+begin_src R :exports results :results org
   posterior$summary() |> print(n = 5, width = 70)
 #+end_src
@@ -525,7 +531,8 @@ inicializaciones del modelo.  Al tener un modelo previo normal truncado para
 $\lambda$ es natural pensar que podemos asumir una distribución para $\log
 \lambda$ como alternativa.
 
-Es buen momento para refinar la distribución previa de los demás parámetros (en
+#+REVEAL: split
+Es buen momento para ~refinar la distribución previa~ de los demás parámetros (en
 este caso $\phi$).
 
 #+begin_src R :exports none :results none
@@ -552,14 +559,12 @@ de probabilidad) la previa.
       return deltas;
     }
   }
-
   transformed data {
     vector[2] y_guess = [log(9), log(0.5)]';//Valores iniciales
     vector[2] theta = [1.5, 15]';           //Cotas del intervalo
     vector[2] y;
     real x_r[0];
     int x_i[0];
-
     // Encuentra los parametros de la Gamma para satisfacer que
     // con 1% de probabilidad estemos en el intervalo [0.5, 20]
     y = algebra_solver(tail_delta, y_guess, theta, x_r, x_i);
@@ -567,13 +572,13 @@ de probabilidad) la previa.
     print("alpha = ", exp(y[1]));
     print("beta = ", exp(y[2]));
   }
-
   generated quantities {
     real alpha = exp(y[1]);
     real beta = exp(y[2]);
   }
 #+end_src
 
+#+REVEAL: split
 #+begin_src R :exports none :results none
   modelos_files <- "modelos/compilados/reclamaciones"
   ruta <- file.path("modelos/reclamaciones/elicita-gamma.stan")
@@ -584,7 +589,6 @@ de probabilidad) la previa.
   solucion <- modelo$sample(iter = 1, iter_warmup = 0,
                             chains = 1, fixed_param = TRUE)
   previa.params <- solucion$draws(format = "df")
-  previa.params
 #+end_src
 #+caption: Resultados de la elicitación. 
 #+RESULTS:
@@ -595,10 +599,6 @@ Chain 1 alpha = 5.61803
 Chain 1 beta = 0.904107 
 Chain 1 Iteration: 1 / 1 [100%]  (Sampling) 
 Chain 1 finished in 0.0 seconds.
-# A draws_df: 1 iterations, 1 chains, and 2 variables
-  alpha beta
-1   5.6  0.9
-# ... hidden reserved variables {'.chain', '.iteration', '.draw'}
 #+end_src
 
 ** Modelo jerárquico
@@ -609,6 +609,7 @@ explicado (dos modas aparentes en el histograma). ~Una solución~ posible es
 considerar distintos grupos dentro de la población de reclamos y modelar lso
 reclamos de manear jerárquica de acuerdo a la aerolínea.
 
+#+REVEAL: split
 #+begin_src R :exports results :results org
   reclamos |>
     group_by(compania) |>
@@ -631,6 +632,7 @@ reclamos de manear jerárquica de acuerdo a la aerolínea.
 6 AirAsiaSupport      41.6    1718. 0.968       1.03
 #+end_src
 
+#+REVEAL: split
 Vemos que las aerolíneas tienen descriptivos distintos entre ellas. Asi que
 optaremos por un modelo que utilice una estructura por niveles.
 
@@ -642,18 +644,15 @@ optaremos por un modelo que utilice una estructura por niveles.
     real<lower=0> gamma_alpha;
     real<lower=0> gamma_beta;
   }
-
   parameters {
     real log_lambda[6];
     real<lower=0> phi[6]; 
   }
-
   model {
     log_lambda ~ normal(4, 0.5);
     phi    ~ gamma(gamma_alpha, gamma_beta); 
     y      ~ neg_binomial_2_log(log_lambda[compania], phi[compania]);
   }
-
   generated quantities {
     int y_tilde[6];
     for (ii in 1:6){
@@ -663,6 +662,7 @@ optaremos por un modelo que utilice una estructura por niveles.
 #+end_src
 
 
+#+REVEAL: split
 #+begin_src R :exports code :results none
   modelos_files <- "modelos/compilados/reclamaciones"
   ruta <- file.path("modelos/reclamaciones/modelo-negbinom-jerarquico.stan")
@@ -678,6 +678,7 @@ optaremos por un modelo que utilice una estructura por niveles.
   posterior <- modelo$sample(data = data_list, refresh = 500, seed = 108727)
 #+end_src
 
+#+REVEAL: split
 El modelo parece ajustar bien y podemos explorar los diagnósticos. 
 
 #+begin_src R :exports results :results org
@@ -709,6 +710,7 @@ El modelo parece ajustar bien y podemos explorar los diagnósticos.
 # ℹ Use `print(n = ...)` to see more rows, and `colnames()` to see all variable names
 #+end_src
 
+#+REVEAL: split
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/reclamos-negbinom-jerar-histogramas.jpeg :exports results :results output graphics file
   mcmc_hist(posterior$draws(),
@@ -719,6 +721,7 @@ El modelo parece ajustar bien y podemos explorar los diagnósticos.
 #+RESULTS:
 [[file:../images/reclamos-negbinom-jerar-histogramas.jpeg]]
 
+#+REVEAL: split
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/reclamos-negbinom-jerar-histogramas-precision.jpeg :exports results :results output graphics file
   mcmc_hist(posterior$draws(),
@@ -729,6 +732,7 @@ El modelo parece ajustar bien y podemos explorar los diagnósticos.
 [[file:../images/reclamos-negbinom-jerar-histogramas-precision.jpeg]]
 
 
+#+REVEAL: split
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/reclamos-negbinom-jerar-predictivas.jpeg :exports results :results output graphics file
   mcmc_hist(posterior$draws(),
@@ -794,18 +798,18 @@ distancias distintas. En [[fig:golf-datos]] se muestran los datos disponibles.
 
 Un primer intento es modelar la probabilidad de éxito a través de una regresión
 logística
-\begin{subequations}
+# \begin{subequations}
 \begin{gather}
 p_j =  \text{logit}^{-1}(a + b x_j)\,,\\
 y_j \sim \mathsf{Binomial}\left(n_j,p_j\right)\,,
 \end{gather}
-\end{subequations}
-
+# \end{subequations}
 para cada $j = 1, \ldots, J$. Esto es equivalente a
 \begin{align}
 \log \left(  \frac{p_j}{ 1 - p_j}\right) = a + b \, x_j\,.
 \end{align}
 
+#+REVEAL: split
 Este modelo lo escribimos en ~Stan~ como sigue
 
 #+caption: Modelo logístico para tasa de éxito de tiros de golf. 
@@ -825,6 +829,7 @@ Este modelo lo escribimos en ~Stan~ como sigue
   }
 #+end_src
 
+#+REVEAL: split
 Notemos que no hemos especificado una distribución inicial explícita para
 nuestros parámetros. Por default ~Stan~ está incorporando una distribución
 *plana* en todo el espacio $(a,b) \in \mathbb{R}^2$. Podríamos debatir si esto
@@ -837,6 +842,7 @@ naturaleza.
   modelo <- cmdstan_model(ruta, dir = modelos_files)
 #+end_src
 
+#+REVEAL: split
 Utilicemos la siguiente función para evitar /overhead/ en el ajuste del modelo. 
 
 #+begin_src R :exports code :results none
@@ -856,6 +862,7 @@ Utilicemos la siguiente función para evitar /overhead/ en el ajuste del modelo.
   ajuste <- ajustar_modelo(modelo, data_list)
 #+end_src
 
+#+REVEAL: split
 A pesar de los problemas en la semillas iniciales parece ser que no hay problema en muestrear del modelo posterior. 
 
 #+begin_src R :exports results :results org
@@ -875,6 +882,7 @@ A pesar de los problemas en la semillas iniciales parece ser que no hay problema
 # ℹ Use `colnames()` to see all variable names
 #+end_src
 
+#+REVEAL: split
 Podemos explorar las trayectorias marginales en [[fig:golf-traceplot]] . Todo indica que el ajuste está bien y no hay problemas aparentes con el modelo. 
 
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
@@ -893,7 +901,8 @@ Podemos explorar las trayectorias marginales en [[fig:golf-traceplot]] . Todo in
 #+RESULTS:
 [[file:../images/golf-trayectorias-logistico.jpeg]]
 
-/Fun fact/: ¿cómo exploraron en la tarea podemos extraer los puntos que maximizan la distribución posterior?
+#+REVEAL: split
+/Fun fact/: ¿cómo explorarían extraer los puntos que maximizan la distribución posterior?
 
 #+begin_src R :exports code :results none
   params_map <- modelo$optimize(data = data_list, seed = 108)
@@ -913,6 +922,7 @@ Podemos explorar las trayectorias marginales en [[fig:golf-traceplot]] . Todo in
 1 -3020. -0.00838  2.23
 #+end_src
 
+#+REVEAL: split
 Podríamos explorar un gráfico de dispersión para visualizar la correlación
 posterior de nuestros parámetros y ubicar el valor que maximiza la
 pseudo-posterior, [[fig:golf-dispersion]].
@@ -931,7 +941,7 @@ pseudo-posterior, [[fig:golf-dispersion]].
 #+RESULTS:
 [[file:../images/golf-logistico-dispersion.jpeg]]
 
-
+#+REVEAL: split
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/golf-logistico-predictivo.jpeg :exports results :results output graphics file
   logit <- qlogis
@@ -976,6 +986,7 @@ regresión calculada entre las muestras de la posterior obtenidas. La región
 sombreada corresponde a la banda del $99\%$ de credibilidad calculada a partir
 del mismo conjunto de muestras.
 
+#+REVEAL: split
 El modelo es razonable, en el sentido de que los parámetros tienen los valores
 que esperaríamos. La pendiente del modelo de regresión logística es negativa, lo
 cual interpretamos como la falta de precisión del tirador mientras mas alejado
@@ -995,6 +1006,7 @@ El problema es considerablemente complicado conceptualmente (citep:Penner2002)
 si consideramos todas las fuentes de variación: ángulo de tiro, potencia de
 tiro, declive en /greens/ y así sucesivamente.
 
+#+REVEAL: split
 Los supuestos que criticaremos son los siguientes. Seguiremos haciendo la
 simplificación de superficie plana, pero consideramos dos parámetros para el
 tiro con distintas condiciones de éxito:
@@ -1002,6 +1014,7 @@ tiro con distintas condiciones de éxito:
 1. El ángulo del tiro.
 2. La velocidad con la que la pelota llega (o no llega) al hoyo.
 
+#+REVEAL: split
 Los radios de una pelota de golf y el hoyo (en centímetros) son de
 #+begin_src R :exports results :results org
   radios <- tibble(pelota = (1.68/2 * 2.54) |> round(1), 
@@ -1017,6 +1030,7 @@ Los radios de una pelota de golf y el hoyo (en centímetros) son de
 1    2.1   5.4
 #+end_src
 
+#+REVEAL: split
 Supondremos por el momento que los /greens/ de golf (áreas cerca del hoyo) 
 son perfectamente planos (lo cual no es cierto, pero refinaremos después),
 de modo que el éxito depende de:
@@ -1031,7 +1045,7 @@ tenemos disponibles.
 
 ** Angulo de tiro
 
-Supongamos que la distancia del centro de la pelota al centro del hoyo es $x.$
+Supongamos que la distancia del centro de la pelota al centro del hoyo es $x$.
 Idealmente ésta es la trayectoria que el golfista tendría que ejecutar. Sin
 embargo, el tiro puede ser inexacto y denotamos por $\theta$ el ángulo del tiro
 realizado. El tiro es exitoso cuando el angulo de tiro satisface
@@ -1039,6 +1053,7 @@ realizado. El tiro es exitoso cuando el angulo de tiro satisface
 |\theta| < \tan^{-1}\left(\frac{R - r}{x}\right)\,.
 \end{align}
 
+#+REVEAL: split
 Incorporamos un esquema de esta situación en [[fig:golf-esquema]].
 
 #+caption: Esquema de tiro y condiciones para un tiro exitoso.
@@ -1046,11 +1061,13 @@ Incorporamos un esquema de esta situación en [[fig:golf-esquema]].
 #+HEADER: :width 700
 file:../images/tiro-golf.jpeg
 
+#+REVEAL: split
 *Observación*: Aqui hemos hecho un supuesto importante. La ~distancia reportada~ en
 los datos, la cual hemos denotado por $x$, es la distancia entre el centro de la
 pelota y el centro del hoyo. ¿Cómo cambiaría nuestra condición de éxito si
 suponemos que la distancia que viaja la pelota es la registrada?
 
+#+REVEAL: split
 Para nuestro problema, la condición de éxito es
 \begin{align}
 |\theta| < \tan^{-1}\left( \frac{3.3}{x} \right)\,.
@@ -1059,6 +1076,7 @@ Para nuestro problema, la condición de éxito es
 Mejores golfistas tendrán mejor control sobre $\theta$, y conforme
 $x$ es más grande, la probabilidad de tener éxito baja, ver [[fig:golf-desviacion]]
 
+#+REVEAL: split
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/golf-conceptual-pexito.jpeg :exports results :results output graphics file
   tibble(x = seq(10, 1500, 1)) |> 
@@ -1073,28 +1091,33 @@ $x$ es más grande, la probabilidad de tener éxito baja, ver [[fig:golf-desviac
 #+RESULTS:
 [[file:../images/golf-conceptual-pexito.jpeg]]
 
+#+REVEAL: split
 *Observación.* Esta curva puede variar dependiendo del jugador, pero vamos a
 modelar el conjunto de tiros de jugadores profesionales. Suponemos homogeneidad,
 misma que podríamos checar con datos desagregados por jugador. Estos datos
 podrían tener sobre-representación de tiradores malos (pues quizá hacen más
 tiros).
 
+#+REVEAL: split
 Para modelar $\theta$ de manera probabilista asumimos una distribución Gaussiana
 con media 0 y desviación estándar $\sigma$. Este modelo codifica nuestra
 suposición de que los jugadores en promedio tirarán en la dirección correcta,
 sin embargo puede haber diversos factores que afectarán este resultado.
 
+#+REVEAL: split
 Siguiendo esta distribución, la probabilidad de éxito se calcula como 
 \begin{align}
 \mathbb{P}\left\{\,  |\theta| <  \tan^{-1}\left( \frac{R - r}{x} \right)\right\} = 2 \, \Phi\left[ \frac{\tan^{-1}((R - r)/x)}{\sigma}\right] - 1\,,
 \end{align}
 donde $\Phi$ es la función de acumulación de una Normal estándar.
 
+#+REVEAL: split
 El parámetro $\sigma$ controla la desviación de los tiros en línea recta. Por lo
 tanto afecta la probabilidad de éxito conforme mas lejos estemos y más grande
 sea su valor. [[fig:golf-exito]] muestra que si el golfista tiene mejor control
 sobre su tiro, entonces mayor será su resistencia a encontrarse lejos. 
 
+#+REVEAL: split
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/golf-conceptual-pexito-vars.jpeg :exports results :results output graphics file
   curva_angulo <- function(sigma){
@@ -1119,7 +1142,7 @@ sobre su tiro, entonces mayor será su resistencia a encontrarse lejos.
 #+RESULTS:
 [[file:../images/golf-conceptual-pexito-vars.jpeg]]
 
-
+#+REVEAL: split
 Ahora veamos las distintas realizaciones de tiros a 1 metro de distancia bajo
 distintos valores de $\sigma$, [[fig:golf-tiros]]. Nota que estamos /traduciendo/ el impacto que tiene nuestro
 modelo previo en términos de observaciones tangibles del modelo. 
@@ -1150,6 +1173,7 @@ modelo previo en términos de observaciones tangibles del modelo.
 #+RESULTS:
 [[file:../images/golf-conceptual-tiros.jpeg]]
 
+#+REVEAL: split
 Notamos que los tiros en general tienen un buen comportamiento. Posiblemente
 valores de tiros con una desviación de $60^\circ$ dan lugar a tiros que no
 tienen sentido. Este punto lo veremos más adelante en caso de que tengamos que
@@ -1158,7 +1182,6 @@ refinar. Por el momento, el modelo queda como sigue
 p_j & =  2 \, \Phi\left( \frac{\tan^{-1}((R - r)/x_j)}{\sigma}\right) - 1\,,\\
 y_j &\sim \mathsf{Binomial}\left(n_j, p_j\right)\,, 
 \end{align}
-
 para $j = 1, \ldots, J$. 
 
 #+BEGIN_NOTES
@@ -1196,6 +1219,7 @@ El modelo en ~Stan~ queda como se muestra. Nota que utilizamos la función de ac
   }
 #+end_src
 
+#+REVEAL: split
 #+begin_src R :exports both :results org
   data_list$r = radios$pelota
   data_list$R = radios$hoyo
@@ -1234,6 +1258,7 @@ See https://mc-stan.org/misc/warnings for details.
 # ℹ Use `colnames()` to see all variable names
 #+end_src
 
+#+REVEAL: split
 El muestreo del modelo posterior parece no tener problemas. Los diagnósticos se ven bien y las capacidades predictivas dan indicios que se ha podido ajustar un modelo satisfactorio. 
 
 #+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
@@ -1253,6 +1278,7 @@ El muestreo del modelo posterior parece no tener problemas. Los diagnósticos se
 #+RESULTS:
 [[file:../images/golf-angulo-trayectorias.jpeg]]
 
+#+REVEAL: split
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/golf-comparativa-angulo-logistico.jpeg :exports results :results output graphics file
   modelo_angulo <- function(sigma_radianes){
@@ -1296,11 +1322,11 @@ impresionante, basta con observar la dispersión de la probabilidad de éxito ba
 el supuesto normal. Los intervalos de confianza son casi imperceptibles para las
 nuevas observaciones (puntos salmón en el gráfico).
 
+#+REVEAL: split
 Ajustando el modelo a los datos nuevos vemos que parece no haber un buen
 ajuste, [[fig:nuevos-datos]]. Subestimamos las tasa de éxito cuando estamos cerca y sobre-estimamos
 cuando nos encontramos muy lejos.
 
-#+REVEAL: split
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
 #+begin_src R :file images/golf-limitante-datos.jpeg :exports results :results output graphics file
   datos_grande <- read_delim("datos/golf_grande.csv", delim = "\t")
@@ -1843,6 +1869,7 @@ Exploraremos algunas rutas de mejora del modelo.
 * Mensaje
 
 - Es fácil escribir modelos Bayesianos y hacer inferencia.
+- Es sumamente importante incluir conocimiento de dominio.
 - Difícil mantener en producción: limitar el alcance del modelo.
 - Reparametrización, previas informativas.
 - El muestreo podría no escalar.
