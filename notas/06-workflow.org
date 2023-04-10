@@ -1489,14 +1489,14 @@ Nota cómo el cambio que tenemos en nuestro modelo es la composición de dos eve
   }
 #+end_src
 
-#+begin_src R :exports code :results none
+#+begin_src R :exports code :results none :tangle no
   data_new <- list(x = datos$x, n = datos$n, y = datos$y, J = nrow(datos), 
                    r = radios$pelota, R = radios$hoyo, 
                    distance_tolerance = 4.5 * 30.48,# 145,
                    overshot = 30.48)
 #+end_src
 
-#+begin_src R :exports results :results org
+#+begin_src R :exports results :results org :tangle no
   ruta <- file.path("modelos/golf/angulo-fuerza.stan")
   modelo <- cmdstan_model(ruta, dir = modelos_files)
 
@@ -1533,7 +1533,7 @@ sobre los siguientes resúmenes gráficos, [[fig:angulo-ajuste]] y [[fig:angulo-
 #+END_NOTES
 
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
-#+begin_src R :file images/golf-angulo-fuerza-predictivo.jpeg :exports results :results output graphics file
+#+begin_src R :file images/golf-angulo-fuerza-predictivo.jpeg :exports results :results output graphics file :tangle no
   modelo_angulo_fuerza <- function(sigma_radianes, sigma_fuerza){
     x <- seq(0, 1.1 * max(datos$x), length.out = 50)
     R.diff <- radios |> summarise(diff = hoyo - pelota) |> pull(diff)
@@ -1574,7 +1574,7 @@ sobre los siguientes resúmenes gráficos, [[fig:angulo-ajuste]] y [[fig:angulo-
 [[file:../images/golf-angulo-fuerza-predictivo.jpeg]]
 
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
-#+begin_src R :file images/golf-residuales-incertidumbre.jpeg :exports results :results output graphics file
+#+begin_src R :file images/golf-residuales-incertidumbre.jpeg :exports results :results output graphics file :tangle no
   muestras <- tibble(posterior::as_draws_df(ajuste$draws(c("residual"))))
   medias <- muestras |> 
     pivot_longer(cols = starts_with("residual"), names_to = 'parameters', values_to = 'residuals') |> 
@@ -1675,7 +1675,7 @@ flexible. Lo cual especificamos en el bloque de modelo.
 Podríamos ajustar como lo hemos hecho antes, pero en este caso si tenemos
 problemas serios en el ajuste.
 
-#+begin_src R :exports results :results org
+#+begin_src R :exports results :results org :tangle no
   ruta <- file.path("modelos/golf/fuerza-normal-plano.stan")
   modelo <- cmdstan_model(ruta, dir = modelos_files)
 
@@ -1765,7 +1765,7 @@ para $j = 1, \ldots, J$, donde $\sigma^2 = (\sigma^2_{\textsf{obs}}, \sigma^2_\t
 #+end_src
 
 
-#+begin_src R :exports results :results org
+#+begin_src R :exports results :results org :tangle no
   ruta <- file.path("modelos/golf/angulo-fuerza-normal.stan")
   modelo <- cmdstan_model(ruta, dir = modelos_files)
 
@@ -1811,7 +1811,7 @@ Los parámetros estimados los interpretamos como sigue:
   atribuibles a medición del 3 puntos porcentuales.
 
 #+HEADER: :width 800 :height 800 :R-dev-args bg="transparent"
-#+begin_src R :file images/golf-dispersion-modelo.jpeg :exports results :results output graphics file :eval never
+#+begin_src R :file images/golf-dispersion-modelo.jpeg :exports results :results output graphics file :eval never :tangle no
     color_scheme_set("darkgray")
     muestras_sigma <- ajuste$draws(c("sigma_force", "sigma_obs", "sigma_degrees"))
     mcmc_pairs(muestras_sigma, off_diag_fun = "hex", grid_args = list(size = 0))
@@ -1828,7 +1828,7 @@ las nuevas observaciones de Broadie que tienen un número muy grande
 observaciones a distintas distancias.
 
 #+HEADER: :width 900 :height 500 :R-dev-args bg="transparent"
-#+begin_src R :file images/golf-residuales-completo.jpeg :exports results :results output graphics file
+#+begin_src R :file images/golf-residuales-completo.jpeg :exports results :results output graphics file :tangle no
   muestras <- tibble(posterior::as_draws_df(ajuste$draws(c("residual"))))
   medias <- muestras |> 
     pivot_longer(cols = starts_with("residual"), names_to = 'parameters', values_to = 'residuals') |> 
@@ -1855,7 +1855,7 @@ observaciones a distintas distancias.
 #+RESULTS:
 [[file:../images/golf-residuales-completo.jpeg]]
 
-*** Tarea:
+*** Traea:
 :PROPERTIES:
 :reveal_background: #00468b
 :END:
