@@ -772,6 +772,9 @@ de intentos $n_j$ y éxitos $y_j$ sobre los tiros de los jugadores
 profesionales. En total las distancias han sido redondeadas y obtenemos $J = 19$
 distancias distintas. En [[fig:golf-datos]] se muestran los datos disponibles. 
 
+#+begin_src R :exports none :results none
+  ## Aplicación: Datos de golf -----------------------------------------------
+#+end_src
 
 #+Header: :width 900 :height 400 :R-dev-args bg="transparent"
 #+begin_src R :file images/golf-observaciones.jpeg :exports results :results output graphics file

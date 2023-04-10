@@ -7,14 +7,12 @@ functions {
     return deltas;
   }
 }
-
 transformed data {
   vector[2] y_guess = [log(9), log(0.5)]';//Valores iniciales
   vector[2] theta = [1.5, 15]';           //Cotas del intervalo
   vector[2] y;
   real x_r[0];
   int x_i[0];
-
   // Encuentra los parametros de la Gamma para satisfacer que
   // con 1% de probabilidad estemos en el intervalo [0.5, 20]
   y = algebra_solver(tail_delta, y_guess, theta, x_r, x_i);
@@ -22,7 +20,6 @@ transformed data {
   print("alpha = ", exp(y[1]));
   print("beta = ", exp(y[2]));
 }
-
 generated quantities {
   real alpha = exp(y[1]);
   real beta = exp(y[2]);

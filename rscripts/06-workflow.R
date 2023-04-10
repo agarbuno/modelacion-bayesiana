@@ -128,7 +128,6 @@ modelo <- cmdstan_model(ruta, dir = modelos_files)
 solucion <- modelo$sample(iter = 1, iter_warmup = 0,
                           chains = 1, fixed_param = TRUE)
 previa.params <- solucion$draws(format = "df")
-previa.params
 
 reclamos |>
   group_by(compania) |>
@@ -159,6 +158,8 @@ mcmc_hist(posterior$draws(),
 
 mcmc_hist(posterior$draws(),
           regex_pars = "tilde") + sin_lineas
+
+## Aplicación: Datos de golf -----------------------------------------------
 
 datos <- read_delim("datos/golf.csv", delim = " ")
 datos <- datos |> 
