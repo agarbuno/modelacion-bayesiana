@@ -127,8 +127,9 @@ modelo <- cmdstan_model(ruta, dir = modelos_files)
 data.list <- within(list(), {
   N <- 42
   y <- cantantes$estatura_cm
-  })
-posterior <- modelo$sample(append(previa.params, data.list), refresh = 0, seed = 108727)
+})
+posterior <- modelo$sample(append(previa.params, data.list),
+                           refresh = 0, seed = 108727)
 
 modelos_files <- "modelos/compilados/predictivos"
 ruta <- file.path("modelos/predictivos/cantantes-posterior-completo.stan")
@@ -154,9 +155,14 @@ ppc_stat(cantantes$estatura_cm, y_rep, alpha = .8, stat = function(x) quantile(x
 
 ppc_stat_2d(cantantes$estatura_cm, y_rep, alpha = .8, stat = c("mean", "sd")) + sin_lineas
 
-posterior$draws(variables = c("mean_y_tilde", "sd_y_tilde"), format = "df") |>
+posterior$draws(
+  ## Extraigo lo que me interesa 
+            variables = c("mean_y_tilde", "sd_y_tilde"),
+            format = "df") |>
+  ## Calculo indicadoras I{s(muestras) > s(datos)}  
   mutate(indicadora.mean = mean_y_tilde >= mean(cantantes$estatura_cm),
          indicadora.sd   = sd_y_tilde >= sd(cantantes$estatura_cm)) |>
+  ## Calculo estimador Monte Carlo
   summarise(p.value.mean = mean(indicadora.mean),
             p.value.sd   = mean(indicadora.sd))
 

@@ -143,7 +143,7 @@ Usualmente consideramos algún resumen informativo de los datos. Es decir, un re
 Por ejemplo, consideremos el caso de los cantantes de ópera. El modelo asume una distribución previa de la forma
 \begin{gather}
 \mu | \sigma \sim \mathsf{Normal}\left(\mu_0, \frac{\sigma}{\sqrt{n_0}}\right)\,,\\
-\sigma^{-2} \sim \mathsf{Gamma}(a_0, b_0)\,.
+\sigma^{-1} \sim \mathsf{Gamma}(a_0, b_0)\,.
 \end{gather}
 
 #+REVEAL: split
@@ -283,18 +283,14 @@ modelo siguiente genera una simulación del torneo.
     int<lower=0> J;
     array[2] real<lower=0> epsilon; 
   }
-
   generated quantities {
     array[J] real<lower=0> lambda;
     array[J, J] int y;
-    // Generamos las lambdas 
-    for (j in 1:J) lambda[j] = gamma_rng(epsilon[1], epsilon[2]);
-    // Generamos de la predictiva 
     for (i in 1:J) {
       for (j in 1:J) {
-        y[i, j] = poisson_rng(lambda[i]) - poisson_rng(lambda[j]);
-      }
-    }  
+        lambda[j] = gamma_rng(epsilon[1], epsilon[2]);
+        y[i, j]   = poisson_rng(lambda[i]) - poisson_rng(lambda[j]);
+      }}  
   }
 #+end_src
 
@@ -458,8 +454,9 @@ hipotético del mismo tamaño que el conjunto original.
   data.list <- within(list(), {
     N <- 42
     y <- cantantes$estatura_cm
-    })
-  posterior <- modelo$sample(append(previa.params, data.list), refresh = 0, seed = 108727)
+  })
+  posterior <- modelo$sample(append(previa.params, data.list),
+                             refresh = 0, seed = 108727)
 #+end_src
 
 #+RESULTS:
@@ -825,9 +822,14 @@ dispersión aprendida por el modelo.
 
 #+REVEAL: split
 #+begin_src R :exports both :results org
-  posterior$draws(variables = c("mean_y_tilde", "sd_y_tilde"), format = "df") |>
+  posterior$draws(
+    ## Extraigo lo que me interesa 
+              variables = c("mean_y_tilde", "sd_y_tilde"),
+              format = "df") |>
+    ## Calculo indicadoras I{s(muestras) > s(datos)}  
     mutate(indicadora.mean = mean_y_tilde >= mean(cantantes$estatura_cm),
            indicadora.sd   = sd_y_tilde >= sd(cantantes$estatura_cm)) |>
+    ## Calculo estimador Monte Carlo
     summarise(p.value.mean = mean(indicadora.mean),
               p.value.sd   = mean(indicadora.sd))
 #+end_src
