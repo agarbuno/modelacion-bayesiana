@@ -1,6 +1,6 @@
 data {
   int N;
-  real y[N]; 
+  vector[N] y; 
   real mu0;
   real<lower=0> n0;
   real<lower=0> a0;

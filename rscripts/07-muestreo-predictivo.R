@@ -27,6 +27,7 @@ library(posterior)
 library(bayesplot)
 
 bayesplot::bayesplot_theme_set(bayesplot::theme_default())
+options(bayesplot.base_size = 25)
 
 ## Cantantes: Predictiva previa  ---------------------------------------------
 
@@ -131,6 +132,7 @@ data.list <- within(list(), {
 posterior <- modelo$sample(append(previa.params, data.list),
                            refresh = 0, seed = 108727)
 
+set_cmdstan_path("~/.cmdstan/cmdstan")
 modelos_files <- "modelos/compilados/predictivos"
 ruta <- file.path("modelos/predictivos/cantantes-posterior-completo.stan")
 modelo <- cmdstan_model(ruta, dir = modelos_files)
