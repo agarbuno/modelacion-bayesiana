@@ -26,7 +26,7 @@
 #+LATEX_HEADER_EXTRA: \newenvironment{NOTES}{\begin{lrbox}{\mybox}\begin{minipage}{0.95\textwidth}\begin{shaded}}{\end{shaded}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}}
 #+EXPORT_FILE_NAME: ../docs/09-comparacion-modelos.pdf
 :END:
-#+PROPERTY: header-args:R :session comparacion :exports both :results output org :tangle ../rscripts/09-comparacion.R :mkdirp yes :dir ../ :eval never
+#+PROPERTY: header-args:R :session comparacion :exports both :results output org :tangle ../rscripts/09-comparacion.R :mkdirp yes :dir ../ :eval never 
 #+EXCLUDE_TAGS: toc latex
 
 #+BEGIN_NOTES
@@ -65,6 +65,10 @@
   library(cmdstanr)
   library(posterior)
   library(bayesplot)
+
+  bayesplot::bayesplot_theme_set(bayesplot::theme_default())
+  color_scheme_set(scheme = "teal")
+  options(bayesplot.base_size = 25)
 #+end_src
 
 
@@ -92,8 +96,8 @@
 Hemos estudiado usar evaluación y crítica de modelos por medio distribuciones
 predictivas. Esto nos permitió criticar un modelo en aislamiento. Es decir, sólo
 considerando el modelo --la elección de verosimilitud y previa-- que estamos
-utilizando. Por otro lado, en la sección pasada estudiamos mecanismos basados en
-generación de datos sintéticos para evaluar si el modelo está bien implementado.
+utilizando. También hemos estudiado mecanismos basados en generación de datos
+sintéticos para evaluar si la elección de dichos ingredientes son los adecuados.
 
 #+caption: Flujo de trabajo bayesiano. En esta sección nos concentraremos en realizar comparaciones de modelos.
 #+attr_html: :width 900 :align center
@@ -196,7 +200,7 @@ probabilidad es la ~entropía~ de dicha función de probabilidad.  Supongamos
 que tenemos $n$ posibles observaciones, cada una ocurriendo con probabilidad
 $p_i$ entonces la entropía es
 \begin{align}
-H(p) = - \mathbb{E} \log p = - \sum_{i=1}^{n} p_i \log p_i \,.
+H(p) = - \mathbb{E}_p [\log p] = - \sum_{i=1}^{n} p_i \log p_i \,.
 \end{align}
 
 #+REVEAL: split
@@ -273,7 +277,7 @@ poder comparar entre alternativas. Para esto necesitamos calcular
 las log-densidades bajo nuestro modelo bayesiano. Esto es,
 necesitamos calcular ~log-densidad predictiva posterior puntual~ en $\tilde y_i$
 \begin{align}
-\mathsf{lppd}(\tilde y_i) := \log \pi (\tilde y_i | \underline{y}_n)  = \log \int \pi (\tilde y_i | \theta ) \, \pi(\theta | \underline{y}_n ) \, \text{d}\theta \,.
+\mathsf{lppd}(\tilde y_i) := \log  {\color{orange}  \pi (\tilde y_i | \underline{y}_n)}  = \log \int {\color{cyan} \pi (\tilde y_i | \theta )} \, {\color{red} \pi(\theta | \underline{y}_n )} \, \text{d}\theta \,.
 \end{align}
 
 #+REVEAL: split
@@ -286,7 +290,7 @@ Podemos ir mas allá y establecer el cálculo del ~valor esperado de la
 log-densidad predictiva~ en $\tilde y_i$, o mejor aún, en una colección
 de realizaciones
 \begin{align}
-\mathsf{elppd} = \sum \int \pi( \tilde y_i) \log \pi(\tilde y_i | \underline{y}_n) \text{d}\tilde y_i\,,
+\mathsf{elppd} = \sum_i  \int \log {\color{orange} \pi (\tilde y_i | \underline{y}_n)} \pi( \tilde y_i) \text{d}\tilde y_i\,,
 \end{align}
 donde estamos utilizando nuestra distribución predictiva posterior para un
 conjunto de datos nuevo $\tilde y_i$, después de haber observado un conjunto de
@@ -304,15 +308,15 @@ En la expresión anterior estamos haciendo uso de una distribución para datos
 nuevos ($\pi(\tilde y)$) la cual no conocemos. Así que lo que hacemos es calcular un resumen
 de la ~log-densidad predictiva posterior puntual~ evaluada en nuestros datos
 \begin{align}
-\mathsf{lppd}(n) := \sum_{i = 1}^{n} \mathsf{lppd}(y_i) = \sum_{i = 1}^{n} \log \pi (y_i | \underline{y}_n) \,.
+\mathsf{lppd}(n) := \sum_{i = 1}^{n} \mathsf{lppd}(y_i) = \sum_{i = 1}^{n} \log {\color{orange} \pi (y_i | \underline{y}_n)} \,.
 \end{align}
 
 #+REVEAL: split
 Para la cual podemos utilizar un estimador Monte Carlo
 \begin{align}
-\widehat{\mathsf{lppd}}(n) = \sum_{i = 1}^{n} \log \left(\frac{1}{S} \sum_{s = 1}^{S} \pi (y_i | \theta^s) \right)\,,
+\widehat{\mathsf{lppd}}(n) = \sum_{i = 1}^{n} \log  {\color{orange}\left(\frac{1}{S} \sum_{s = 1}^{S} \pi (y_i | \theta^s) \right)}\,,
 \end{align}
-donde $\theta^s \sim \pi(\theta | \underline{y}_n)$ . 
+donde $\theta^s \sim \pi(\theta | \underline{y}_n)$, obtenidas, por ejemplo, de mecanismo de muestreo con cadenas de Markov (~I <3 Stan~).
 
 ** Precuaciones
 :PROPERTIES:
@@ -328,7 +332,7 @@ capacidad de generalización del modelo construido. Usualmente utilizaríamos un
 conjunto de datos distinto o un conjunto de datos que veremos en un futuro
 cercano para evaluar la capacidad predictiva. Pero *bajo el contexto Bayesiano* al
 momento de hacer inferencia sólo podemos considerar un conjunto de datos para el
-ajuste. Además, como hemos mencionado antes *no conocemos* el mecanismo de cómo de
+ajuste. Además, como hemos mencionado antes, *no conocemos* el mecanismo de cómo de
 se generan los datos.
 
 
@@ -343,7 +347,7 @@ Los mecanismos usuales para medir la capacidad predictiva de un modelo son:
 El criterio de información de Akaike es el método tradicional para evaluar la
 capacidad predictiva general del modelo sin tener en consideración un conjunto
 de datos adicional. La métrica penaliza por el número de parámetros
-(citep:Gelman2014c,Akaike1973, ) a través de 
+(citep:Gelman2014c,Akaike1973) a través de 
 \begin{align}
 \widehat{\mathsf{elpd}}_{\mathsf{AIC}} = \log \pi (\underline{y}_n | \hat \theta_{\mathsf{MLE}}) - k\,,
 \end{align}
@@ -379,7 +383,7 @@ p_{\mathsf{DIC}} = 2 \left( \log \pi (\underline{y}_n | \hat \theta_{\mathsf{Bay
 \end{align}
 ó
 \begin{align}
-p_{\mathsf{DIC}} = 2 \mathbb{V}_{\theta|\underline{y}_n}(\log \pi (\underline{y}_n | \theta))\,.
+p_{\mathsf{DIC}} = 2 \, \mathbb{V}_{\theta|\underline{y}_n}\left(\log \pi (\underline{y}_n | \theta)\right)\,.
 \end{align}
 
 #+BEGIN_NOTES
@@ -393,7 +397,7 @@ El criterio de Watanabe-Akaike (WAIC) utiliza la log-densidad predictiva
 posterior puntual ($\mathsf{lppd}$) y utiliza una corrección por el número
 efectivo de parámetros
 \begin{align}
-p_{\mathsf{WAIC}} = \sum_{i = 1}^{n} \mathbb{V}_{\theta | \underline{y}_n}(\log \pi(y_i | \theta))\,,
+p_{\mathsf{WAIC}} = \sum_{i = 1}^{n} \mathbb{V}_{\theta | \underline{y}_n} \Big( \log \pi(y_i | \theta) \Big)\,,
 \end{align}
 por lo que la métrica la calculamos por medio de
 \begin{align}
@@ -446,7 +450,7 @@ La capacidad predictiva con ~LOO-CV~ se calcula como
 donde $\theta^s_{-i} \sim \pi(\theta | y_1, \ldots, y_{i-1}, y_{i+1}, \ldots,  y_n)$.
 
 #+REVEAL: split
-Muestreo por importancia nos permite calcular la capacidad predictiva utilizando
+Muestreo por importancia (¿se acuerdan?) nos permite calcular la capacidad predictiva utilizando
 pesos
 \begin{align}
 w_s = \frac{1}{\pi(y_i | \theta^s)}, \qquad \theta \sim \pi(\theta^s | \underline{y}_n)\,.
@@ -455,6 +459,13 @@ para escribir
 \begin{align}
 \widehat{\mathsf{lppd}}_{\mathsf{IS}} (n) =  \sum_{i= 1}^{n} \log \left(   \sum_{s = 1}^{S}  \bar w_s\,  \pi (y_i | \theta^s)\right), \qquad \bar w_s = \frac{w_s}{\sum_{k= 1}^{S} w_k}\,.
 \end{align}
+
+#+BEGIN_NOTES
+Nota la sutileza de esta estrategia. Estamos utilizando muestras de la
+distribución posterior con todas las observaciones y las reponderamos de tal
+forma que se /convierten/ en muestras de la posterior *sin* la $i\text{-ésima}$
+observación.
+#+END_NOTES
 
 #+REVEAL: split
 Lo que puede suceder es que existan algunos ~pesos mas grandes~ que los demás y
@@ -469,7 +480,7 @@ $k$ un parámetro de forma.
 
 #+REVEAL: split
 Con el método de suavizamiento podemos estimar los parámetros de la distribución
-Pareto (para observación). En particular, el parámetro $k$ es el más
+Pareto (para cada observación). En particular, el parámetro $k$ es el más
 informativo. Pues, nos da una indicación de que tan confiable es la aproximación.
 
 #+REVEAL: split
@@ -478,6 +489,15 @@ distribución con colas pesadas. Como nos interesan los pesos y queremos suaviza
 los más grandes entonces buscamos que $k <0.7$ (esto está bien fundamentado
 teorica y prácticamente, pueden consultar las referencias de citep:Vehtari2021).
 
+#+BEGIN_NOTES
+Se puede entender este procedimiento como una estrategia de censura. El
+procedimiento asume que las observaciones con pesos muy grandes (log-densidades)
+muy pequeñas no son importantes y éstas provienen de una proceso de datos
+contaminado por un mecanismo /poco informativo/. La distribución Pareto
+para ajustar datos con una distribución de ~valores extremos~.
+#+END_NOTES
+
+
 ** Ejemplo: modelo jerárquico
 
 Regresaremos a nuestro ejemplo estrella del curso: los datos de la pruebas
@@ -485,7 +505,6 @@ estandarizadas en las escuelas. Utilizaremos tres modelos posibles:
 1. Modelo de parámetros independientes (/no pooling/).
 2. Modelo de parámetros agrupados (/complete pooling/).
 3. Modelo jerárquico.
-
 
 #+REVEAL: split
  Los datos que utilizaremos son los de citep:Rubin1981.
@@ -527,6 +546,12 @@ y_j \sim \mathsf{N}(\theta_j, \sigma_j)\,,\\
   }
 #+end_src
 
+#+BEGIN_NOTES
+Nuestro código de ~Stan~ incorpora una cantidad que necesitamos para el cálculo de
+nuestros diagnósticos de comparación: la log-verosimilitud.
+#+END_NOTES
+
+
 #+begin_src R :exports none :results none
   modelos_files <- "modelos/compilados/comparacion"
   ruta <- file.path("modelos/comparacion/escuelas-indep.stan")
@@ -540,9 +565,8 @@ Necesitamos tener de nuestras muestras la evaluación de $\log \pi(y_j | \theta^
 #+begin_src R :exports code :results none
   library(loo)
   posterior.indep <- modelo.indep$sample(data.list, refresh = 500)
-  stanfit <- rstan::read_stan_csv(posterior.indep$output_files())
-  log_lik <- extract_log_lik(stanfit, merge_chains = FALSE)
-  r_eff <- relative_eff(exp(log_lik), cores = 2) 
+  log_lik <- posterior.indep$draws("log_lik")
+  r_eff <- relative_eff(posterior.indep$draws("log_lik") |> exp(), cores = 2)
 #+end_src
 
 #+REVEAL: split
@@ -557,9 +581,9 @@ Podemos calcular el ~WAIC~:
 Computed from 4000 by 8 log-likelihood matrix
 
           Estimate  SE
-elpd_waic    -34.2 0.8
-p_waic         4.0 0.2
-waic          68.3 1.6
+elpd_waic    -34.0 0.7
+p_waic         4.0 0.1
+waic          68.0 1.4
 
 8 (100.0%) p_waic estimates greater than 0.4. We recommend trying loo instead. 
 Warning message:
@@ -581,18 +605,18 @@ suavizamiento Pareto otorga mejores diagnósticos de la estimación:
 Computed from 4000 by 8 log-likelihood matrix
 
          Estimate  SE
-elpd_loo    -36.6 0.9
-p_loo         6.4 0.4
-looic        73.1 1.8
+elpd_loo    -36.7 0.6
+p_loo         6.7 0.5
+looic        73.4 1.1
 ------
 Monte Carlo SE of elpd_loo is NA.
 
 Pareto k diagnostic values:
                          Count Pct.    Min. n_eff
-(-Inf, 0.5]   (good)     0       0.0%  <NA>      
- (0.5, 0.7]   (ok)       0       0.0%  <NA>      
-   (0.7, 1]   (bad)      8     100.0%  17        
-   (1, Inf)   (very bad) 0       0.0%  <NA>      
+(-Inf, 0.5]   (good)     0      0.0%   <NA>      
+ (0.5, 0.7]   (ok)       0      0.0%   <NA>      
+   (0.7, 1]   (bad)      7     87.5%   22        
+   (1, Inf)   (very bad) 1     12.5%   7         
 See help('pareto-k-diagnostic') for details.
 Warning message:
 Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.
@@ -611,10 +635,10 @@ Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') fo
 
 #+REVEAL: split
 Ahora probemos un modelo completamente agrupado
-\begin{align}
+\begin{gather}
 y_j \sim \mathsf{N}(\theta, \sigma_j)\,,\\
 \theta \sim \mathsf{N}(\mu, \tau)\,.
-\end{align}
+\end{gather}
 
 #+begin_src stan :tangle ../modelos/comparacion/escuelas-agrup.stan
   data {
@@ -710,9 +734,9 @@ Podemos comparar de manera puntual cada modelo por medio de ~WAIC~
 #+RESULTS:
 #+begin_src org
       elpd_diff se_diff elpd_waic se_elpd_waic p_waic se_p_waic waic  se_waic
-agrup   0.0       0.0   -30.5       1.4          0.5    0.2      61.0   2.9  
-jerar  -0.2       0.2   -30.7       1.5          0.8    0.3      61.4   3.0  
-indep  -3.6       1.1   -34.2       0.8          4.0    0.2      68.3   1.6
+agrup   0.0       0.0   -30.5       1.4          0.5    0.2      60.9   2.8  
+jerar  -0.2       0.2   -30.7       1.4          0.8    0.3      61.3   2.9  
+indep  -3.5       1.3   -34.0       0.7          4.0    0.1      68.0   1.4
 #+end_src
 
 #+REVEAL: split
@@ -730,9 +754,9 @@ O podemos comparar por medio de ~LOO-PSIS~
 #+RESULTS:
 #+begin_src org
       elpd_diff se_diff elpd_loo se_elpd_loo p_loo se_p_loo looic se_looic
-agrup   0.0       0.0   -30.5      1.4         0.5   0.2     61.0   2.9   
-jerar  -0.2       0.2   -30.7      1.5         0.9   0.4     61.5   3.0   
-indep  -6.0       0.9   -36.6      0.9         6.4   0.4     73.1   1.8
+agrup   0.0       0.0   -30.5      1.4         0.5   0.2     60.9   2.8   
+jerar  -0.2       0.2   -30.7      1.4         0.9   0.3     61.4   2.9   
+indep  -6.3       1.4   -36.7      0.6         6.7   0.5     73.4   1.1
 #+end_src
 
 #+REVEAL: split
@@ -767,7 +791,7 @@ provee de mejores diagnósticos en el cómputo de la capacidad predictiva del mo
     geom_linerange(aes(xmax = looic + 2 * se_looic,
                        xmin = looic - 2 * se_looic)) +
     geom_linerange(aes(xmax = looic + 1 * se_looic,
-                       xmin = looic - 1 * se_looic), size = 2) + 
+                        xmin = looic - 1 * se_looic), size = 2) + 
     geom_point(color = "red", size = 3) +
     sin_lineas
 #+end_src
