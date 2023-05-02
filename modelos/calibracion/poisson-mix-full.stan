@@ -11,9 +11,11 @@ parameters {
 
 model {
   for(n in 1:N) {
-    target += log_mix(omega,
+    target += log_mix(
+                      omega,
                       poisson_log_lpmf(y[n] | mu1),
-                      poisson_log_lpmf(y[n] | mu2));
+                      poisson_log_lpmf(y[n] | mu2)
+                      );
   }
   target += normal_lpdf(mu1 | 3, 1);
   target += normal_lpdf(mu2 | 3, 1);

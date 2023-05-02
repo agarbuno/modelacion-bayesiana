@@ -59,6 +59,10 @@
   library(cmdstanr)
   library(posterior)
   library(bayesplot)
+
+  bayesplot::bayesplot_theme_set(bayesplot::theme_default())
+  color_scheme_set(scheme = "teal")
+  options(bayesplot.base_size = 25)
 #+end_src
 
 #+BEGIN_NOTES
@@ -857,7 +861,11 @@ la simulación de datos sintéticos, por lo tanto, no utilizaremos el bloque de
   }
 
   model {
-    target += log_mix(omega, poisson_log_lpmf(y | mu1), poisson_log_lpmf(y | mu2));
+    target += log_mix(
+                      omega,
+                      poisson_log_lpmf(y | mu1),
+                      poisson_log_lpmf(y | mu2)
+                      );
     target += normal_lpdf(mu1 | 3, 1);
     target += normal_lpdf(mu2 | 3, 1);
   }
@@ -1039,9 +1047,11 @@ identifican a cada uno de los componentes.
 
   model {
     for(n in 1:N) {
-      target += log_mix(omega,
+      target += log_mix(
+                        omega,
                         poisson_log_lpmf(y[n] | mu1),
-                        poisson_log_lpmf(y[n] | mu2));
+                        poisson_log_lpmf(y[n] | mu2)
+                        );
     }
     target += normal_lpdf(mu1 | 3, 1);
     target += normal_lpdf(mu2 | 3, 1);
@@ -1328,8 +1338,9 @@ rumbo al final del curso).
 
 #+REVEAL: split
 En el mismo espíritu de diagnósticos de MCMC, ~SBC~ es un mecanismo para evaluar y
-criticar la implementación de un modelo. No nos dice qué modelo tiene sentido
-bajo un conjunto de datos. Esto es justo lo que estudiaremos en la sección siguiente. 
+criticar la implementación de un modelo. No nos dice qué modelo (dentro de un
+conjunto de posibilidades) tiene sentido bajo un conjunto de datos. Esto es
+justo lo que estudiaremos en la sección siguiente.
 
 bibliographystyle:abbrvnat
 bibliography:references.bib

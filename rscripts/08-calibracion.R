@@ -26,6 +26,10 @@ library(cmdstanr)
 library(posterior)
 library(bayesplot)
 
+bayesplot::bayesplot_theme_set(bayesplot::theme_default())
+color_scheme_set(scheme = "teal")
+options(bayesplot.base_size = 25)
+
 ## Modelo conjugado ----------------------------------------------------------
 
 set.seed(108791)

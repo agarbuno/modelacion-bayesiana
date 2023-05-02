@@ -10,7 +10,11 @@ parameters {
 }
 
 model {
-  target += log_mix(omega, poisson_log_lpmf(y | mu1), poisson_log_lpmf(y | mu2));
+  target += log_mix(
+                    omega,
+                    poisson_log_lpmf(y | mu1),
+                    poisson_log_lpmf(y | mu2)
+                    );
   target += normal_lpdf(mu1 | 3, 1);
   target += normal_lpdf(mu2 | 3, 1);
 }
