@@ -31,18 +31,8 @@
 
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2022 | Diagnósticos MCMC.\\
-*Objetivo*. Estudiaremos diagnósticos típicos de métodos de simulación Markoviana
-*(por Metropolis-Hastings o HMC) con el objetivo de poder identificar problemas y
-*posibles soluciones para simulaciones deficientes. \\
-*Lectura recomendada*: Para una revisión de los diagnósticos de MCMC busca la
-*sección 11.4 de citep:Gelman2014a. El Capítulo 3 de citep:Cressie2015 tiene una
-*revisión muy bonita de series de tiempo que es útil para algunos términos que
-*estudiaremos.  El artículo de citet:Roy2019 tiene un breve resumen sobre
-*diagnósticos. Además, se mencionan algunas técnicas modernas de diagnóstico como
-*los métodos basados en los principios de Stein o distancias adecuadas para
-*espacios de probabilidad. El artículo de [[citet:&Flegal2008]] expone las ventajas
-*de considerar diagnósticos del uso de MCMC y la precisión misma de los
-*estimadores asociados.
+*Objetivo*. Estudiaremos diagnósticos típicos de métodos de simulación Markoviana (por Metropolis-Hastings o HMC) con el objetivo de poder identificar problemas y posibles soluciones para simulaciones deficientes. \\
+*Lectura recomendada*: Para una revisión de los diagnósticos de MCMC busca la sección 11.4 de citep:Gelman2014a. El Capítulo 3 de citep:Cressie2015 tiene una revisión muy bonita de series de tiempo que es útil para algunos términos que estudiaremos.  El artículo de citet:Roy2019 tiene un breve resumen sobre diagnósticos. Además, se mencionan algunas técnicas modernas de diagnóstico como los métodos basados en los principios de Stein o distancias adecuadas para espacios de probabilidad. El artículo de [[citet:&Flegal2008]] expone las ventajas de considerar diagnósticos del uso de MCMC y la precisión misma de los estimadores asociados.
 #+END_NOTES
 
 #+begin_src R :exports none :results none
@@ -78,7 +68,7 @@
 - [[#introducción][Introducción]]
 - [[#diagnósticos-generales][Diagnósticos generales]]
   - [[#monitoreo-de-convergencia][Monitoreo de convergencia]]
-    - [[#datos-cantantes-de-ópera][Datos: Cantantes de ópera]]
+    - [[#datos-cantantes-de-ópera][Datos: Cantantes de ópera:]]
   - [[#monitoreo-de-mezcla-dentro-y-entre-cadenas][Monitoreo de mezcla dentro y entre cadenas]]
   - [[#número-efectivo-de-simulaciones][Número efectivo de simulaciones]]
   - [[#relación-con-error-monte-carlo][Relación con error Monte Carlo]]
@@ -291,7 +281,9 @@ proceso estócastico (Markoviano).
 Para contrarrestar la dependencia en los distintos puntos iniciales se descarta 
 parte de la cadena en un periodo inicial (periodo de calentamiento).
 
-*** Datos: Cantantes de ópera
+*** Datos: Cantantes de ópera:
+
+Consideremos nuestro ejemplo sobre los cantantes de ópera.
 
 #+begin_src R :exports code :results none
   ## Datos: cantantes de opera -------------------------------------------------
@@ -372,17 +364,29 @@ Denotamos por $x_i$ la estatura de tenores (cantantas de ópera). Asumimos un mo
     geom_line(alpha = .2) +geom_point(size = 4, alpha = .4) + 
     sin_lineas 
  #+end_src
-#+caption: Cadena de Markov simulando de la posterior como distribución objetivo. 
+#+caption: Cadena de Markov simulando de la posterior como distribución objetivo.
+#+name: fig:scatter-cantantes
  #+RESULTS:
  [[file:../images/cantantes-muestras.jpeg]]
 
-En esta simulación es evidente$^\dagger$ que necesitamos descartar una parte inicial de la simulación.
+En esta simulación es /evidente/ que necesitamos descartar una parte inicial de la
+simulación, ver [[fig:scatter-cantantes]] o [[fig:traceplot-cantantes]].
+
+#+BEGIN_NOTES
+El caso de una variable aleatoria =Gamma= es muy especial. Llamamos a $\theta$ una
+variable aleatoria =Gamma-Inversa=, denotada por $\theta \sim \mathsf{GammaInv}(\alpha, \kappa)$, si
+\begin{align}
+\theta^{-1} =: \phi \sim \mathsf{Gamma}(\alpha, \beta) \,,
+\end{align}
+donde $\beta = 1 / \kappa$.
+#+END_NOTES
+
 
 #+REVEAL: split
-citet:Gelman2014a recomiendan descartar la mitad de las iteraciones de cada una de las cadenas
-que se simularon. Para problemas en dimensiones altas, incluso se podría esperar 
-descartar hasta un $80\%$ de simulaciones (en especial para métodos basados en
-Metropolis-Hastings).
+En la práctica citet:Gelman2014a recomiendan descartar la mitad de las
+iteraciones de cada una de las cadenas que se simulan. Para problemas en
+dimensiones altas, incluso se podría esperar descartar hasta un $80\%$ de
+simulaciones (en especial para métodos basados en Metropolis-Hastings).
 
 #+REVEAL: split
 #+HEADER: :width 1200 :height 400 :R-dev-args bg="transparent"
@@ -406,6 +410,7 @@ Metropolis-Hastings).
      sin_lineas
 #+end_src
 #+caption: Trayectorias con dependencias iniciales.
+#+name: fig:traceplot-cantantes
 #+RESULTS:
 [[file:../images/trayectorias-cantantes.jpeg]]
 

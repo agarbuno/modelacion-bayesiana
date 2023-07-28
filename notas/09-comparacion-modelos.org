@@ -106,10 +106,10 @@ file:../images/workflow.jpeg
 * Comparación de modelos probabilísticos
 
 #+begin_quote
-Even rich models are wrong in the sense that they
-do not fully correspond to the mechanisms in Nature that generated the data,
-but their usefulness can be assessed by evaluating their predictive performance
-or by some other model criticism approach. ---citet:Vehtari2012a. 
+Even rich models are wrong in the sense that they do not fully correspond to the
+mechanisms in Nature that generated the data, but their usefulness can be
+assessed by evaluating their predictive performance or by some other model
+criticism approach. ---citet:Vehtari2012a.
 #+end_quote
 
 En el contexto de modelos probabilísticos tiene sentido preguntarnos no sólo por
