@@ -27,7 +27,7 @@
 #+EXPORT_FILE_NAME: ../docs/04-intro-stan.pdf
 :END:
 #+EXCLUDE_TAGS: toc latex
-#+PROPERTY: header-args:R :session tutorial :exports both :results output org :tangle ../rscripts/04-stan.R :mkdirp yes :dir ../ :eval never
+#+PROPERTY: header-args:R :session tutorial :exports both :results output org :tangle ../rscripts/04-stan.R :mkdirp yes :dir ../  
 
 #+BEGIN_NOTES
 *Profesor*: Alfredo Garbuno Iñigo | Primavera, 2023 | Introducción a Stan.\\
@@ -95,6 +95,10 @@
   library(cmdstanr)
   library(posterior)
   library(bayesplot)
+
+  bayesplot::bayesplot_theme_set(bayesplot::theme_default())
+  color_scheme_set(scheme = "teal")
+  options(bayesplot.base_size = 45)
 
   ## Funciones auxiliares ------------------------------------------------------
   print_file <- function(file) {
@@ -637,7 +641,7 @@ inspeccionar más a fondo con el siguiente comando:
 #+caption: Diagnósticos y resumen. 
 #+RESULTS:
 #+begin_src org
-Processing csv files: /var/folders/lk/4hdvzkhx269df8zc5xmkqgwr0000gn/T/RtmpYFMAm6/modelo-escuelas-202303271945-1-3ab802.csv
+Processing csv files: /var/folders/lk/4hdvzkhx269df8zc5xmkqgwr0000gn/T/Rtmp5LA0na/modelo-escuelas-202307272140-1-95b73e.csv
 
 Checking sampler transitions treedepth.
 Treedepth satisfactory for all transitions.
@@ -701,29 +705,29 @@ Podemos inspeccionar el resultado de las simulaciones utilizando:
 Inference for Stan model: modelo_escuelas_model
 1 chains: each with iter=(700); warmup=(0); thin=(1); 700 iterations saved.
 
-Warmup took 0.029 seconds
-Sampling took 0.042 seconds
+Warmup took 0.032 seconds
+Sampling took 0.046 seconds
 
                  Mean     MCSE   StdDev       5%    50%    95%    N_Eff  N_Eff/s    R_hat
 
-lp__              -12      2.0      8.0      -25    -12   0.36       16      391      1.1
-accept_stat__    0.76  1.1e-01  3.7e-01  4.6e-16   0.98   1.00  1.1e+01  2.5e+02  1.1e+00
+lp__              -12      2.0      8.0      -25    -12   0.36       16      357      1.1
+accept_stat__    0.76  1.1e-01  3.7e-01  4.6e-16   0.98   1.00  1.1e+01  2.3e+02  1.1e+00
 stepsize__      0.086      nan  2.8e-17  8.6e-02  0.086  0.086      nan      nan      nan
-treedepth__       3.9  4.1e-01  1.5e+00  1.0e+00    4.0    6.0  1.3e+01  3.1e+02  1.1e+00
-n_leapfrog__       28  4.2e+00  2.3e+01  3.0e+00     19     63  3.0e+01  7.1e+02  1.1e+00
-divergent__     0.076  6.0e-02  2.6e-01  0.0e+00   0.00    1.0  1.9e+01  4.6e+02  1.1e+00
-energy__           17  2.0e+00  8.5e+00  4.0e+00     17     30  1.7e+01  4.2e+02  1.1e+00
+treedepth__       3.9  4.1e-01  1.5e+00  1.0e+00    4.0    6.0  1.3e+01  2.9e+02  1.1e+00
+n_leapfrog__       28  4.2e+00  2.3e+01  3.0e+00     19     63  3.0e+01  6.4e+02  1.1e+00
+divergent__     0.076  6.0e-02  2.6e-01  0.0e+00   0.00    1.0  1.9e+01  4.2e+02  1.1e+00
+energy__           17  2.0e+00  8.5e+00  4.0e+00     17     30  1.7e+01  3.8e+02  1.1e+00
 
-mu                4.0     0.47      3.5     -1.7    3.4    9.7       55     1313      1.0
-tau               2.9     0.55      3.0     0.32    1.7    8.9       30      704      1.1
-theta[1]          5.4     0.60      5.1     -1.6    4.0     15       74     1759      1.1
-theta[2]          4.4     0.56      4.8     -2.6    3.4     12       72     1713      1.0
-theta[3]          3.4     0.47      5.4     -5.1    3.3     11      130     3100      1.0
-theta[4]          4.1     0.54      4.9     -3.6    3.4     12       82     1960      1.0
-theta[5]          3.5     0.46      4.4     -4.1    3.2     11       92     2194      1.0
-theta[6]          3.7     0.49      4.8     -4.7    3.6     11       99     2351     1.00
-theta[7]          5.4     0.59      4.9     -1.2    4.2     14       68     1624      1.1
-theta[8]          4.5     0.53      4.9     -3.0    3.6     12       85     2023      1.0
+mu                4.0     0.47      3.5     -1.7    3.4    9.7       55     1199      1.0
+tau               2.9     0.55      3.0     0.32    1.7    8.9       30      643      1.1
+theta[1]          5.4     0.60      5.1     -1.6    4.0     15       74     1606      1.1
+theta[2]          4.4     0.56      4.8     -2.6    3.4     12       72     1564      1.0
+theta[3]          3.4     0.47      5.4     -5.1    3.3     11      130     2831      1.0
+theta[4]          4.1     0.54      4.9     -3.6    3.4     12       82     1790      1.0
+theta[5]          3.5     0.46      4.4     -4.1    3.2     11       92     2003      1.0
+theta[6]          3.7     0.49      4.8     -4.7    3.6     11       99     2146     1.00
+theta[7]          5.4     0.59      4.9     -1.2    4.2     14       68     1483      1.1
+theta[8]          4.5     0.53      4.9     -3.0    3.6     12       85     1847      1.0
 
 Samples were drawn using hmc with nuts.
 For each parameter, N_Eff is a crude measure of effective sample size,
@@ -1091,12 +1095,15 @@ Igual que antes lo necesitamos compilar para hacerlo un objeto ejecutable desde
 Muestreamos de la posterior 
 
 #+begin_src R :exports both :results org
-  muestras_ncp <- modelo_ncp$sample(data = data_list, 
-                            chains = 1, 
-                            iter=5000, 
-                            iter_warmup=5000, 
-                            seed=483892929, 
-                            refresh=10000)
+  muestras_ncp <-
+    modelo_ncp$sample(
+                 data = data_list, 
+                 chains = 1, 
+                 iter=5000, 
+                 iter_warmup=5000, 
+                 seed=483892929, 
+                 refresh=10000
+               )
 #+end_src
 
 #+RESULTS:
