@@ -16,7 +16,7 @@
 #+STARTUP: showall
 #+EXCLUDE_TAGS: toc github latex
 
-[[https://github.com/agarbuno/modelacion-bayesiana/actions/workflows/docker.yml/badge.svg]] [[https://img.shields.io/docker/pulls/agarbuno/bayesiana.svg?logo=docker]] [[https://img.shields.io/docker/image-size/agarbuno/bayesiana/notas.svg?logo=docker]] [[https://img.shields.io/github/languages/top/agarbuno/modelacion-bayesiana.svg?logo=r]] [[https://img.shields.io/github/languages/code-size/agarbuno/modelacion-bayesiana.svg?logo=r]] 
+[[https://github.com/agarbuno/modelacion-bayesiana/actions/workflows/docker.yml/badge.svg]] [[https://img.shields.io/docker/pulls/agarbuno/bayesiana.svg?logo=docker]] [[https://img.shields.io/docker/image-size/agarbuno/bayesiana/notas.svg?logo=docker]] [[https://img.shields.io/github/languages/top/agarbuno/modelacion-bayesiana.svg?logo=r]] [[https://img.shields.io/github/languages/code-size/agarbuno/modelacion-bayesiana.svg?logo=r]] [[https://zenodo.org/badge/297467418.svg]]
 
 * Contenido                                                             :toc:
 :PROPERTIES:
